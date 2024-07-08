@@ -7,7 +7,6 @@ error: package `bevy v0.14.0` cannot be built because it requires rustc 1.79.0 o
 rustup update stable
 ```
 
-
 ```rust
 use bevy::prelude::*;
 
