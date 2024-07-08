@@ -1,11 +1,11 @@
-use std::cmp::max;
 use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyA, KeyD};
 use bevy::sprite::MaterialMesh2dBundle;
-use bevy_rapier2d::na::{abs, ComplexField};
-use bevy_rapier2d::prelude::Collider;
+use bevy_rapier2d::na::ComplexField;
+use bevy_rapier2d::prelude::{Collider, NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin};
+
 use crate::environments::simulation_teller::SimulationRunningTeller;
-use crate::Kjøretilstand;
+use crate::{Env, Kjøretilstand, RenderMode, StepFeedback};
 
 pub struct MovingPlankPlugin;
 
@@ -14,14 +14,18 @@ impl MovingPlankPlugin {}
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+            .add_plugins(RapierDebugRenderPlugin::default())
             .add_systems(Startup, spawn_plank)
             .add_systems(Update, (
-                move_plank,
-                print_done_status,
-                // print_score,
-                // print_environment_observations
-            ).run_if(in_state(Kjøretilstand::Kjørende)),
-            );
+                (
+                    move_plank,
+                    // print_done_status,
+                    // print_score,
+                    // print_environment_observations
+                ).run_if(in_state(Kjøretilstand::Kjørende)),
+                (move_plank_and_change_state_to_meny_on_input).run_if(in_state(Kjøretilstand::EttHakk)),
+            ));
     }
 }
 
@@ -76,6 +80,28 @@ fn move_plank(mut query: Query<&mut Transform, With<Plank>>,
     transform.translation.x += delta_x;
 }
 
+// todo En mer "bevy" måte å gjøre ette på er nokk å ha enda en state, som styrer om EttHakk har motatt input eller venter på input
+fn move_plank_and_change_state_to_meny_on_input(mut query: Query<&mut Transform, With<Plank>>,
+                                                keyboard_input: Res<ButtonInput<KeyCode>>,
+                                                mut next_state: ResMut<NextState<Kjøretilstand>>,
+) {
+    let mut delta_x = 0.0;
+    let mut input_exist = false;
+    if (keyboard_input.pressed(KeyA)) {
+        delta_x -= PLANK_MOVEMENT_SPEED;
+        input_exist = true;
+    }
+    if (keyboard_input.pressed(KeyD)) {
+        delta_x += PLANK_MOVEMENT_SPEED;
+        input_exist = true;
+    }
+    let mut transform = query.single_mut();
+    transform.translation.x += delta_x;
+
+    if input_exist {
+        next_state.set(Kjøretilstand::Meny);
+    }
+}
 fn get_observations(query: Query<&Transform, With<Plank>>) -> MovingPlankObservation {
     let translation = query.get_single().unwrap().translation.clone();
     return MovingPlankObservation { x: translation.x, y: translation.y };
@@ -114,7 +140,14 @@ fn check_if_done(query: Query<&Transform, With<Plank>>, window: Query<&Window>) 
 }
 
 
-fn print_done_status(query: Query<&Transform, With<Plank>>, window: Query<&Window>)  {
+fn print_done_status(query: Query<&Transform, With<Plank>>, window: Query<&Window>) {
     println!("Er done ? : {}", check_if_done(query, window));
 }
+
+fn reset_plank(mut query: Query<&mut Transform, With<Plank>>) {
+    let mut translation = query.single_mut().translation;
+    translation.x = 0.0;
+    translation.y = 0.0;
+}
+
 
