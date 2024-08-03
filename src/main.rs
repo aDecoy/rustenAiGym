@@ -2,14 +2,25 @@ use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP};
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+
 use crate::environments::moving_plank::MovingPlankPlugin;
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
 
+struct Environment {
+    app: App,
+    value: usize,
+}
+
 fn main() {
-    println!("Starting up AI GYM");
-    App::new()
+    // println!("Starting up AI GYM");
+    // let mut env = Environment {
+    //     app: App::new(),
+    //     value: 3,
+    // };
+    let mut app = App::new();
+    app
         .add_plugins(DefaultPlugins.set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
                 backends: Some(Backends::DX12),
@@ -18,18 +29,19 @@ fn main() {
             synchronous_pipeline_compilation: false,
         }))
         // .add_plugins(DefaultPlugins)
-
         .insert_state(Kjøretilstand::Kjørende)
+        .insert_state(EttHakkState::DISABLED)
         .add_systems(Startup, (
             setup_camera,
-        )).add_systems(Update, (
+        ))
+        .add_systems(Update, (
         endre_kjøretilstand_ved_input,
     ))
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
-        .add_plugins(SimulationRunningTellerPlugin)
+        .add_plugins(SimulationRunningTellerPlugin)    ;
 
-        .run();
+    app.run();
 }
 
 fn setup_camera(mut commands: Commands) {
@@ -38,27 +50,39 @@ fn setup_camera(mut commands: Commands) {
 
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
-    mut user_input: Res<ButtonInput<KeyCode>>,
+    mut next_EttHakkState: ResMut<NextState<EttHakkState>>,
+    user_input: Res<ButtonInput<KeyCode>>,
 ) {
     if user_input.pressed(KeyP) {
-        next_state.set(Kjøretilstand::Meny);
+        next_state.set(Kjøretilstand::Pause);
+        next_EttHakkState.set(EttHakkState::DISABLED);
     }
     if user_input.pressed(KeyE) {
-        next_state.set(Kjøretilstand::EttHakk);
+        next_state.set(Kjøretilstand::Pause);
+        next_EttHakkState.set(EttHakkState::VENTER_PÅ_INPUT);
     }
     if user_input.pressed(KeyK) {
         next_state.set(Kjøretilstand::Kjørende);
+        next_EttHakkState.set(EttHakkState::DISABLED);
     }
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum Kjøretilstand {
     #[default]
-    Meny,
+    Pause,
     Kjørende,
-    // EttHakk { speed : f32},
-    EttHakk
 }
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+enum EttHakkState {
+    #[default]
+    DISABLED,
+    VENTER_PÅ_INPUT,
+    KJØRER_ETT_HAKK,
+}
+
+
 
 /////////////////////////////////
 //

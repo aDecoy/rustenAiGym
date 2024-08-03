@@ -505,3 +505,15 @@ fn resize_simulation_tellertekst(resize_event: Res<Events<WindowResized>>, mut q
     }
 }
 ```
+
+# App.update()
+
+Det viser seg at at app.update ikke kan vise frem GUI vinduet. Dette er fordi at winit som bevy bruker vil ha kontrol på alt, 
+så vi sender på en måte inn en lambda funksjon til den. Derfor kan vi ikke stoppe midt i den og vente på nytt input slik som vi gjør i box2d
+
+# Problemer med addSystem
+
+https://bevy-cheatbook.github.io/pitfalls/into-system.html
+
+https://bevy-cheatbook.github.io/builtins.html#systemparams
+
