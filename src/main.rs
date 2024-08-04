@@ -38,22 +38,18 @@ fn main() {
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
             agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
-            mutate_planks,
-        ))
+            check_if_done,
+            (mutate_planks,
+             reset_to_star_pos,
+             set_to_kjørende_state).run_if(in_state(Kjøretilstand::EvolutionOverhead))
+        ),
+        )
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
         .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
 }
-//
-// #[derive(Component)]
-// pub struct Individual {
-//     phenotype: f32,
-//     plank: Plank,
-//     score: f32,
-//     obseravations: f32,
-// }
 
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
@@ -67,10 +63,39 @@ fn spawn_x_individuals(mut commands: Commands,
     }
 }
 
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut Plank), ( With<Plank>)>) {
+    for (mut individual, mut plank) in query.iter_mut() {
+        individual.translation.x = 0.0;
+        plank.score = individual.translation.x.clone();
+        plank.obseravations = individual.translation.x.clone();
+    }
+}
+
+fn set_to_kjørende_state(
+                 mut next_state: ResMut<NextState<Kjøretilstand>>,
+) {
+    next_state.set(Kjøretilstand::Kjørende);
+}
+fn check_if_done(mut query: Query<(&mut Transform, &mut Plank), ( With<Plank>)>,
+                 mut next_state: ResMut<NextState<Kjøretilstand>>,
+                 window: Query<&Window>
+
+) {
+    let max_width = window.single().width()*0.5;
+
+    // done if one is all the way to the right of the screen
+    for (mut individual, mut plank) in query.iter_mut() {
+        if individual.translation.x > max_width {
+            ; // er det skalert etter reapier logikk eller pixler\?
+            next_state.set(Kjøretilstand::EvolutionOverhead)
+        }
+    }
+}
+
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action(mut query: Query<(&mut Transform, &mut Plank), ( With<Plank>)>) {
     for (mut individual, mut plank) in query.iter_mut() {
-        individual.translation.x += random::<f32>()* plank.phenotype ;
+        individual.translation.x += random::<f32>() * plank.phenotype * 5.0 ;
         plank.score = individual.translation.x.clone();
         plank.obseravations = individual.translation.x.clone();
     }
@@ -104,6 +129,12 @@ enum Kjøretilstand {
     #[default]
     Pause,
     Kjørende,
+
+    EvolutionOverhead,
+    // FitnessEvaluation,
+    // Mutation,
+    // ParentSelection,
+    // SurvivorSelection,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
