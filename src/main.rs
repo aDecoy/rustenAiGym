@@ -5,7 +5,8 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_rapier2d::parry::transformation::utils::transform;
-use crate::environments::moving_plank::{create_plank, MovingPlankPlugin, Plank};
+use rand::random;
+use crate::environments::moving_plank::{create_plank, MovingPlankPlugin, mutate_planks, Plank};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -37,6 +38,7 @@ fn main() {
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
             agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            mutate_planks,
         ))
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
@@ -56,7 +58,7 @@ fn main() {
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    for n  in 0i32..10 {
+    for n in 0i32..10 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.spawn(
@@ -68,7 +70,7 @@ fn spawn_x_individuals(mut commands: Commands,
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action(mut query: Query<(&mut Transform, &mut Plank), ( With<Plank>)>) {
     for (mut individual, mut plank) in query.iter_mut() {
-        individual.translation.x += 1.1;
+        individual.translation.x += random::<f32>()* plank.phenotype ;
         plank.score = individual.translation.x.clone();
         plank.obseravations = individual.translation.x.clone();
     }

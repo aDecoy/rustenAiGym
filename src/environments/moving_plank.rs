@@ -4,7 +4,7 @@ use bevy::prelude::KeyCode::{KeyA, KeyD};
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
 use bevy_rapier2d::na::ComplexField;
 use bevy_rapier2d::prelude::{Collider, NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
-
+use rand::random;
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{EttHakkState, Kjøretilstand};
 
@@ -39,6 +39,7 @@ impl Plugin for MovingPlankPlugin {
 pub struct Plank {
     pub score: f32,
     pub obseravations: f32,
+    pub phenotype: f32,
 }
 
 /// Defines the state found in the cart pole environment.
@@ -68,7 +69,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position : Vec3 ) -> (MaterialMesh2dBundle<ColorMaterial>, Plank, Collider, MovingPlankObservation) {
+pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3) -> (MaterialMesh2dBundle<ColorMaterial>, Plank, Collider, MovingPlankObservation) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -78,11 +79,19 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
             material: material_handle,
             ..default()
         },
-        Plank { score: 0.0, obseravations: 0.0 }, // alt 1
+        Plank { score: 0.0, obseravations: 0.0, phenotype: random() }, // alt 1
         // RigidBody::Dynamic,
         Collider::cuboid(0.5, 0.5),
         MovingPlankObservation { x: 0.0, y: 0.0 } // alt 2
     )
+}
+
+pub fn mutate_planks(mut query: Query<&mut Plank>) {
+    for mut plank in query.iter_mut() {
+        let old_phenotype =  plank.phenotype.clone();
+        plank.phenotype += random::<f32>() * 2.0 - 1.0;
+        println!("Changed phenotype from {} to {}",old_phenotype, plank.phenotype )
+    }
 }
 
 fn move_plank(mut query: Query<&mut Transform, With<Plank>>,
@@ -163,7 +172,6 @@ fn check_if_done(transform: Transform, window: Window) -> bool {
     }
     return false;
 }
-
 
 fn print_done_status(query: Query<&Transform, With<Plank>>, window: Query<&Window>) {
     println!("------All done statues -------------------");
