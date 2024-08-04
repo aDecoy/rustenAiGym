@@ -1,9 +1,11 @@
+use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP};
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
-
-use crate::environments::moving_plank::MovingPlankPlugin;
+use bevy_inspector_egui::egui::emath::Numeric;
+use bevy_rapier2d::parry::transformation::utils::transform;
+use crate::environments::moving_plank::{create_plank, MovingPlankPlugin, Plank};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -14,11 +16,8 @@ struct Environment {
 }
 
 fn main() {
-    // println!("Starting up AI GYM");
-    // let mut env = Environment {
-    //     app: App::new(),
-    //     value: 3,
-    // };
+    println!("Starting up AI GYM");
+
     let mut app = App::new();
     app
         .add_plugins(DefaultPlugins.set(RenderPlugin {
@@ -33,15 +32,46 @@ fn main() {
         .insert_state(EttHakkState::DISABLED)
         .add_systems(Startup, (
             setup_camera,
+            spawn_x_individuals
         ))
         .add_systems(Update, (
-        endre_kjøretilstand_ved_input,
-    ))
+            endre_kjøretilstand_ved_input,
+            agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+        ))
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
-        .add_plugins(SimulationRunningTellerPlugin)    ;
+        .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
+}
+//
+// #[derive(Component)]
+// pub struct Individual {
+//     phenotype: f32,
+//     plank: Plank,
+//     score: f32,
+//     obseravations: f32,
+// }
+
+fn spawn_x_individuals(mut commands: Commands,
+                       mut meshes: ResMut<Assets<Mesh>>,
+                       mut materials: ResMut<Assets<ColorMaterial>>, ) {
+    for n  in 0i32..10 {
+        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        commands.spawn(
+            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 })
+        );
+    }
+}
+
+// fn agent_action(query: Query<Transform, With<Individual>>) {
+fn agent_action(mut query: Query<(&mut Transform, &mut Plank), ( With<Plank>)>) {
+    for (mut individual, mut plank) in query.iter_mut() {
+        individual.translation.x += 1.1;
+        plank.score = individual.translation.x.clone();
+        plank.obseravations = individual.translation.x.clone();
+    }
 }
 
 fn setup_camera(mut commands: Commands) {
@@ -50,20 +80,20 @@ fn setup_camera(mut commands: Commands) {
 
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
-    mut next_EttHakkState: ResMut<NextState<EttHakkState>>,
+    mut next_ett_hakk_state: ResMut<NextState<EttHakkState>>,
     user_input: Res<ButtonInput<KeyCode>>,
 ) {
     if user_input.pressed(KeyP) {
         next_state.set(Kjøretilstand::Pause);
-        next_EttHakkState.set(EttHakkState::DISABLED);
+        next_ett_hakk_state.set(EttHakkState::DISABLED);
     }
     if user_input.pressed(KeyE) {
         next_state.set(Kjøretilstand::Pause);
-        next_EttHakkState.set(EttHakkState::VENTER_PÅ_INPUT);
+        next_ett_hakk_state.set(EttHakkState::VENTER_PÅ_INPUT);
     }
     if user_input.pressed(KeyK) {
         next_state.set(Kjøretilstand::Kjørende);
-        next_EttHakkState.set(EttHakkState::DISABLED);
+        next_ett_hakk_state.set(EttHakkState::DISABLED);
     }
 }
 
@@ -81,7 +111,6 @@ enum EttHakkState {
     VENTER_PÅ_INPUT,
     KJØRER_ETT_HAKK,
 }
-
 
 
 /////////////////////////////////

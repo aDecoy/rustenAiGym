@@ -124,6 +124,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 struct TellerTekst;
 ```
 
+# Beveg Component
+
+```rust
+fn agent_action(mut query: Query<&mut Transform, With<Plank>>) {
+    for mut individual in query.iter_mut() {
+        individual.translation.x += 1.1;
+    }
+}
+```
+
 # Beveg med input
 
 ```rust 
