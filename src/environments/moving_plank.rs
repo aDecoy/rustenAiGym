@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyA, KeyD};
@@ -6,7 +7,7 @@ use bevy_rapier2d::na::ComplexField;
 use bevy_rapier2d::prelude::{Collider, NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
 use rand::random;
 use crate::environments::simulation_teller::SimulationRunningTeller;
-use crate::{EttHakkState, Kjøretilstand};
+use crate::{EttHakkState, Genome, Individ, Kjøretilstand, new_random_genome, PlankPhenotype};
 
 pub struct MovingPlankPlugin;
 
@@ -21,9 +22,9 @@ impl Plugin for MovingPlankPlugin {
             .add_systems(Update, (
                 (
                     move_plank,
-                    print_done_status,
-                    print_score,
-                    print_environment_observations
+                    // print_done_status,
+                    // print_score,
+                    // print_environment_observations
                 ).run_if(
                     in_state(Kjøretilstand::Kjørende)
                 ),
@@ -34,13 +35,6 @@ impl Plugin for MovingPlankPlugin {
     }
 }
 
-
-#[derive(Component)]
-pub struct Plank {
-    pub score: f32,
-    pub obseravations: f32,
-    pub phenotype: f32,
-}
 
 /// Defines the state found in the cart pole environment.
 #[derive(Debug, Clone, Copy, PartialEq, Component)]
@@ -53,7 +47,7 @@ pub struct MovingPlankObservation {
 const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 1.0 };
 const PLANK_LENGTH: f32 = 95.;
 const PLANK_HIGHT: f32 = 30.;
-const PLANK_MOVEMENT_SPEED: f32 = 10.0;
+const PLANK_MOVEMENT_SPEED: f32 = 3.0;
 
 const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
@@ -69,7 +63,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3) -> (MaterialMesh2dBundle<ColorMaterial>, Plank, Collider, MovingPlankObservation) {
+pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, phenotype: f32, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -79,25 +73,33 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
             material: material_handle,
             ..default()
         },
-        Plank { score: 0.0, obseravations: 0.0, phenotype: random() }, // alt 1
+        PlankPhenotype {
+            score: 0.0,
+            obseravations: 0.0,
+            phenotype: phenotype,
+            genotype: genome,
+        }, // alt 1
         // RigidBody::Dynamic,
         Collider::cuboid(0.5, 0.5),
-        MovingPlankObservation { x: 0.0, y: 0.0 } // alt 2
+        MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
+        // individ, // taged so we can use queryies to make evolutionary choises about the individual based on preformance of the phenotype
     )
 }
 
-pub fn mutate_planks(mut query: Query<&mut Plank>) {
+pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
     for mut plank in query.iter_mut() {
-        let old_phenotype =  plank.phenotype.clone();
+        let old_phenotype = plank.phenotype.clone();
         plank.phenotype += random::<f32>() * 2.0 - 1.0;
-        println!("Changed phenotype from {} to {}",old_phenotype, plank.phenotype )
+        println!("Changed phenotype from {} to {}", old_phenotype, plank.phenotype)
     }
 }
 
-fn move_plank(mut query: Query<&mut Transform, With<Plank>>,
+fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
               keyboard_input: Res<ButtonInput<KeyCode>>,
+              time: Res<Time>,
 ) {
     let mut delta_x = 0.0;
+
     if keyboard_input.pressed(KeyA) {
         delta_x -= PLANK_MOVEMENT_SPEED;
     }
@@ -105,8 +107,10 @@ fn move_plank(mut query: Query<&mut Transform, With<Plank>>,
         delta_x += PLANK_MOVEMENT_SPEED;
     }
     // let mut transform = query.single_mut();
-    for mut transform in query.iter_mut() {
-        transform.translation.x += delta_x;
+    if delta_x != 0.0 {
+        for mut transform in query.iter_mut() {
+            transform.translation.x += delta_x * time.delta_seconds();
+        }
     }
 }
 
@@ -139,12 +143,12 @@ fn get_observations(transform: Transform) -> MovingPlankObservation {
     return MovingPlankObservation { x: transform.translation.x, y: transform.translation.y };
 }
 
-fn get_simulation_time(query: Query<&Transform, With<Plank>>) -> MovingPlankObservation {
+fn get_simulation_time(query: Query<&Transform, With<PlankPhenotype>>) -> MovingPlankObservation {
     let translation = query.get_single().unwrap().translation.clone();
     return MovingPlankObservation { x: translation.x, y: translation.y };
 }
 
-fn print_environment_observations(query: Query<&Transform, With<Plank>>) {
+fn print_environment_observations(query: Query<&Transform, With<PlankPhenotype>>) {
     for transform in query.iter() {
         println!("Moving plank observations : {:?}", get_observations(transform.clone()));
     }
@@ -173,7 +177,7 @@ fn check_if_done(transform: Transform, window: Window) -> bool {
     return false;
 }
 
-fn print_done_status(query: Query<&Transform, With<Plank>>, window: Query<&Window>) {
+fn print_done_status(query: Query<&Transform, With<PlankPhenotype>>, window: Query<&Window>) {
     println!("------All done statues -------------------");
     let window = window.get_single().unwrap().clone();
 
@@ -183,7 +187,7 @@ fn print_done_status(query: Query<&Transform, With<Plank>>, window: Query<&Windo
     println!("-------------------------");
 }
 
-fn reset_plank(mut query: Query<&mut Transform, With<Plank>>) {
+fn reset_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>) {
     let mut translation = query.single_mut().translation;
     translation.x = 0.0;
     translation.y = 0.0;
