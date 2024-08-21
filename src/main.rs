@@ -166,9 +166,11 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
 
 
         individual.translation.x += random::<f32>() * action * 5.0;
+
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = individual.translation.x.clone();
         plank.obseravations = individual.translation.x.clone();
+        println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
     }
 }
 
@@ -307,7 +309,7 @@ pub struct Individ {}
 
 #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
 pub struct NodeGene {
-    innovation_number: usize,
+    innovation_number: i32,
     bias: f32,
     enabled: bool,
     inputnode: bool,
@@ -340,6 +342,7 @@ struct PhenotypeLayers {
     output_layer: Vec<NodeGene>,
     // &'a to promise compiler that it lives the same length
     // weights_per_destination_node : HashMap<&'a NodeGene, Vec<&'a WeightGene>>,
+    // weights_per_destination_node: HashMap<i32, Vec<WeightGene>>,
     weights_per_destination_node: HashMap<NodeGene, Vec<WeightGene>>,
 }
 
@@ -356,30 +359,47 @@ impl PhenotypeLayers {
 
         for mut node in self.output_layer.iter_mut() {
             // let relevant_weigh_nodes : Vec<&WeightGene> =  self.genome.weight_genes.iter().filter(  | weight_gene: &&WeightGene | weight_gene.destinationsnode == node.innovation_number  ).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-            // let relevant_weigh_nodes : Vec<&WeightGene> =  self.weights_per_destination_node.get(&node);
+            // let relevant_weigh_nodes : Vec<WeightGene> =  self.weights_per_destination_node.get(node); // todo, jeg må bruke key ref som jeg orginalt brukte. Altså node. Men om jeg borrower node inn i phenotypelayer
+            let relevant_weigh_nodes = self.weights_per_destination_node.get(node) .expect("burde være her");
+            // let relevant_weigh_nodes = match self.weights_per_destination_node.get(node) {
+            //     Some(weights) => weights,
+            //     None => &Vec::new()
+            // };
+
+            
             let mut acc_value = 0.0;
-            // for weight_node in relevant_weigh_nodes{
-            // let kildenode : NodeGene =  genome.node_genes.iter().filter( | node_gene: &&NodeGene | weight_node.kildenode ==  node_gene.innovation_number ).collect();
+            for weight_node in relevant_weigh_nodes.iter() {
+                let mut kildenode : NodeGene;
+                for x in self.input_layer.iter() {
+                    if x.innovation_number == weight_node.kildenode {
+                        acc_value += x.value * weight_node.value;
+                        break;
+                    }
+                };
+            }
+            // let kildenode : &NodeGene =  self.input_layer.iter().filter( | node_gene: &&NodeGene | weight_node.kildenode ==  node_gene.innovation_number ).collect();
             //  acc_value += kildenode.value * weight_node.value;
             // }
-            // node.value = acc_value + node.bias;
+            node.value = acc_value + node.bias;
         }
 
 
         for node in self.output_layer.iter() {
             println!("output nodes {:?}", node);
         }
-        return random::<f32>();
+
+        return self.output_layer[0].value
+        // return random::<f32>();
     }
 }
 
 #[derive(Debug, Component, Clone)]
 pub struct WeightGene {
-    innovation_number: usize,
+    innovation_number: i32,
     value: f32,
     enabled: bool,
-    kildenode: usize,
-    destinationsnode: usize,
+    kildenode: i32,
+    destinationsnode: i32,
     mutation_stability: f32,
 }
 
@@ -388,7 +408,7 @@ pub struct WeightGene {
 struct Genome {
     pub node_genes: Vec<NodeGene>,
     pub weight_genes: Vec<WeightGene>,
-    // id: usize,
+    pub id: usize,
 }
 
 
@@ -409,7 +429,10 @@ fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     let mut input_layer2: Vec<NodeGene> = Vec::new();
     let mut output_layer2: Vec<NodeGene> = Vec::new();
+    // let mut weights_per_destination_node : HashMap<usize, Vec<WeightGene>>  = HashMap::new();
+    let mut weights_per_destination_node : HashMap<NodeGene, Vec<WeightGene>>  = HashMap::new();
 
+    weights_per_destination_node.reserve(genome.node_genes.clone().len());
     // for node in genome.node_genes.iter(){
     for node in genome.node_genes {
         if node.outputnode {
@@ -421,21 +444,33 @@ fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // let output_layer = genome.node_genes.iter().filter( |node_gene: &&NodeGene | node_gene.outputnode ).collect();
     // let mut layers = PhenotypeLayers { ant_layers: 2 , hidden_layers : Vec::new(), input_layer, output_layer };
 
-    let mut weights_per_destination_node = HashMap::new();
+    println!("output layer {:?}", output_layer2);
 
+asdfasdf
+    let weights_genes = genome.weight_genes.clone();  //  todo jeg har ingen weight genes!!!
+    println!("weights_genes  {:?}", weights_genes.clone());
     for node in output_layer2.iter() {
         // let relevant_weigh_nodes: Vec<&WeightGene> = genome.weight_genes.iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-        let relevant_weigh_nodes: Vec<WeightGene> = for weight_gene in genome.weight_genes {
-            if weights_per_destination_node.contains_key(weight_gene.destinationsnode){
+            for weight_gene in weights_genes.clone() {
+            // if weights_per_destination_node.contains_key(&weight_gene.destinationsnode) {
+            if weights_per_destination_node.contains_key(node) {
+                // weights_per_destination_node.get_mut(&weight_gene.destinationsnode.clone()).expect("REASON").push(weight_gene);
+                println!("adding weight to existing node key in weights_per_destination_node");
 
+                weights_per_destination_node.get_mut(node).expect("REASON").push(weight_gene);
+            // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
+            } else {
+                println!("new node key in weights_per_destination_node");
+                // weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
+                weights_per_destination_node.insert(*node, vec![weight_gene]);
             }
-
-            https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
-        }
             // .iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-        weights_per_destination_node.insert(node, relevant_weigh_nodes);
+            // weights_per_destination_node.insert(node.innovation_number, relevant_weigh_nodes);
+        }
     }
 
+
+    println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
     let mut layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
 
 
@@ -448,7 +483,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     let mut node_genes = Vec::new();
     for n in 0..ant_inputs {
         node_genes.push(NodeGene {
-            innovation_number: n,
+            innovation_number: n as i32,
             bias: 0.0,
             enabled: true,
             inputnode: true,
@@ -461,7 +496,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
 
     for n in 0..ant_outputs {
         node_genes.push(NodeGene {
-            innovation_number: n,
+            innovation_number: n as i32,
             bias: 0.0,
             enabled: true,
             inputnode: false,
@@ -472,7 +507,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
         });
     }
     // start with no connections, start with fully connected, or random
-    return Genome { node_genes: node_genes, weight_genes: Vec::new() };
+    return Genome { node_genes: node_genes, weight_genes: Vec::new() , id: random()};
 }
 
 pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
