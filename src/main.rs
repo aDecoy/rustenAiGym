@@ -446,7 +446,7 @@ fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     println!("output layer {:?}", output_layer2);
 
-asdfasdf
+
     let weights_genes = genome.weight_genes.clone();  //  todo jeg har ingen weight genes!!!
     println!("weights_genes  {:?}", weights_genes.clone());
     for node in output_layer2.iter() {
@@ -507,7 +507,26 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
         });
     }
     // start with no connections, start with fully connected, or random
-    return Genome { node_genes: node_genes, weight_genes: Vec::new() , id: random()};
+
+    // fully connected input output
+    let mut weight_genes=  Vec::new();
+    for n in 0..ant_inputs {
+        for m in 0..ant_outputs {
+            weight_genes.push(WeightGene{
+                // kildenode : &node_genes[n],
+                // destinationsnode: node_genes[m],
+                kildenode : n  as i32,
+                destinationsnode: m  as i32,
+                innovation_number : 42,
+                value: random::<f32>(),
+                enabled: true,
+                mutation_stability: 0.5,
+            })
+        }
+    }
+
+
+    return Genome { node_genes: node_genes, weight_genes: weight_genes , id: random()};
 }
 
 pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
