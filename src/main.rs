@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{max, min, Ordering};
 use std::collections::HashMap;
 use std::hash::Hasher;
 use std::iter::Map;
@@ -67,6 +67,7 @@ fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
     for n in 0i32..10 {
+    // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.spawn(
@@ -112,7 +113,7 @@ fn create_new_children(mut commands: Commands,
 
 
     // Parent selection is set to top 3
-    for n in (0..3) {
+    for n in 0..min(3, population.len()) {
         children.push(population[n]);
     }
 
@@ -161,11 +162,20 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         let mut phenotype_layers = create_phenotype_layers(plank.genotype.clone());
         // PhenotypeLayers::decide_on_action();
-        let action = phenotype_layers.decide_on_action();
+        plank.obseravations = individual.translation.x.clone();
+
+
+        // let input_values = vec![1.0, 2.0]; // 2 inputs
+        // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
+        let input_values = vec![individual.translation.x.clone() * 0.002, 1.0]; // 2 inputs
+
+        // println!("input_values {:?}", input_values.clone());
+        let action = phenotype_layers.decide_on_action(input_values);
         // plank.genotype = genome; // Give genome back to plank after it was borrwed to create network
 
 
-        individual.translation.x += random::<f32>() * action * 5.0;
+        // individual.translation.x += random::<f32>() * action * 5.0;
+        individual.translation.x +=  action * 2.0;
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = individual.translation.x.clone();
@@ -347,12 +357,9 @@ struct PhenotypeLayers {
 }
 
 impl PhenotypeLayers {
-    pub fn decide_on_action(&mut self) -> f32 {
+    pub fn decide_on_action(&mut self, input_values : Vec<f32>) -> f32 {
 
         // how to use
-
-        let input_values = vec![1.0, 2.0]; // 2 inputs
-
         for i in 0..input_values.len() {
             self.input_layer[i].value = input_values[i] + self.input_layer[i].bias;
         }
@@ -384,9 +391,9 @@ impl PhenotypeLayers {
         }
 
 
-        for node in self.output_layer.iter() {
-            println!("output nodes {:?}", node);
-        }
+        // for node in self.output_layer.iter() {
+        //     println!("output nodes {:?}", node);
+        // }
 
         return self.output_layer[0].value
         // return random::<f32>();
@@ -444,23 +451,18 @@ fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // let output_layer = genome.node_genes.iter().filter( |node_gene: &&NodeGene | node_gene.outputnode ).collect();
     // let mut layers = PhenotypeLayers { ant_layers: 2 , hidden_layers : Vec::new(), input_layer, output_layer };
 
-    println!("output layer {:?}", output_layer2);
-
-
+    // println!("output layer {:?}", output_layer2);
     let weights_genes = genome.weight_genes.clone();  //  todo jeg har ingen weight genes!!!
-    println!("weights_genes  {:?}", weights_genes.clone());
+    // println!("weights_genes  {:?}", weights_genes.clone());
     for node in output_layer2.iter() {
         // let relevant_weigh_nodes: Vec<&WeightGene> = genome.weight_genes.iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
             for weight_gene in weights_genes.clone() {
             // if weights_per_destination_node.contains_key(&weight_gene.destinationsnode) {
             if weights_per_destination_node.contains_key(node) {
                 // weights_per_destination_node.get_mut(&weight_gene.destinationsnode.clone()).expect("REASON").push(weight_gene);
-                println!("adding weight to existing node key in weights_per_destination_node");
-
                 weights_per_destination_node.get_mut(node).expect("REASON").push(weight_gene);
             // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
             } else {
-                println!("new node key in weights_per_destination_node");
                 // weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
                 weights_per_destination_node.insert(*node, vec![weight_gene]);
             }
@@ -470,7 +472,7 @@ fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     }
 
 
-    println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
+    // println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
     let mut layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
 
 
