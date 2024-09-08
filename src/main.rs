@@ -48,6 +48,7 @@ fn main() {
             agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
+                kill_worst_individuals,
                 create_new_children,
                 mutate_planks,
                 mutate_existing_nodes,
@@ -92,6 +93,27 @@ fn spawn_x_individuals(mut commands: Commands,
 //     }
 // }
 
+fn kill_worst_individuals(
+    mut commands: Commands,
+    query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
+        let mut population = Vec::new();
+
+        //sort_individuals
+        for (entity, plank) in query.iter() {
+            population.push((entity,plank))
+        }
+        println!("population before sort: {:?}", population);
+        // parents.sort_by(|a, b| if a.score < b.score { Ordering::Less } else if a.score > b.score { Ordering::Greater } else { Ordering::Equal });
+
+    // sort asc
+    //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
+        population.sort_by(| (_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
+        println!("population after sort:  {:?}", population);
+        for (entity, _) in &population[0..4] {
+            commands.entity(*entity).despawn();
+        }
+    }
+
 fn create_new_children(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>,
@@ -102,18 +124,18 @@ fn create_new_children(mut commands: Commands,
     for (entity, plank) in query.iter() {
         population.push(plank)
     }
-    println!("parents before sort: {:?}", population);
+    // println!("parents before sort: {:?}", population);
     // parents.sort_by(|a, b| if a.score < b.score { Ordering::Less } else if a.score > b.score { Ordering::Greater } else { Ordering::Equal });
     // sort desc
     population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
-    println!("parents after sort:  {:?}", population);
+    // println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
     let mut children = Vec::new();
 
 
     // Parent selection is set to top 3
-    for n in 0..min(3, population.len()) {
+    for n in 0..min(4, population.len()) {
         children.push(population[n]);
     }
 
@@ -180,7 +202,7 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = individual.translation.x.clone();
         plank.obseravations = individual.translation.x.clone();
-        println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
+        // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
     }
 }
 
