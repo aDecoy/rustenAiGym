@@ -1,9 +1,11 @@
-use std::cmp::{max, min, Ordering};
+use std::cmp::{min, Ordering};
 use std::collections::HashMap;
+use std::fs::File;
 use std::hash::Hasher;
-use std::iter::Map;
+use std::io::Write;
 use std::vec::Vec;
 
+use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
@@ -39,6 +41,7 @@ fn main() {
         // .add_plugins(DefaultPlugins)
         .insert_state(Kjøretilstand::Kjørende)
         .insert_state(EttHakkState::DISABLED)
+        .init_resource::<GenerationCounter>()
         .add_systems(Startup, (
             setup_camera,
             spawn_x_individuals
@@ -48,6 +51,8 @@ fn main() {
             agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
+                increase_generation_counter,
+                save_best_to_history,
                 kill_worst_individuals,
                 create_new_children,
                 // mutate_planks,
@@ -64,11 +69,44 @@ fn main() {
     app.run();
 }
 
+#[derive(Resource,Default, Debug)]
+struct GenerationCounter{
+    count : i32
+}
+
+fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>){
+    generation_counter.count += 1;
+}
+
+fn save_best_to_history(query: Query<&PlankPhenotype>,
+                        generation_counter: Res<GenerationCounter>) {
+    // let mut file = File::create("history.txt").expect("kunne ikke finne filen");
+    let mut f = File::options().append(true).open("foo.txt").expect("kunne ikke åpne filen");
+
+    let mut population = Vec::new();
+    //sort_individuals
+    for (plank) in query.iter() {
+        population.push(plank)
+    }
+    // sort desc
+    population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
+
+    let best = population[0];
+    let best_score = best.score;
+    let best_id = best.genotype.id;
+    let generation = generation_counter.count;
+    let row = format!("generation {generation}, Best individual: {best_id}, HIGHEST SCORE: {best_score},  ");
+    writeln!(&mut f, "{}", row).expect("TODO: panic message");
+}
+
+// todo history og metadata
+// todo en generation counter resource
+
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
     for n in 0i32..10 {
-    // for n in 0i32..1 {
+        // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.spawn(
@@ -96,23 +134,21 @@ fn spawn_x_individuals(mut commands: Commands,
 fn kill_worst_individuals(
     mut commands: Commands,
     query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
-        let mut population = Vec::new();
+    let mut population = Vec::new();
 
-        //sort_individuals
-        for (entity, plank) in query.iter() {
-            population.push((entity,plank))
-        }
-        println!("population before sort: {:?}", population);
-        // parents.sort_by(|a, b| if a.score < b.score { Ordering::Less } else if a.score > b.score { Ordering::Greater } else { Ordering::Equal });
-
+    //sort_individuals
+    for (entity, plank) in query.iter() {
+        population.push((entity, plank))
+    }
+    // println!("population before sort: {:?}", population);
     // sort asc
     //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
-        population.sort_by(| (_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
-        println!("population after sort:  {:?}", population);
-        for (entity, _) in &population[0..4] {
-            commands.entity(*entity).despawn();
-        }
+    population.sort_by(|(_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
+    // println!("population after sort:  {:?}", population);
+    for (entity, _) in &population[0..4] {
+        commands.entity(*entity).despawn();
     }
+}
 
 fn create_new_children(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
@@ -198,7 +234,7 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
 
 
         // individual.translation.x += random::<f32>() * action * 5.0;
-        individual.translation.x +=  action * 2.0;
+        individual.translation.x += action * 2.0;
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = individual.translation.x.clone();
@@ -381,7 +417,7 @@ struct PhenotypeLayers {
 }
 
 impl PhenotypeLayers {
-    pub fn decide_on_action(&mut self, input_values : Vec<f32>) -> f32 {
+    pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> f32 {
 
         // how to use
         for i in 0..input_values.len() {
@@ -391,16 +427,16 @@ impl PhenotypeLayers {
         for mut node in self.output_layer.iter_mut() {
             // let relevant_weigh_nodes : Vec<&WeightGene> =  self.genome.weight_genes.iter().filter(  | weight_gene: &&WeightGene | weight_gene.destinationsnode == node.innovation_number  ).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
             // let relevant_weigh_nodes : Vec<WeightGene> =  self.weights_per_destination_node.get(node); // todo, jeg må bruke key ref som jeg orginalt brukte. Altså node. Men om jeg borrower node inn i phenotypelayer
-            let relevant_weigh_nodes = self.weights_per_destination_node.get(node) .expect("burde være her");
+            let relevant_weigh_nodes = self.weights_per_destination_node.get(node).expect("burde være her");
             // let relevant_weigh_nodes = match self.weights_per_destination_node.get(node) {
             //     Some(weights) => weights,
             //     None => &Vec::new()
             // };
 
-            
+
             let mut acc_value = 0.0;
             for weight_node in relevant_weigh_nodes.iter() {
-                let mut kildenode : NodeGene;
+                let mut kildenode: NodeGene;
                 for x in self.input_layer.iter() {
                     if x.innovation_number == weight_node.kildenode {
                         acc_value += x.value * weight_node.value;
@@ -419,7 +455,7 @@ impl PhenotypeLayers {
         //     println!("output nodes {:?}", node);
         // }
 
-        return self.output_layer[0].value
+        return self.output_layer[0].value;
         // return random::<f32>();
     }
 }
@@ -461,7 +497,7 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     let mut input_layer2: Vec<NodeGene> = Vec::new();
     let mut output_layer2: Vec<NodeGene> = Vec::new();
     // let mut weights_per_destination_node : HashMap<usize, Vec<WeightGene>>  = HashMap::new();
-    let mut weights_per_destination_node : HashMap<NodeGene, Vec<WeightGene>>  = HashMap::new();
+    let mut weights_per_destination_node: HashMap<NodeGene, Vec<WeightGene>> = HashMap::new();
 
     weights_per_destination_node.reserve(genome.node_genes.clone().len());
     // for node in genome.node_genes.iter(){
@@ -480,12 +516,12 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // println!("weights_genes  {:?}", weights_genes.clone());
     for node in output_layer2.iter() {
         // let relevant_weigh_nodes: Vec<&WeightGene> = genome.weight_genes.iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-            for weight_gene in weights_genes.clone() {
+        for weight_gene in weights_genes.clone() {
             // if weights_per_destination_node.contains_key(&weight_gene.destinationsnode) {
             if weights_per_destination_node.contains_key(node) {
                 // weights_per_destination_node.get_mut(&weight_gene.destinationsnode.clone()).expect("REASON").push(weight_gene);
                 weights_per_destination_node.get_mut(node).expect("REASON").push(weight_gene);
-            // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
+                // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
             } else {
                 // weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
                 weights_per_destination_node.insert(*node, vec![weight_gene]);
@@ -535,15 +571,15 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     // start with no connections, start with fully connected, or random
 
     // fully connected input output
-    let mut weight_genes=  Vec::new();
+    let mut weight_genes = Vec::new();
     for n in 0..ant_inputs {
         for m in 0..ant_outputs {
-            weight_genes.push(WeightGene{
+            weight_genes.push(WeightGene {
                 // kildenode : &node_genes[n],
                 // destinationsnode: node_genes[m],
-                kildenode : n  as i32,
-                destinationsnode: m  as i32,
-                innovation_number : 42,
+                kildenode: n as i32,
+                destinationsnode: m as i32,
+                innovation_number: 42,
                 value: random::<f32>(),
                 enabled: true,
                 mutation_stability: 0.5,
@@ -552,7 +588,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     }
 
 
-    return Genome { node_genes: node_genes, weight_genes: weight_genes , id: random()};
+    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random() };
 }
 
 pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
