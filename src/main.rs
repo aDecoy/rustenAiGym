@@ -14,7 +14,7 @@ use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_rapier2d::na::DimAdd;
 use rand::random;
 
-use crate::environments::moving_plank::{create_plank, MovingPlankPlugin, mutate_planks};
+use crate::environments::moving_plank::{create_plank, MovingPlankPlugin};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -50,7 +50,7 @@ fn main() {
             (
                 kill_worst_individuals,
                 create_new_children,
-                mutate_planks,
+                // mutate_planks,
                 mutate_existing_nodes,
                 mutate_existing_weights,
                 reset_to_star_pos,
@@ -72,7 +72,7 @@ fn spawn_x_individuals(mut commands: Commands,
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.spawn(
-            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, random(), new_random_genome(2, 2))
+            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))
         );
     }
 }
@@ -145,7 +145,7 @@ fn create_new_children(mut commands: Commands,
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.spawn(
-            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, child.phenotype, new_random_genome(2, 2))
+            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))
         );
     }
 }
@@ -330,7 +330,7 @@ pub struct RewardRange {
 pub struct PlankPhenotype {
     pub score: f32,
     pub obseravations: f32,
-    pub phenotype: f32,
+    // pub phenotype: f32,
     pub genotype: Genome, // gentype takes over Genotype after genotype - phenotype tranformation
 }
 

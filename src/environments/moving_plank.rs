@@ -63,7 +63,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, phenotype: f32, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
+pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -76,7 +76,7 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
         PlankPhenotype {
             score: 0.0,
             obseravations: 0.0,
-            phenotype: phenotype,
+            // phenotype: phenotype,
             genotype: genome,
         }, // alt 1
         // RigidBody::Dynamic,
@@ -86,13 +86,13 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
     )
 }
 
-pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
-    for mut plank in query.iter_mut() {
-        let old_phenotype = plank.phenotype.clone();
-        plank.phenotype += random::<f32>() * 2.0 - 1.0;
-        println!("Changed phenotype from {} to {}", old_phenotype, plank.phenotype)
-    }
-}
+// pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
+//     for mut plank in query.iter_mut() {
+//         let old_phenotype = plank.phenotype.clone();
+//         plank.phenotype += random::<f32>() * 2.0 - 1.0;
+//         println!("Changed phenotype from {} to {}", old_phenotype, plank.phenotype)
+//     }
+// }
 
 fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
               keyboard_input: Res<ButtonInput<KeyCode>>,
