@@ -182,7 +182,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
 fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
     for (mut individual, mut plank) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
-        let mut phenotype_layers = create_phenotype_layers(plank.genotype.clone());
+        // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
         plank.obseravations = individual.translation.x.clone();
 
@@ -192,7 +192,8 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
         let input_values = vec![individual.translation.x.clone() * 0.002, 1.0]; // 2 inputs
 
         // println!("input_values {:?}", input_values.clone());
-        let action = phenotype_layers.decide_on_action(input_values);
+        // let action = phenotype_layers.decide_on_action(input_values);
+        let action = plank.phenotype_layers.decide_on_action(input_values);
         // plank.genotype = genome; // Give genome back to plank after it was borrwed to create network
 
 
@@ -331,7 +332,8 @@ pub struct PlankPhenotype {
     pub score: f32,
     pub obseravations: f32,
     // pub phenotype: f32,
-    pub genotype: Genome, // gentype takes over Genotype after genotype - phenotype tranformation
+    phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
+    pub genotype: Genome,
 }
 
 
@@ -449,7 +451,7 @@ struct Genome {
 // fn create_phenotype_layers (genome: &Genome) -> (PhenotypeLayers, &Genome) {
 
 // alt 2 tar inn en klone
-fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
+pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     // for now just connect input output directly, and ignore hidden
 

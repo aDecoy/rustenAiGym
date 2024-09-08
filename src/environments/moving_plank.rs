@@ -7,7 +7,7 @@ use bevy_rapier2d::na::ComplexField;
 use bevy_rapier2d::prelude::{Collider, NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
 use rand::random;
 use crate::environments::simulation_teller::SimulationRunningTeller;
-use crate::{EttHakkState, Genome, Individ, Kjøretilstand, new_random_genome, PlankPhenotype};
+use crate::{create_phenotype_layers, EttHakkState, Genome, Individ, Kjøretilstand, new_random_genome, PlankPhenotype};
 
 pub struct MovingPlankPlugin;
 
@@ -77,6 +77,7 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
             score: 0.0,
             obseravations: 0.0,
             // phenotype: phenotype,
+           phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
         // RigidBody::Dynamic,
