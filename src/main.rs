@@ -12,11 +12,13 @@ use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP};
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+use bevy::sprite::MaterialMesh2dBundle;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_rapier2d::na::DimAdd;
+use bevy_rapier2d::prelude::*;
 use rand::random;
 
-use crate::environments::moving_plank::{create_plank, MovingPlankPlugin};
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, MovingPlankPlugin};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -44,7 +46,8 @@ fn main() {
         .init_resource::<GenerationCounter>()
         .add_systems(Startup, (
             setup_camera,
-            spawn_x_individuals
+            spawn_x_individuals,
+            spawn_ground,
         ))
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
@@ -69,14 +72,19 @@ fn main() {
     app.run();
 }
 
-#[derive(Resource,Default, Debug)]
-struct GenerationCounter{
-    count : i32
+
+/////////////////// genration counter
+
+#[derive(Resource, Default, Debug)]
+struct GenerationCounter {
+    count: i32,
 }
 
-fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>){
+fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>) {
     generation_counter.count += 1;
 }
+
+/////////////////// Metadata obvservation
 
 fn save_best_to_history(query: Query<&PlankPhenotype>,
                         generation_counter: Res<GenerationCounter>) {
@@ -99,9 +107,7 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
-// todo history og metadata
-// todo en generation counter resource
-
+// create/kill/develop  new
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
@@ -109,27 +115,16 @@ fn spawn_x_individuals(mut commands: Commands,
         // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        commands.spawn(
-            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))
-        );
+        match active_enviroment {
+            EnvValg::Fall => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Høyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+        };
+        // commands.spawn(
+            // create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))
+            // create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))
+        // );
     }
 }
-
-// pub fn spawn_phenotypes_from_genomes(
-//     mut commands: Commands,
-//     query: Query<(&Genome,&Individ) >,
-//
-//     mut meshes: ResMut<Assets<Mesh>>,
-//     mut materials: ResMut<Assets<ColorMaterial>>,
-// ){
-//     for (genome, individ) in query.iter(){
-//         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
-//         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-//         commands.spawn(
-//             create_plank_phenotype(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, random(), *individ)
-//         );
-//     }
-// }
 
 fn kill_worst_individuals(
     mut commands: Commands,
@@ -175,24 +170,37 @@ fn create_new_children(mut commands: Commands,
         children.push(population[n]);
     }
 
-    // todo : change to spawn new genome with individ component tag, instead of spwaning a new plankPhenotype
-
     for child in children {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        commands.spawn(
-            create_plank(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))
-        );
+
+        let new_genome = child.genotype.clone();
+
+        match active_enviroment {
+            EnvValg::Fall => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+        };
+        // commands.spawn(
+        // match active_enviroment {
+        //     EnvValg::Fall => create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)),
+        // EnvValg::Høyre => create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)),
+        // }
+        // create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))
+        // create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)
+        // todo create child genome from parent
+        // );
     }
 }
 
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank) in query.iter_mut() {
-        individual.translation.x = 0.0;
-        plank.score = individual.translation.x.clone();
-        plank.obseravations = individual.translation.x.clone();
-    }
+
+enum EnvValg {
+    Høyre,
+    Fall,
 }
+static active_enviroment: EnvValg = EnvValg::Fall;
+
+// state control
+
 
 fn set_to_kjørende_state(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
@@ -214,34 +222,6 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
     }
 }
 
-// fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank) in query.iter_mut() {
-        // let (action , genome )= create_phenotype_layers(&plank.genotype);
-        // let mut phenotype_layers = plank.phenotype_layers.clone();
-        // PhenotypeLayers::decide_on_action();
-        plank.obseravations = individual.translation.x.clone();
-
-
-        // let input_values = vec![1.0, 2.0]; // 2 inputs
-        // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
-        let input_values = vec![individual.translation.x.clone() * 0.002, 1.0]; // 2 inputs
-
-        // println!("input_values {:?}", input_values.clone());
-        // let action = phenotype_layers.decide_on_action(input_values);
-        let action = plank.phenotype_layers.decide_on_action(input_values);
-        // plank.genotype = genome; // Give genome back to plank after it was borrwed to create network
-
-
-        // individual.translation.x += random::<f32>() * action * 5.0;
-        individual.translation.x += action * 2.0;
-
-        // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
-        plank.score = individual.translation.x.clone();
-        plank.obseravations = individual.translation.x.clone();
-        // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
-    }
-}
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
@@ -287,80 +267,44 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
-
-/////////////////////////////////
-//
-// All environments will share the env traint, and this gives us a type safe way of interacting with a variation of different environments.
-// (Basically an interface of what is public for the outside)
-pub trait Env {
-    /// The type of action supported.
-    type Action;
-
-    /// The type of the observation produced after an action has been applied.
-    type Observation;
-
-    /// The type of the metadata object produced by acting on the environment.
-    type Info;
-
-    /// The type of the object produced when an environment is reset.
-    type ResetInfo;
-
-    /// Acts on an environment using the given action, producing a reward.
-    fn step(&mut self, action: Self::Action);
-    // fn step(&mut self, action: Self::Action) -> StepFeedback;
-
-    /// Resets the environment to a initial random state.
-    fn reset(
-        &mut self,
-        seed: Option<u64>,
-        return_info: bool,
-        // options: Option<BoxR<Self::Observation>>,
-    ) -> (Self::Observation, Option<Self::ResetInfo>);
-
-    /// Produces the renders, if any, associated with the given mode.
-    /// Sets the render mode, and bevy will use that state to deterimine if it should render.
-    fn render(&mut self, mode: RenderMode); // -> Renders;
-
-    /// Closes any open resources associated with the internal rendering service.
-    fn close(&mut self);
-}
-
-/// A collection of various formats describing the type of content produced during a render.
-#[derive(Debug, Clone, Copy)]
-pub enum RenderMode {
-    /// Indicates that that renderer should be done through the terminal or an external display.
-    Human,
-    /// Indicates that renderer should be skipped.
-    None,
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank) in query.iter_mut() {
+        individual.translation.x = 0.0;
+        plank.score = individual.translation.x.clone();
+        plank.obseravations = individual.translation.x.clone();
+    }
 }
 
 
-/// The return type of [`Env::step()`].
-pub struct StepFeedback<E: Env> {
-    /// The observation of the environment after taking an action.
-    pub observation: E::Observation,
-    /// The reward after taking an action.
-    // pub reward: E::Reward,
-    pub reward: f32,
-    /// Indication that the agent has reached a terminal state after taking an action, as defined by the task formulation.
-    /// If true, it is expected that [`Env::reset()`] is called to restart the environment.
-    pub terminated: bool,
-    /// Indication that the agent has reached a truncation condition after taking an action, which is outside the scope of the task formulation.
-    /// If true, [`Env::reset()`] should be called to restart the environment.
-    pub truncated: bool,
-    /// Additional information from the environment after taking an action.
-    pub info: E::Info,
-}
-// todo envProperties
+// fn agent_action(query: Query<Transform, With<Individual>>) {
+fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank) in query.iter_mut() {
+        // let (action , genome )= create_phenotype_layers(&plank.genotype);
+        // let mut phenotype_layers = plank.phenotype_layers.clone();
+        // PhenotypeLayers::decide_on_action();
+        plank.obseravations = individual.translation.x.clone();
 
-/// Defines the bounds for the reward value that can be observed.
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
-pub struct RewardRange {
-    /// The smallest possible reward that can be observed.
-    lower_bound: f32,
-    /// The largest possible reward that can be observed.
-    upper_bound: f32,
+
+        // let input_values = vec![1.0, 2.0]; // 2 inputs
+        // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
+        let input_values = vec![individual.translation.x.clone() * 0.002, 1.0]; // 2 inputs
+
+        // println!("input_values {:?}", input_values.clone());
+        // let action = phenotype_layers.decide_on_action(input_values);
+        let action = plank.phenotype_layers.decide_on_action(input_values);
+        // plank.genotype = genome; // Give genome back to plank after it was borrwed to create network
+
+
+        // individual.translation.x += random::<f32>() * action * 5.0;
+        individual.translation.x += action * 2.0;
+
+        // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
+        plank.score = individual.translation.x.clone();
+        plank.obseravations = individual.translation.x.clone();
+        // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
+    }
 }
+
 
 #[derive(Component, Debug, )]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
@@ -616,4 +560,106 @@ pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
             weight_gene.enabled = !weight_gene.enabled;
         }
     }
+}
+
+const GROUND_LENGTH: f32 = 5495.;
+const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
+const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -500.0, z: 1.0 };
+
+
+fn spawn_ground(mut commands: Commands,
+                mut meshes: ResMut<Assets<Mesh>>,
+                mut materials: ResMut<Assets<ColorMaterial>>, ) {
+    commands.spawn((
+                       RigidBody::Fixed,
+                       MaterialMesh2dBundle {
+                           mesh: meshes.add(Rectangle::default()).into(),
+                           material: materials.add(GROUND_COLOR),
+                           transform: Transform::from_translation(GROUND_STARTING_POSITION)
+                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 2.0 }.extend(1.)),
+                           ..default()
+                       },
+                       Sleeping::disabled(),
+                       Collider::cuboid(0.50, 0.5),
+                       Restitution::coefficient(0.0),
+                       Friction::coefficient(0.5),
+                   ), );
+}
+
+
+// not used abstraction ideas for/from ai gym
+
+
+/////////////////////////////////
+//
+// All environments will share the env traint, and this gives us a type safe way of interacting with a variation of different environments.
+// (Basically an interface of what is public for the outside)
+pub trait Env {
+    /// The type of action supported.
+    type Action;
+
+    /// The type of the observation produced after an action has been applied.
+    type Observation;
+
+    /// The type of the metadata object produced by acting on the environment.
+    type Info;
+
+    /// The type of the object produced when an environment is reset.
+    type ResetInfo;
+
+    /// Acts on an environment using the given action, producing a reward.
+    fn step(&mut self, action: Self::Action);
+    // fn step(&mut self, action: Self::Action) -> StepFeedback;
+
+    /// Resets the environment to a initial random state.
+    fn reset(
+        &mut self,
+        seed: Option<u64>,
+        return_info: bool,
+        // options: Option<BoxR<Self::Observation>>,
+    ) -> (Self::Observation, Option<Self::ResetInfo>);
+
+    /// Produces the renders, if any, associated with the given mode.
+    /// Sets the render mode, and bevy will use that state to deterimine if it should render.
+    fn render(&mut self, mode: RenderMode); // -> Renders;
+
+    /// Closes any open resources associated with the internal rendering service.
+    fn close(&mut self);
+}
+
+/// A collection of various formats describing the type of content produced during a render.
+#[derive(Debug, Clone, Copy)]
+pub enum RenderMode {
+    /// Indicates that that renderer should be done through the terminal or an external display.
+    Human,
+    /// Indicates that renderer should be skipped.
+    None,
+}
+
+
+/// The return type of [`Env::step()`].
+pub struct StepFeedback<E: Env> {
+    /// The observation of the environment after taking an action.
+    pub observation: E::Observation,
+    /// The reward after taking an action.
+    // pub reward: E::Reward,
+    pub reward: f32,
+    /// Indication that the agent has reached a terminal state after taking an action, as defined by the task formulation.
+    /// If true, it is expected that [`Env::reset()`] is called to restart the environment.
+    pub terminated: bool,
+    /// Indication that the agent has reached a truncation condition after taking an action, which is outside the scope of the task formulation.
+    /// If true, [`Env::reset()`] should be called to restart the environment.
+    pub truncated: bool,
+    /// Additional information from the environment after taking an action.
+    pub info: E::Info,
+}
+// todo envProperties
+
+/// Defines the bounds for the reward value that can be observed.
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct RewardRange {
+    /// The smallest possible reward that can be observed.
+    lower_bound: f32,
+    /// The largest possible reward that can be observed.
+    upper_bound: f32,
 }

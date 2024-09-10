@@ -63,7 +63,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -80,10 +80,32 @@ pub fn create_plank(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2
            phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
-        // RigidBody::Dynamic,
         Collider::cuboid(0.5, 0.5),
         MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
+        // RigidBody::Dynamic,
         // individ, // taged so we can use queryies to make evolutionary choises about the individual based on preformance of the phenotype
+    )
+}
+
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody) {
+    (
+        MaterialMesh2dBundle {
+            mesh: mesh2d_handle,
+            transform: Transform::from_translation(start_position)
+                .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
+
+            material: material_handle,
+            ..default()
+        },
+        PlankPhenotype {
+            score: 0.0,
+            obseravations: 0.0,
+           phenotype_layers: create_phenotype_layers(genome.clone()),
+            genotype: genome,
+        }, // alt 1
+        Collider::cuboid(0.5, 0.5),
+        RigidBody::Dynamic,
+        // MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
     )
 }
 
