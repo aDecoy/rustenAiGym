@@ -525,7 +525,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     }
 
 
-    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random() , allowed_to_change: true};
+    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random(), allowed_to_change: true };
 }
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites

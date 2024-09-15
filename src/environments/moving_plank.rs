@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyA, KeyD};
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
 use bevy_rapier2d::na::ComplexField;
-use bevy_rapier2d::prelude::{Collider, NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
+use bevy_rapier2d::prelude::{Collider, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
 use rand::random;
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Individ, Kjøretilstand, new_random_genome, PlankPhenotype};
@@ -16,7 +16,10 @@ impl MovingPlankPlugin {}
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0)
+                // To spesify my won runing conditions, so that i can pause the sim, or run it one timestep at a time
+                .with_default_system_setup(false))
+
             .add_plugins(RapierDebugRenderPlugin::default())
             // .add_systems(Startup, spawn_plank)
             .add_systems(Update, (
@@ -31,6 +34,13 @@ impl Plugin for MovingPlankPlugin {
                 (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
                 (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
             ).chain())
+            .add_systems(Update, (
+                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend).in_set(PhysicsSet::SyncBackend),
+                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation).in_set(PhysicsSet::StepSimulation),
+                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback).in_set(PhysicsSet::Writeback),
+            ).chain() // overasknede viktig. uten den så lagger ting
+                .run_if(in_state(Kjøretilstand::Kjørende)),
+            )
         ;
     }
 }
