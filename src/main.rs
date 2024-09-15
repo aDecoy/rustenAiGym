@@ -55,6 +55,7 @@ fn main() {
             check_if_done,
             (
                 increase_generation_counter,
+                lock_mutation_stability,
                 save_best_to_history,
                 kill_worst_individuals,
                 create_new_children,
@@ -107,7 +108,9 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
-// create/kill/develop  new
+/////////////////// create/kill/develop  new individuals
+
+
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
@@ -116,13 +119,9 @@ fn spawn_x_individuals(mut commands: Commands,
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         match active_enviroment {
-            EnvValg::Fall => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::Høyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Fall => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
         };
-        // commands.spawn(
-            // create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))
-            // create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))
-        // );
     }
 }
 
@@ -162,33 +161,26 @@ fn create_new_children(mut commands: Commands,
     // println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
-    let mut children = Vec::new();
-
+    let mut parents = Vec::new();
 
     // Parent selection is set to top 3
     for n in 0..min(4, population.len()) {
-        children.push(population[n]);
+        parents.push(population[n]);
     }
 
-    for child in children {
+    // For now, simple one new child per parent
+
+    for parent in parents {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
-        let new_genome = child.genotype.clone();
+        let new_genome = parent.genotype.clone(); // NB: mutation is done in a seperate bevy system
+
 
         match active_enviroment {
             EnvValg::Fall => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
         };
-        // commands.spawn(
-        // match active_enviroment {
-        //     EnvValg::Fall => create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)),
-        // EnvValg::Høyre => create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)),
-        // }
-        // create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))
-        // create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)
-        // todo create child genome from parent
-        // );
     }
 }
 
@@ -328,7 +320,7 @@ pub struct NodeGene {
     enabled: bool,
     inputnode: bool,
     outputnode: bool,
-    mutation_stability: f32,
+    mutation_stability: f32, // 1 is compleat lock/static genome. 0 is a mutation for all genes
     layer: usize,
 
     value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
@@ -420,6 +412,7 @@ struct Genome {
     pub node_genes: Vec<NodeGene>,
     pub weight_genes: Vec<WeightGene>,
     pub id: usize,
+    pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
 }
 
 
@@ -532,12 +525,26 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     }
 
 
-    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random() };
+    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random() , allowed_to_change: true};
 }
 
+// lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
+fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
+    for mut genome in genome_query.iter_mut() {
+        for mut node_gene in genome.node_genes.iter_mut() {
+            node_gene.mutation_stability = 1.0
+        }
+        for mut weight_gene in genome.weight_genes.iter_mut() {
+            weight_gene.mutation_stability = 1.0
+        }
+        genome.allowed_to_change = false;
+    }
+}
+
+// todo only mutate new kids? maybe lock old ones?
 pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
     for mut node_gene in node_genes.iter_mut() {
-        if random::<f32>() < node_gene.mutation_stability {
+        if random::<f32>() > node_gene.mutation_stability {
             node_gene.bias += random::<f32>() * 2.0 - 1.0;
             node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
@@ -547,16 +554,16 @@ pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
 
 pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
     for mut weight_gene in weight_genes.iter_mut() {
-        if random::<f32>() < weight_gene.mutation_stability {
+        if random::<f32>() > weight_gene.mutation_stability {
             weight_gene.value += random::<f32>() * 2.0 - 1.0;
             weight_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
         }
-        if random::<f32>() < weight_gene.mutation_stability {
+        if random::<f32>() > weight_gene.mutation_stability {
             weight_gene.enabled = !weight_gene.enabled;
         }
 
         // evo devo eller hardkoded layer?
-        if random::<f32>() < weight_gene.mutation_stability {
+        if random::<f32>() > weight_gene.mutation_stability {
             weight_gene.enabled = !weight_gene.enabled;
         }
     }

@@ -76,8 +76,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         PlankPhenotype {
             score: 0.0,
             obseravations: 0.0,
-            // phenotype: phenotype,
-           phenotype_layers: create_phenotype_layers(genome.clone()),
+            phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
         Collider::cuboid(0.5, 0.5),
@@ -100,7 +99,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         PlankPhenotype {
             score: 0.0,
             obseravations: 0.0,
-           phenotype_layers: create_phenotype_layers(genome.clone()),
+            phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
         Collider::cuboid(0.5, 0.5),

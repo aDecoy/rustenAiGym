@@ -19,6 +19,8 @@ impl Plugin for SimulationRunningTellerPlugin {
             );
     }
 }
+// todo pause rapier physics om det ikke er kjørende!!!1
+asdfasdfasdfasdf
 
 #[derive(Component)]
 pub struct SimulationRunningTellerTekst;
