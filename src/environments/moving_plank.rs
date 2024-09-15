@@ -1,13 +1,10 @@
-use std::cmp::Ordering;
-use bevy::color::palettes::css::PURPLE;
-use bevy::prelude::*;
+use crate::environments::simulation_teller::SimulationRunningTeller;
+use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
 use bevy::prelude::KeyCode::{KeyA, KeyD};
+use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
 use bevy_rapier2d::na::ComplexField;
-use bevy_rapier2d::prelude::{Collider, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
-use rand::random;
-use crate::environments::simulation_teller::SimulationRunningTeller;
-use crate::{create_phenotype_layers, EttHakkState, Genome, Individ, Kjøretilstand, new_random_genome, PlankPhenotype};
+use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
 
 pub struct MovingPlankPlugin;
 
@@ -96,7 +93,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionGroups) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -115,8 +112,18 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         Collider::cuboid(0.5, 0.5),
         RigidBody::Dynamic,
         // MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
+        CollisionGroups::new(
+            // almost looked like it runs slower with less collisions?
+            // Kan være at det bare er mer ground kontakt, siden alle ikke hvilker på en blokk som er eneste som rører bakken
+            Group::GROUP_1,
+            if individuals_collide_in_simulation { Group::GROUP_1 } else {
+                Group::GROUP_2
+            }
+        )
     )
 }
+static individuals_collide_in_simulation: bool = false;
+
 
 // pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
 //     for mut plank in query.iter_mut() {

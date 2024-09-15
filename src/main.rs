@@ -90,7 +90,7 @@ fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>
 fn save_best_to_history(query: Query<&PlankPhenotype>,
                         generation_counter: Res<GenerationCounter>) {
     // let mut file = File::create("history.txt").expect("kunne ikke finne filen");
-    let mut f = File::options().append(true).open("foo.txt").expect("kunne ikke åpne filen");
+    let mut f = File::options().append(true).open("history.txt").expect("kunne ikke åpne filen");
 
     let mut population = Vec::new();
     //sort_individuals
@@ -571,7 +571,7 @@ pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
-const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -500.0, z: 1.0 };
+const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 
 fn spawn_ground(mut commands: Commands,
