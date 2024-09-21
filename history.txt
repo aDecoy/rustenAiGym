@@ -1,0 +1,7 @@
+generation 1, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 2, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 3, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 4, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 5, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 6, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
+generation 7, Best individual: 16421253642150485302, HIGHEST SCORE: 647.2961,  
