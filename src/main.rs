@@ -1,4 +1,4 @@
-use std::cmp::{min, Ordering};
+use std::cmp::{min, Ordering, PartialEq};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::Hasher;
@@ -33,14 +33,14 @@ fn main() {
 
     let mut app = App::new();
     app
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
-            render_creation: RenderCreation::Automatic(WgpuSettings {
-                backends: Some(Backends::DX12),
-                ..default()
-            }),
-            synchronous_pipeline_compilation: false,
-        }))
-        // .add_plugins(DefaultPlugins)
+        // .add_plugins(DefaultPlugins.set(RenderPlugin {
+        //     render_creation: RenderCreation::Automatic(WgpuSettings {
+        //         backends: Some(Backends::DX12),
+        //         ..default()
+        //     }),
+        //     synchronous_pipeline_compilation: false,
+        // }))
+        .add_plugins(DefaultPlugins)
         .insert_state(Kjøretilstand::Kjørende)
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
@@ -63,7 +63,6 @@ fn main() {
                 mutate_existing_nodes,
                 mutate_existing_weights,
                 reset_to_star_pos,
-                reset_to_star_pos2,
                 set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead))
         ),
         )
@@ -152,7 +151,7 @@ fn create_new_children(mut commands: Commands,
     let mut population = Vec::new();
 
     //sort_individuals
-    for (entity, plank) in query.iter() {
+    for (_, plank) in query.iter() {
         population.push(plank)
     }
     // println!("parents before sort: {:?}", population);
@@ -179,13 +178,13 @@ fn create_new_children(mut commands: Commands,
 
 
         match active_enviroment {
-            EnvValg::Fall |  EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::Fall | EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
         };
     }
 }
 
-
+#[derive(PartialEq)]
 enum EnvValg {
     Høyre,
     // has velocity
@@ -211,7 +210,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
     let max_width = window.single().width() * 0.5;
 
     // done if one is all the way to the right of the screen
-    for (mut individual, mut plank) in query.iter_mut() {
+    for (individual, _) in query.iter_mut() {
         if individual.translation.x > max_width {
             ; // er det skalert etter reapier logikk eller pixler\?
             next_state.set(Kjøretilstand::EvolutionOverhead)
@@ -264,59 +263,45 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
-// For miljø høure uten vel og der vi ikke vil resette pos y
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank) in query.iter_mut() {
-        individual.translation.x = 0.0;
-        // individual.translation.y = 0.0;
-        plank.score = individual.translation.x.clone();
-        plank.obseravations = individual.translation.x.clone();
-    }
-}
-
-
-fn reset_to_star_pos2(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
     for (mut individual, mut plank, mut velocity) in query.iter_mut() {
         individual.translation.x = 0.0;
-        individual.translation.y = 0.0;
+        if active_enviroment != EnvValg::Høyre {
+            individual.translation.y = 0.0;
+        }
         plank.score = individual.translation.x.clone();
-        plank.obseravations = individual.translation.x.clone();
-        velocity.angvel=0.0;
-        velocity.linvel.x=0.0;
-        velocity.linvel.y=0.0;
+        plank.obseravations = vec!(individual.translation.x.clone(),individual.translation.y.clone());
+        velocity.angvel = 0.0;
+        velocity.linvel.x = 0.0;
+        velocity.linvel.y = 0.0;
     }
 }
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, Option<&mut Velocity>), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank, ) in query.iter_mut() {
+fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
+    for (mut transform, mut plank, mut velocity) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
-        plank.obseravations = individual.translation.x.clone();
+        plank.obseravations =  vec![transform.translation.x.clone(),transform.translation.y.clone()];
 
 
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
-        let input_values = vec![individual.translation.x.clone() * 0.002, 1.0]; // 2 inputs
+        let input_values =  plank.obseravations.clone();
 
-        // println!("input_values {:?}", input_values.clone());
-        // let action = phenotype_layers.decide_on_action(input_values);
-        let action = plank.phenotype_layers.decide_on_action(input_values);
-        // plank.genotype = genome; // Give genome back to plank after it was borrwed to create network
-
+        let action = plank.phenotype_layers.decide_on_action(input_values);            // fungerer
+        // let action = plank.phenotype_layers.decide_on_action(  plank.obseravations.clone() );  // fungerer ikke ?!?!
 
         // individual.translation.x += random::<f32>() * action * 5.0;
         match active_enviroment {
-            EnvValg::Høyre | EnvValg::Fall =>  individual.translation.x += action * 2.0,
-            EnvValg::FallImpulsHøyre =>  individual.translation.x += action * 2.0,
+            EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
+            EnvValg::FallImpulsHøyre => velocity.linvel += action * 2.0,
         }
 
-
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
-        plank.score = individual.translation.x.clone();
-        plank.obseravations = individual.translation.x.clone();
+        plank.score = transform.translation.x.clone();
         // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
     }
 }
@@ -326,7 +311,7 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, Option<&m
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
 pub struct PlankPhenotype {
     pub score: f32,
-    pub obseravations: f32,
+    pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
     pub genotype: Genome,
@@ -494,12 +479,12 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
 
     // println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
-    let mut layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
+    let layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
 
 
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
     // return (layers , genome);
-    return (layers);
+    return layers;
 }
 
 pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {

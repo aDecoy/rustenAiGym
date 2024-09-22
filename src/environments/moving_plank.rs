@@ -72,7 +72,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, Velocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -84,7 +84,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         },
         PlankPhenotype {
             score: 0.0,
-            obseravations: 0.0,
+            obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
@@ -92,6 +92,11 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
         // RigidBody::Dynamic,
         // individ, // taged so we can use queryies to make evolutionary choises about the individual based on preformance of the phenotype
+        Velocity {
+            // linvel: Vec2::new(100.0, 2.0),
+            linvel: Vec2::new(0.0, 0.0),
+            angvel: 0.0,
+        },
     )
 }
 
@@ -107,7 +112,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
         PlankPhenotype {
             score: 0.0,
-            obseravations: 0.0,
+            obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
@@ -120,7 +125,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
             Group::GROUP_1,
             if individuals_collide_in_simulation { Group::GROUP_1 } else {
                 Group::GROUP_2
-            }
+            },
         ),
         Velocity {
             // linvel: Vec2::new(100.0, 2.0),
@@ -159,8 +164,8 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
 }
 
 fn impulse_plank(mut query: Query<&mut Velocity, With<PlankPhenotype>>,
-              keyboard_input: Res<ButtonInput<KeyCode>>,
-              time: Res<Time>,
+                 keyboard_input: Res<ButtonInput<KeyCode>>,
+                 time: Res<Time>,
 ) {
     let mut delta_x = 0.0;
 
@@ -172,9 +177,8 @@ fn impulse_plank(mut query: Query<&mut Velocity, With<PlankPhenotype>>,
     }
     if delta_x != 0.0 {
         for mut velocity in query.iter_mut() {
-
             velocity.linvel.x += delta_x * time.delta_seconds();
-            println!("impulse plank has delta x { }",  velocity.linvel.x);
+            println!("impulse plank has delta x { }", velocity.linvel.x);
         }
     }
 }
