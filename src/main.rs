@@ -63,6 +63,7 @@ fn main() {
                 mutate_existing_nodes,
                 mutate_existing_weights,
                 reset_to_star_pos,
+                reset_to_star_pos2,
                 set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead))
         ),
         )
@@ -120,7 +121,7 @@ fn spawn_x_individuals(mut commands: Commands,
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         match active_enviroment {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::Fall => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Fall | EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
         };
     }
 }
@@ -178,7 +179,7 @@ fn create_new_children(mut commands: Commands,
 
 
         match active_enviroment {
-            EnvValg::Fall => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::Fall |  EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
         };
     }
@@ -188,8 +189,9 @@ fn create_new_children(mut commands: Commands,
 enum EnvValg {
     Høyre,
     Fall,
+    FallImpulsHøyre,
 }
-static active_enviroment: EnvValg = EnvValg::Fall;
+static active_enviroment: EnvValg = EnvValg::FallImpulsHøyre;
 
 // state control
 
@@ -259,11 +261,26 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
+// For miljø høure uten vel og der vi ikke vil resette pos y
 fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
     for (mut individual, mut plank) in query.iter_mut() {
         individual.translation.x = 0.0;
+        // individual.translation.y = 0.0;
         plank.score = individual.translation.x.clone();
         plank.obseravations = individual.translation.x.clone();
+    }
+}
+
+
+fn reset_to_star_pos2(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank, mut velocity) in query.iter_mut() {
+        individual.translation.x = 0.0;
+        individual.translation.y = 0.0;
+        plank.score = individual.translation.x.clone();
+        plank.obseravations = individual.translation.x.clone();
+        velocity.angvel=0.0;
+        velocity.linvel.x=0.0;
+        velocity.linvel.y=0.0;
     }
 }
 

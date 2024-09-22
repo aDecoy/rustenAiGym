@@ -1,10 +1,10 @@
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
-use bevy::prelude::KeyCode::{KeyA, KeyD};
+use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
 use bevy_rapier2d::na::ComplexField;
-use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody};
+use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
 pub struct MovingPlankPlugin;
 
@@ -22,6 +22,7 @@ impl Plugin for MovingPlankPlugin {
             .add_systems(Update, (
                 (
                     move_plank,
+                    impulse_plank,
                     // print_done_status,
                     // print_score,
                     // print_environment_observations
@@ -54,7 +55,8 @@ pub struct MovingPlankObservation {
 const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 1.0 };
 const PLANK_LENGTH: f32 = 95.;
 const PLANK_HIGHT: f32 = 30.;
-const PLANK_MOVEMENT_SPEED: f32 = 3.0;
+const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
+const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
 const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
@@ -93,7 +95,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionGroups) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionGroups, Velocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -119,7 +121,12 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
             if individuals_collide_in_simulation { Group::GROUP_1 } else {
                 Group::GROUP_2
             }
-        )
+        ),
+        Velocity {
+            // linvel: Vec2::new(100.0, 2.0),
+            linvel: Vec2::new(0.0, 0.0),
+            angvel: 0.0,
+        },
     )
 }
 static individuals_collide_in_simulation: bool = false;
@@ -138,17 +145,36 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
               time: Res<Time>,
 ) {
     let mut delta_x = 0.0;
-
     if keyboard_input.pressed(KeyA) {
-        delta_x -= PLANK_MOVEMENT_SPEED;
+        delta_x -= PLANK_POSITION_CHANGE_MOVEMENT_SPEED;
     }
     if keyboard_input.pressed(KeyD) {
-        delta_x += PLANK_MOVEMENT_SPEED;
+        delta_x += PLANK_POSITION_CHANGE_MOVEMENT_SPEED;
     }
-    // let mut transform = query.single_mut();
     if delta_x != 0.0 {
         for mut transform in query.iter_mut() {
             transform.translation.x += delta_x * time.delta_seconds();
+        }
+    }
+}
+
+fn impulse_plank(mut query: Query<&mut Velocity, With<PlankPhenotype>>,
+              keyboard_input: Res<ButtonInput<KeyCode>>,
+              time: Res<Time>,
+) {
+    let mut delta_x = 0.0;
+
+    if keyboard_input.pressed(KeyZ) {
+        delta_x -= PLANK_POSITION_VELOCITY_MOVEMENT_SPEED;
+    }
+    if keyboard_input.pressed(KeyX) {
+        delta_x += PLANK_POSITION_VELOCITY_MOVEMENT_SPEED;
+    }
+    if delta_x != 0.0 {
+        for mut velocity in query.iter_mut() {
+
+            velocity.linvel.x += delta_x * time.delta_seconds();
+            println!("impulse plank has delta x { }",  velocity.linvel.x);
         }
     }
 }
