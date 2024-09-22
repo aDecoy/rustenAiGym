@@ -188,9 +188,12 @@ fn create_new_children(mut commands: Commands,
 
 enum EnvValg {
     Høyre,
+    // has velocity
     Fall,
+    // uses velocity
     FallImpulsHøyre,
 }
+
 static active_enviroment: EnvValg = EnvValg::FallImpulsHøyre;
 
 // state control
@@ -286,8 +289,8 @@ fn reset_to_star_pos2(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mu
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank) in query.iter_mut() {
+fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, Option<&mut Velocity>), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank, ) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
@@ -305,7 +308,11 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<P
 
 
         // individual.translation.x += random::<f32>() * action * 5.0;
-        individual.translation.x += action * 2.0;
+        match active_enviroment {
+            EnvValg::Høyre | EnvValg::Fall =>  individual.translation.x += action * 2.0,
+            EnvValg::FallImpulsHøyre =>  individual.translation.x += action * 2.0,
+        }
+
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = individual.translation.x.clone();
