@@ -1,6 +1,6 @@
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
-use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
+use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
 use bevy_rapier2d::na::ComplexField;
@@ -10,10 +10,12 @@ pub struct MovingPlankPlugin;
 
 impl MovingPlankPlugin {}
 
+pub const PIXELS_PER_METER: f32 = 100.0;
+
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0)
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(PIXELS_PER_METER)
                 // To spesify my won runing conditions, so that i can pause the sim, or run it one timestep at a time
                 .with_default_system_setup(false))
 
@@ -199,6 +201,9 @@ fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyC
         input_exist = true;
     }
     if keyboard_input.pressed(KeyD) {
+        input_exist = true;
+    }
+    if keyboard_input.just_pressed(KeyCode::Space) {
         input_exist = true;
     }
     if input_exist {

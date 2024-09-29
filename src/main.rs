@@ -9,16 +9,17 @@ use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
-use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP};
+use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_inspector_egui::egui::emath::Numeric;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier2d::na::DimAdd;
 use bevy_rapier2d::prelude::*;
 use rand::random;
 
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, MovingPlankPlugin};
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, MovingPlankPlugin, PIXELS_PER_METER};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -33,17 +34,19 @@ fn main() {
 
     let mut app = App::new();
     app
-        // .add_plugins(DefaultPlugins.set(RenderPlugin {
-        //     render_creation: RenderCreation::Automatic(WgpuSettings {
-        //         backends: Some(Backends::DX12),
-        //         ..default()
-        //     }),
-        //     synchronous_pipeline_compilation: false,
-        // }))
-        .add_plugins(DefaultPlugins)
-        .insert_state(Kjøretilstand::Kjørende)
+        .add_plugins(DefaultPlugins.set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                backends: Some(Backends::DX12),
+                ..default()
+            }),
+            synchronous_pipeline_compilation: false,
+        }))
+        // .add_plugins(DefaultPlugins)
+        .insert_state(Kjøretilstand::Pause)
+        .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
+        .add_event::<ResetToStartPositionsEvent>()
         .add_systems(Startup, (
             setup_camera,
             spawn_x_individuals,
@@ -51,6 +54,9 @@ fn main() {
         ))
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
+            reset_event_ved_input,
+            reset_to_star_pos_on_event,
+            extinction_on_t,
             agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
@@ -114,7 +120,7 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    for n in 0i32..10 {
+    for n in 0i32..4 {
         // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -122,6 +128,20 @@ fn spawn_x_individuals(mut commands: Commands,
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
             EnvValg::Fall | EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
         };
+    }
+}
+
+fn extinction_on_t(mut commands: Commands,
+                   meshes: ResMut<Assets<Mesh>>,
+                   materials: ResMut<Assets<ColorMaterial>>,
+                   query: Query<(Entity), With<PlankPhenotype>>,
+                   key_input: Res<ButtonInput<KeyCode>>,
+) {
+    if key_input.just_pressed(KeyT) {
+        for (entity) in query.iter() {
+            commands.entity(entity).despawn();
+        }
+        spawn_x_individuals(commands, meshes, materials)
     }
 }
 
@@ -242,6 +262,31 @@ fn endre_kjøretilstand_ved_input(
     }
 }
 
+// fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>) {
+
+
+#[derive(Event, Debug, Default)]
+struct ResetToStartPositionsEvent;
+
+fn reset_to_star_pos_on_event(
+    mut reset_events: EventReader<ResetToStartPositionsEvent>,
+    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
+) {
+    if reset_events.read().next().is_some() {
+        reset_to_star_pos(query);
+    }
+}
+
+
+fn reset_event_ved_input(
+    user_input: Res<ButtonInput<KeyCode>>,
+    mut reset_events: EventWriter<ResetToStartPositionsEvent>,
+) {
+    if user_input.pressed(KeyR) {
+        reset_events.send_default();
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum Kjøretilstand {
     #[default]
@@ -270,10 +315,12 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
             individual.translation.y = 0.0;
         }
         plank.score = individual.translation.x.clone();
-        plank.obseravations = vec!(individual.translation.x.clone(),individual.translation.y.clone());
+        plank.obseravations = vec!(individual.translation.x.clone(), individual.translation.y.clone());
         velocity.angvel = 0.0;
         velocity.linvel.x = 0.0;
         velocity.linvel.y = 0.0;
+
+        println!("velocity {:?}", velocity);
     }
 }
 
@@ -284,20 +331,21 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velo
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
-        plank.obseravations =  vec![transform.translation.x.clone(),transform.translation.y.clone()];
+        plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
 
 
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
-        let input_values =  plank.obseravations.clone();
+        let input_values = plank.obseravations.clone();
 
         let action = plank.phenotype_layers.decide_on_action(input_values);            // fungerer
         // let action = plank.phenotype_layers.decide_on_action(  plank.obseravations.clone() );  // fungerer ikke ?!?!
 
         // individual.translation.x += random::<f32>() * action * 5.0;
+        println!("action : {action}");
         match active_enviroment {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
-            EnvValg::FallImpulsHøyre => velocity.linvel += action * 2.0,
+            EnvValg::FallImpulsHøyre => velocity.linvel += action,
         }
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
@@ -363,10 +411,23 @@ struct PhenotypeLayers {
 
 impl PhenotypeLayers {
     pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> f32 {
+        for node in input_values.iter() {
+            println!("raw input values {:?}", node);
+        }
+        // todo clamp inputs before giving it to nn
+
+        let mut clamped_input_values = Vec::new();
+        clamped_input_values.reserve(input_values.len());
+        for node in input_values {
+            clamped_input_values.push(node / PIXELS_PER_METER);
+            println!("new clamped input value {:?}", node);
+        }
+
+        // todo clamp x = x / max X = x -  (window_with/2)   ...... not very scalable....
 
         // how to use
-        for i in 0..input_values.len() {
-            self.input_layer[i].value = input_values[i] + self.input_layer[i].bias;
+        for i in 0..clamped_input_values.len() {
+            self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
         }
 
         for mut node in self.output_layer.iter_mut() {
@@ -396,10 +457,18 @@ impl PhenotypeLayers {
         }
 
 
-        // for node in self.output_layer.iter() {
-        //     println!("output nodes {:?}", node);
-        // }
+        for node in self.output_layer.iter() {
+            println!("output nodes {:?}", node);
+        }
 
+        // todo, not sure if this is good or not
+        let mut expanded_output_values = Vec::new();
+        clamped_input_values.reserve(self.output_layer.len());
+        for node in self.output_layer.iter() {
+            expanded_output_values.push(node.value * PIXELS_PER_METER);
+            println!("new expianded output value {:?}", node);
+        }
+        return expanded_output_values[0];
         return self.output_layer[0].value;
         // return random::<f32>();
     }
