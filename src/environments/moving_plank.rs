@@ -1,10 +1,13 @@
+use avian2d::math::Vector;
+use avian2d::PhysicsPlugins;
+use avian2d::prelude::*;
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
-use bevy_rapier2d::na::ComplexField;
-use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
+// use bevy_rapier2d::na::ComplexField;
+// use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
 pub struct MovingPlankPlugin;
 
@@ -15,11 +18,22 @@ pub const PIXELS_PER_METER: f32 = 100.0;
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(PIXELS_PER_METER)
-                // To spesify my won runing conditions, so that i can pause the sim, or run it one timestep at a time
-                .with_default_system_setup(false))
+            // .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(PIXELS_PER_METER)
+            //     // To spesify my won runing conditions, so that i can pause the sim, or run it one timestep at a time
+            //     .with_default_system_setup(false))
+            // .add_plugins(RapierDebugRenderPlugin::default())
+            // .add_systems(Update, (
+            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend).in_set(PhysicsSet::SyncBackend),
+            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation).in_set(PhysicsSet::StepSimulation),
+            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback).in_set(PhysicsSet::Writeback),
+            // ).chain() // overasknede viktig. uten den så lagger ting
+            //     .run_if(in_state(Kjøretilstand::Kjørende)),
+            // )
 
-            .add_plugins(RapierDebugRenderPlugin::default())
+            .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+
+            .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
+
             // .add_systems(Startup, spawn_plank)
             .add_systems(Update, (
                 (
@@ -34,13 +48,7 @@ impl Plugin for MovingPlankPlugin {
                 (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
                 (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
             ).chain())
-            .add_systems(Update, (
-                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend).in_set(PhysicsSet::SyncBackend),
-                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation).in_set(PhysicsSet::StepSimulation),
-                RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback).in_set(PhysicsSet::Writeback),
-            ).chain() // overasknede viktig. uten den så lagger ting
-                .run_if(in_state(Kjøretilstand::Kjørende)),
-            )
+
         ;
     }
 }
@@ -74,7 +82,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 //     // return id;
 // }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, Velocity) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -90,19 +98,23 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
             phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
-        Collider::cuboid(0.5, 0.5),
+        // Collider::cuboid(0.5, 0.5),
+        Collider::rectangle(0.5, 0.5),
         MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
         // RigidBody::Dynamic,
         // individ, // taged so we can use queryies to make evolutionary choises about the individual based on preformance of the phenotype
-        Velocity {
-            // linvel: Vec2::new(100.0, 2.0),
-            linvel: Vec2::new(0.0, 0.0),
-            angvel: 0.0,
+        // Velocity {
+        //     // linvel: Vec2::new(100.0, 2.0),
+        //     linvel: Vec2::new(0.0, 0.0),
+        //     angvel: 0.0,
+        // },
+        LinearVelocity {
+            0:Vec2::new(0.0, 0.0),
         },
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionGroups, Velocity) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -118,21 +130,26 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
             phenotype_layers: create_phenotype_layers(genome.clone()),
             genotype: genome,
         }, // alt 1
-        Collider::cuboid(0.5, 0.5),
+        Collider::rectangle(1.0, 1.0),
+        // Collider::cuboid(0.5, 0.5),
         RigidBody::Dynamic,
         // MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
-        CollisionGroups::new(
-            // almost looked like it runs slower with less collisions?
-            // Kan være at det bare er mer ground kontakt, siden alle ikke hvilker på en blokk som er eneste som rører bakken
-            Group::GROUP_1,
-            if individuals_collide_in_simulation { Group::GROUP_1 } else {
-                Group::GROUP_2
-            },
-        ),
-        Velocity {
-            // linvel: Vec2::new(100.0, 2.0),
-            linvel: Vec2::new(0.0, 0.0),
-            angvel: 0.0,
+        // CollisionGroups::new(
+        //     // almost looked like it runs slower with less collisions?
+        //     // Kan være at det bare er mer ground kontakt, siden alle ikke hvilker på en blokk som er eneste som rører bakken
+        //     Group::GROUP_1,
+        //     if individuals_collide_in_simulation { Group::GROUP_1 } else {
+        //         Group::GROUP_2
+        //     },
+        // ),
+        CollisionLayers::new(0b0001, 0b0010),
+        // Velocity {
+        //     // linvel: Vec2::new(100.0, 2.0),
+        //     linvel: Vec2::new(0.0, 0.0),
+        //     angvel: 0.0,
+        // },
+        LinearVelocity {
+            0:Vec2::new(0.0, 0.0),
         },
     )
 }
@@ -165,7 +182,10 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
     }
 }
 
-fn impulse_plank(mut query: Query<&mut Velocity, With<PlankPhenotype>>,
+fn impulse_plank(
+    mut query: Query<
+        &mut LinearVelocity, With<PlankPhenotype>>,
+        // &mut Velocity, With<PlankPhenotype>>,
                  keyboard_input: Res<ButtonInput<KeyCode>>,
                  time: Res<Time>,
 ) {
@@ -179,8 +199,9 @@ fn impulse_plank(mut query: Query<&mut Velocity, With<PlankPhenotype>>,
     }
     if delta_x != 0.0 {
         for mut velocity in query.iter_mut() {
-            velocity.linvel.x += delta_x * time.delta_seconds();
-            println!("impulse plank has delta x { }", velocity.linvel.x);
+            // velocity.linvel.x += delta_x * time.delta_seconds();
+            velocity.0.x += delta_x * time.delta_seconds();
+            println!("impulse plank has delta x { }", velocity.0.x);
         }
     }
 }

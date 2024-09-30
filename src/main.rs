@@ -1,10 +1,10 @@
-use std::cmp::{min, Ordering, PartialEq};
+use std::cmp::{max, min, Ordering, PartialEq};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::Hasher;
 use std::io::Write;
 use std::vec::Vec;
-
+use avian2d::prelude::{CollisionLayers, LayerMask};
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
 use bevy::color::palettes::basic::PURPLE;
@@ -15,10 +15,12 @@ use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier2d::na::DimAdd;
-use bevy_rapier2d::prelude::*;
-use rand::random;
+// use bevy_rapier2d::na::DimAdd;
+// use bevy_rapier2d::prelude::*;
+use avian2d::prelude::*;
 
+use rand::{random, Rng, thread_rng};
+use rand::distributions::Uniform;
 use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, MovingPlankPlugin, PIXELS_PER_METER};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
@@ -57,7 +59,7 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
-            agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            // agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
                 increase_generation_counter,
@@ -159,7 +161,8 @@ fn kill_worst_individuals(
     //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
     population.sort_by(|(_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
     // println!("population after sort:  {:?}", population);
-    for (entity, _) in &population[0..4] {
+    let number_of_individuals_to_kill = min(4, population.len()-1);
+    for (entity, _) in &population[0..number_of_individuals_to_kill] {
         commands.entity(*entity).despawn();
     }
 }
@@ -178,7 +181,7 @@ fn create_new_children(mut commands: Commands,
     // parents.sort_by(|a, b| if a.score < b.score { Ordering::Less } else if a.score > b.score { Ordering::Greater } else { Ordering::Equal });
     // sort desc
     population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
-    // println!("parents after sort:  {:?}", population);
+    println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
     let mut parents = Vec::new();
@@ -232,6 +235,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
     // done if one is all the way to the right of the screen
     for (individual, _) in query.iter_mut() {
         if individual.translation.x > max_width {
+            println!("done");
             ; // er det skalert etter reapier logikk eller pixler\?
             next_state.set(Kjøretilstand::EvolutionOverhead)
         }
@@ -270,7 +274,8 @@ struct ResetToStartPositionsEvent;
 
 fn reset_to_star_pos_on_event(
     mut reset_events: EventReader<ResetToStartPositionsEvent>,
-    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
+    // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
+    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity), ( With<crate::PlankPhenotype>)>,
 ) {
     if reset_events.read().next().is_some() {
         reset_to_star_pos(query);
@@ -308,25 +313,25 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank, mut velocity) in query.iter_mut() {
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank, mut linvel) in query.iter_mut() {
         individual.translation.x = 0.0;
         if active_enviroment != EnvValg::Høyre {
             individual.translation.y = 0.0;
         }
         plank.score = individual.translation.x.clone();
         plank.obseravations = vec!(individual.translation.x.clone(), individual.translation.y.clone());
-        velocity.angvel = 0.0;
-        velocity.linvel.x = 0.0;
-        velocity.linvel.y = 0.0;
+        // velocity.angvel = 0.0;
+        linvel.x = 0.0;
+        linvel.y = 0.0;
 
-        println!("velocity {:?}", velocity);
+        println!("velocity {:?}", linvel);
     }
 }
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velocity), ( With<PlankPhenotype>)>) {
+fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
     for (mut transform, mut plank, mut velocity) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
@@ -345,7 +350,7 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Velo
         println!("action : {action}");
         match active_enviroment {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
-            EnvValg::FallImpulsHøyre => velocity.linvel += action,
+            EnvValg::FallImpulsHøyre => velocity.0 += action,
         }
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
@@ -558,10 +563,13 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
 pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     let mut node_genes = Vec::new();
+    let mut thread_random = thread_rng();
+    let uniform_dist = Uniform::new(-1.0, 1.0);
+
     for n in 0..ant_inputs {
         node_genes.push(NodeGene {
             innovation_number: n as i32,
-            bias: 0.0,
+            bias: thread_random.sample(uniform_dist),
             enabled: true,
             inputnode: true,
             outputnode: false,
@@ -574,7 +582,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
     for n in 0..ant_outputs {
         node_genes.push(NodeGene {
             innovation_number: n as i32,
-            bias: 0.0,
+            bias: thread_random.sample(uniform_dist),
             enabled: true,
             inputnode: false,
             outputnode: true,
@@ -595,7 +603,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
                 kildenode: n as i32,
                 destinationsnode: m as i32,
                 innovation_number: 42,
-                value: random::<f32>(),
+                value: thread_random.sample(uniform_dist),
                 enabled: true,
                 mutation_stability: 0.5,
             })
@@ -649,25 +657,28 @@ pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
-const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
+const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -200.0, z: 1.0 };
+// const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 
 fn spawn_ground(mut commands: Commands,
                 mut meshes: ResMut<Assets<Mesh>>,
                 mut materials: ResMut<Assets<ColorMaterial>>, ) {
     commands.spawn((
-                       RigidBody::Fixed,
+                       RigidBody::Static,
                        MaterialMesh2dBundle {
                            mesh: meshes.add(Rectangle::default()).into(),
                            material: materials.add(GROUND_COLOR),
                            transform: Transform::from_translation(GROUND_STARTING_POSITION)
-                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 2.0 }.extend(1.)),
+                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 10.0 }.extend(1.)),
                            ..default()
                        },
-                       Sleeping::disabled(),
-                       Collider::cuboid(0.50, 0.5),
-                       Restitution::coefficient(0.0),
-                       Friction::coefficient(0.5),
+                       // Sleeping::disabled(),
+                       Collider::rectangle(1.0, 1.0),
+                       Restitution::new(0.0),
+                       Friction::new(0.5),
+                       CollisionLayers::new(0b0010, LayerMask::ALL),
+
                    ), );
 }
 
