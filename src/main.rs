@@ -4,6 +4,7 @@ use std::fs::File;
 use std::hash::Hasher;
 use std::io::Write;
 use std::vec::Vec;
+use avian2d::math::AdjustPrecision;
 use avian2d::prelude::{CollisionLayers, LayerMask};
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
@@ -59,7 +60,7 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
-            agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            // agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
                 increase_generation_counter,
@@ -335,7 +336,15 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>) {
+fn agent_action(
+    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>,
+    time: Res<Time>,
+
+) {
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
     for (mut transform, mut plank, mut velocity,  option_force ) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
@@ -359,7 +368,7 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Line
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre => {
-                a.x = action;
+                a.x = 50000.0 * action * delta_time;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
                 let b = a.clone();
                 println!("applying force {:#?}", b.force());

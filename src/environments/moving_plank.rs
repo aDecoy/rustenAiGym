@@ -34,7 +34,7 @@ impl Plugin for MovingPlankPlugin {
 
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
 
-            .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
+            // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
 
             // .add_systems(Startup, spawn_plank)
             .add_systems(Update, (
