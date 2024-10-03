@@ -4,7 +4,7 @@ use std::fs::File;
 use std::hash::Hasher;
 use std::io::Write;
 use std::vec::Vec;
-use avian2d::math::AdjustPrecision;
+use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::{CollisionLayers, LayerMask};
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
@@ -37,15 +37,15 @@ fn main() {
 
     let mut app = App::new();
     app
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
-            render_creation: RenderCreation::Automatic(WgpuSettings {
-                backends: Some(Backends::DX12),
-                ..default()
-            }),
-            synchronous_pipeline_compilation: false,
-        }))
-        // .add_plugins(DefaultPlugins)
-        .insert_state(Kjøretilstand::Pause)
+        // .add_plugins(DefaultPlugins.set(RenderPlugin {
+        //     render_creation: RenderCreation::Automatic(WgpuSettings {
+        //         backends: Some(Backends::DX12),
+        //         ..default()
+        //     }),
+        //     synchronous_pipeline_compilation: false,
+        // }))
+        .add_plugins(DefaultPlugins)
+        .insert_state(Kjøretilstand::Kjørende)
         .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
@@ -60,7 +60,10 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
-            // agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            (
+                print_pois_velocity_and_force,
+                agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            ).chain(),
             check_if_done,
             (
                 increase_generation_counter,
@@ -72,7 +75,7 @@ fn main() {
                 mutate_existing_nodes,
                 mutate_existing_weights,
                 reset_to_star_pos,
-                set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead))
+                set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead)),
         ),
         )
         // Environment spesific : Later changed
@@ -119,18 +122,19 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 
 /////////////////// create/kill/develop  new individuals
 
+static start_population_size: i32 = 2;
 
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    for n in 0i32..4 {
+    for n in 0i32..start_population_size {
         // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         match active_enviroment {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)))}
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
         };
     }
 }
@@ -163,7 +167,7 @@ fn kill_worst_individuals(
     //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
     population.sort_by(|(_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
     // println!("population after sort:  {:?}", population);
-    let number_of_individuals_to_kill = min(4, population.len()-1);
+    let number_of_individuals_to_kill = min(4, population.len() - 1);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         commands.entity(*entity).despawn();
     }
@@ -205,7 +209,7 @@ fn create_new_children(mut commands: Commands,
         match active_enviroment {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome))}
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)) }
         };
     }
 }
@@ -318,6 +322,16 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
+fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, &LinearVelocity, &ExternalForce), ( With<crate::PlankPhenotype>)>) {
+    for (translation, plank, linvel, external_force) in query.iter_mut() {
+        println!("translation {:#?}", translation);
+        println!("linvel {:#?}", linvel);
+        println!("external_force {:#?}", external_force);
+        println!("----------------------------")
+    }
+}
+
+
 fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
     for (mut individual, mut plank, mut linvel) in query.iter_mut() {
         individual.translation.x = 0.0;
@@ -330,7 +344,7 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
         linvel.x = 0.0;
         linvel.y = 0.0;
 
-        println!("velocity {:?}", linvel);
+        // println!("velocity {:?}", linvel);
     }
 }
 
@@ -339,13 +353,12 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
 fn agent_action(
     mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>,
     time: Res<Time>,
-
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    for (mut transform, mut plank, mut velocity,  option_force ) in query.iter_mut() {
+    for (mut transform, mut plank, mut velocity, option_force) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
@@ -368,14 +381,16 @@ fn agent_action(
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre => {
-                a.x = 50000.0 * action * delta_time;
+                // a.x = 50000.0 * action * delta_time;
+                // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
-                let b = a.clone();
-                println!("applying force {:#?}", b.force());
-                a.apply_force(b.force());
+                // let b = a.clone();
+                // let b = ExternalForce::default();
+                // println!("applying force {:#?}", b.force());
+                a.apply_force(Vector::ZERO);
             }
         }
-        println!("option force {:#?}", a.clone());
+        // println!("option force {:#?}", a.clone());
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = transform.translation.x.clone();
@@ -702,7 +717,6 @@ fn spawn_ground(mut commands: Commands,
                        Restitution::new(0.0),
                        Friction::new(0.5),
                        CollisionLayers::new(0b0010, LayerMask::ALL),
-
                    ), );
 }
 

@@ -12,7 +12,7 @@ rand = "0.8.5"
 log = "0.4.22"
 
 #only needed for environments
-bevy_rapier2d = "0.27.0"
+#bevy_rapier2d = "0.27.0"
 #bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier.git" }
 
 # For 2D applications:

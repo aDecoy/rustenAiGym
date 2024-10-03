@@ -89,8 +89,8 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
             transform: Transform::from_translation(start_position)
-                .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
-
+            // .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
+            ,
             material: material_handle,
             ..default()
         },
@@ -111,7 +111,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         //     angvel: 0.0,
         // },
         LinearVelocity {
-            0:Vec2::new(0.0, 0.0),
+            0: Vec2::new(0.0, 0.0),
         },
     )
 }
@@ -140,7 +140,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         //     // almost looked like it runs slower with less collisions?
         //     // Kan være at det bare er mer ground kontakt, siden alle ikke hvilker på en blokk som er eneste som rører bakken
         //     Group::GROUP_1,
-        //     if individuals_collide_in_simulation { Group::GROUP_1 } else {
+        //     if INDIVIDUALS_COLLIDE_IN_SIMULATION { Group::GROUP_1 } else {
         //         Group::GROUP_2
         //     },
         // ),
@@ -151,7 +151,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         //     angvel: 0.0,
         // },
         LinearVelocity {
-            0:Vec2::new(0.0, 0.0),
+            0: Vec2::new(0.0, 0.0),
         },
     )
 }
@@ -161,7 +161,6 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
             mesh: mesh2d_handle,
             transform: Transform::from_translation(start_position)
                 .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
-
             material: material_handle,
             ..default()
         },
@@ -175,13 +174,13 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         RigidBody::Dynamic,
         CollisionLayers::new(0b0001, 0b0010),
         LinearVelocity {
-            0:Vec2::new(0.0, 0.0),
+            0: Vec2::new(0.0, 0.0),
         },
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
     )
 }
-static individuals_collide_in_simulation: bool = false;
+static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 
 
 // pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
@@ -213,9 +212,9 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
 fn impulse_plank(
     mut query: Query<
         &mut LinearVelocity, With<PlankPhenotype>>,
-        // &mut Velocity, With<PlankPhenotype>>,
-                 keyboard_input: Res<ButtonInput<KeyCode>>,
-                 time: Res<Time>,
+    // &mut Velocity, With<PlankPhenotype>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
 ) {
     let mut delta_x = 0.0;
 
