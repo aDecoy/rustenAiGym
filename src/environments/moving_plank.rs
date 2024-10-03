@@ -1,6 +1,8 @@
+use std::vec;
 use avian2d::math::Vector;
 use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
+use bevy::math::vec3;
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
@@ -151,6 +153,32 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         LinearVelocity {
             0:Vec2::new(0.0, 0.0),
         },
+    )
+}
+pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
+    (
+        MaterialMesh2dBundle {
+            mesh: mesh2d_handle,
+            transform: Transform::from_translation(start_position)
+                .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
+
+            material: material_handle,
+            ..default()
+        },
+        PlankPhenotype {
+            score: 0.0,
+            obseravations: vec!(0.0, 0.0),
+            phenotype_layers: create_phenotype_layers(genome.clone()),
+            genotype: genome,
+        }, // alt 1
+        Collider::rectangle(1.0, 1.0),
+        RigidBody::Dynamic,
+        CollisionLayers::new(0b0001, 0b0010),
+        LinearVelocity {
+            0:Vec2::new(0.0, 0.0),
+        },
+        // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
+        ExternalForce::new(Vec2::X).with_persistence(false),
     )
 }
 static individuals_collide_in_simulation: bool = false;

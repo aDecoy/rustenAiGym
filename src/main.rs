@@ -21,7 +21,7 @@ use avian2d::prelude::*;
 
 use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, MovingPlankPlugin, PIXELS_PER_METER};
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
 mod environments;
@@ -59,7 +59,7 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
-            // agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+            agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             (
                 increase_generation_counter,
@@ -128,7 +128,8 @@ fn spawn_x_individuals(mut commands: Commands,
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         match active_enviroment {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::Fall | EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2)))}
         };
     }
 }
@@ -201,8 +202,9 @@ fn create_new_children(mut commands: Commands,
 
 
         match active_enviroment {
-            EnvValg::Fall | EnvValg::FallImpulsHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome))}
         };
     }
 }
@@ -213,10 +215,12 @@ enum EnvValg {
     // has velocity
     Fall,
     // uses velocity
-    FallImpulsHøyre,
+    FallVelocityHøyre,
+    // uses impulse
+    FallExternalForcesHøyre,
 }
 
-static active_enviroment: EnvValg = EnvValg::FallImpulsHøyre;
+static active_enviroment: EnvValg = EnvValg::FallExternalForcesHøyre;
 
 // state control
 
@@ -331,8 +335,8 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
-    for (mut transform, mut plank, mut velocity) in query.iter_mut() {
+fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>) {
+    for (mut transform, mut plank, mut velocity,  option_force ) in query.iter_mut() {
         // let (action , genome )= create_phenotype_layers(&plank.genotype);
         // let mut phenotype_layers = plank.phenotype_layers.clone();
         // PhenotypeLayers::decide_on_action();
@@ -348,10 +352,21 @@ fn agent_action(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut Line
 
         // individual.translation.x += random::<f32>() * action * 5.0;
         println!("action : {action}");
+        let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match active_enviroment {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
-            EnvValg::FallImpulsHøyre => velocity.0 += action,
+            EnvValg::FallVelocityHøyre => velocity.0.x += action,
+            // EnvValg::FallGlideBomb => velocity.0 += action,
+            // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
+            EnvValg::FallExternalForcesHøyre => {
+                a.x = action;
+                // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
+                let b = a.clone();
+                println!("applying force {:#?}", b.force());
+                a.apply_force(b.force());
+            }
         }
+        println!("option force {:#?}", a.clone());
 
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = transform.translation.x.clone();
@@ -474,7 +489,7 @@ impl PhenotypeLayers {
             println!("new expianded output value {:?}", node);
         }
         return expanded_output_values[0];
-        return self.output_layer[0].value;
+        // return self.output_layer[0].value;
         // return random::<f32>();
     }
 }
