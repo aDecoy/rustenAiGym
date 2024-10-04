@@ -61,7 +61,7 @@ fn main() {
             reset_to_star_pos_on_event,
             extinction_on_t,
             (
-                print_pois_velocity_and_force,
+                // print_pois_velocity_and_force,
                 agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             ).chain(),
             check_if_done,
@@ -122,16 +122,16 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 
 /////////////////// create/kill/develop  new individuals
 
-static start_population_size: i32 = 2;
+static START_POPULATION_SIZE: i32 = 10;
 
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    for n in 0i32..start_population_size {
+    for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        match active_enviroment {
+        match ACTIVE_ENVIROMENT {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
             EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
@@ -206,7 +206,7 @@ fn create_new_children(mut commands: Commands,
         let new_genome = parent.genotype.clone(); // NB: mutation is done in a seperate bevy system
 
 
-        match active_enviroment {
+        match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)) }
@@ -225,7 +225,7 @@ enum EnvValg {
     FallExternalForcesHøyre,
 }
 
-static active_enviroment: EnvValg = EnvValg::FallExternalForcesHøyre;
+static ACTIVE_ENVIROMENT: EnvValg = EnvValg::FallExternalForcesHøyre;
 
 // state control
 
@@ -291,7 +291,6 @@ fn reset_to_star_pos_on_event(
     }
 }
 
-
 fn reset_event_ved_input(
     user_input: Res<ButtonInput<KeyCode>>,
     mut reset_events: EventWriter<ResetToStartPositionsEvent>,
@@ -335,7 +334,7 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
 fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
     for (mut individual, mut plank, mut linvel) in query.iter_mut() {
         individual.translation.x = 0.0;
-        if active_enviroment != EnvValg::Høyre {
+        if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             individual.translation.y = 0.0;
         }
         plank.score = individual.translation.x.clone();
@@ -359,39 +358,31 @@ fn agent_action(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for (mut transform, mut plank, mut velocity, option_force) in query.iter_mut() {
-        // let (action , genome )= create_phenotype_layers(&plank.genotype);
-        // let mut phenotype_layers = plank.phenotype_layers.clone();
-        // PhenotypeLayers::decide_on_action();
         plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
-
 
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
         let input_values = plank.obseravations.clone();
-
         let action = plank.phenotype_layers.decide_on_action(input_values);            // fungerer
         // let action = plank.phenotype_layers.decide_on_action(  plank.obseravations.clone() );  // fungerer ikke ?!?!
 
         // individual.translation.x += random::<f32>() * action * 5.0;
-        println!("action : {action}");
+        // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
-        match active_enviroment {
+        match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
             EnvValg::FallVelocityHøyre => velocity.0.x += action,
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre => {
-                // a.x = 50000.0 * action * delta_time;
+                a.x = 3000.0 * action * delta_time;
                 // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
-                // let b = a.clone();
-                // let b = ExternalForce::default();
                 // println!("applying force {:#?}", b.force());
-                a.apply_force(Vector::ZERO);
+                // a.apply_force(Vector::ZERO);
             }
         }
         // println!("option force {:#?}", a.clone());
-
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         plank.score = transform.translation.x.clone();
         // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
@@ -455,16 +446,12 @@ struct PhenotypeLayers {
 
 impl PhenotypeLayers {
     pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> f32 {
-        for node in input_values.iter() {
-            println!("raw input values {:?}", node);
-        }
-        // todo clamp inputs before giving it to nn
-
         let mut clamped_input_values = Vec::new();
         clamped_input_values.reserve(input_values.len());
         for node in input_values {
+            //     println!("raw input values {:?}", node);
             clamped_input_values.push(node / PIXELS_PER_METER);
-            println!("new clamped input value {:?}", node);
+            // println!("new clamped input value {:?}", node);
         }
 
         // todo clamp x = x / max X = x -  (window_with/2)   ...... not very scalable....
@@ -501,16 +488,16 @@ impl PhenotypeLayers {
         }
 
 
-        for node in self.output_layer.iter() {
-            println!("output nodes {:?}", node);
-        }
+        // for node in self.output_layer.iter() {
+            // println!("output nodes {:?}", node);
+        // }
 
         // todo, not sure if this is good or not
         let mut expanded_output_values = Vec::new();
         clamped_input_values.reserve(self.output_layer.len());
         for node in self.output_layer.iter() {
             expanded_output_values.push(node.value * PIXELS_PER_METER);
-            println!("new expianded output value {:?}", node);
+            // println!("new expianded output value {:?}", node);
         }
         return expanded_output_values[0];
         // return self.output_layer[0].value;
