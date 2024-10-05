@@ -193,18 +193,24 @@ fn create_new_children(mut commands: Commands,
     let mut parents = Vec::new();
 
     // Parent selection is set to top 3
-    for n in 0..min(4, population.len()) {
+    for n in 0..min(3, population.len()) {
         parents.push(population[n]);
     }
 
-    // For now, simple one new child per parent
+    // For now, simple fill up population to pop  size
+    let pop_to_fill =  START_POPULATION_SIZE - population.len() as i32 ;
+    let thread_random = thread_rng();
+    for n in 0..pop_to_fill {
+        // let uniform_dist = Uniform::new(-1.0, 1.0);
+        // https://stackoverflow.com/questions/34215280/how-can-i-randomly-select-one-element-from-a-vector-or-array
+        let parent: &PlankPhenotype = parents.sample(&thread_random);
 
-    for parent in parents {
+        // }
+        // for parent in parents {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
         let new_genome = parent.genotype.clone(); // NB: mutation is done in a seperate bevy system
-
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
@@ -489,7 +495,7 @@ impl PhenotypeLayers {
 
 
         // for node in self.output_layer.iter() {
-            // println!("output nodes {:?}", node);
+        // println!("output nodes {:?}", node);
         // }
 
         // todo, not sure if this is good or not
