@@ -8,6 +8,7 @@ use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, Plank
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::utils::tracing::instrument::WithSubscriber;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
@@ -31,6 +32,7 @@ impl Plugin for MovingPlankPlugin {
             // ).chain() // overasknede viktig. uten den så lagger ting
             //     .run_if(in_state(Kjøretilstand::Kjørende)),
             // )
+            .insert_resource(Time::<Physics>::default().with_relative_speed(5.5))
 
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
 
@@ -237,7 +239,11 @@ fn impulse_plank(
 
 fn set_ett_hakk_til_vent_på_input(mut next_state: ResMut<NextState<EttHakkState>>,
                                   mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
+                                  mut physics_time: ResMut<Time<Physics>>,
 ) {
+    println!("setting relative speed to 0");
+    physics_time.set_relative_speed(0.0);
+
     next_state.set(EttHakkState::VENTER_PÅ_INPUT);
     next_kjøretistand_state.set(Kjøretilstand::Pause);
 }
@@ -245,6 +251,7 @@ fn set_ett_hakk_til_vent_på_input(mut next_state: ResMut<NextState<EttHakkState
 fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyCode>>,
                                            mut next_state: ResMut<NextState<EttHakkState>>,
                                            mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
+                                           mut physics_time: ResMut<Time<Physics>>,
 ) {
     let mut input_exist = false;
     if keyboard_input.pressed(KeyA) {
@@ -257,6 +264,8 @@ fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyC
         input_exist = true;
     }
     if input_exist {
+        println!("setter phsyikk tid til 5");
+        physics_time.set_relative_speed(5.0);
         next_state.set(EttHakkState::KJØRER_ETT_HAKK);
         next_kjøretistand_state.set(Kjøretilstand::Kjørende);
     }
