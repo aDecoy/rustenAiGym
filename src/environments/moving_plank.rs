@@ -32,7 +32,7 @@ impl Plugin for MovingPlankPlugin {
             // ).chain() // overasknede viktig. uten den så lagger ting
             //     .run_if(in_state(Kjøretilstand::Kjørende)),
             // )
-            .insert_resource(Time::<Physics>::default().with_relative_speed(5.5))
+            .insert_resource(Time::<Physics>::default().with_relative_speed(1.0))
 
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
 
@@ -42,6 +42,7 @@ impl Plugin for MovingPlankPlugin {
 
             // .add_systems(Startup, spawn_plank)
             .add_systems(Update, (
+                (set_physics_time_to_paused_or_unpaused).run_if(state_changed::<Kjøretilstand>),
                 (
                     move_plank,
                     impulse_plank,
@@ -53,9 +54,7 @@ impl Plugin for MovingPlankPlugin {
                 ),
                 (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
                 (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
-            ).chain())
-
-        ;
+            ).chain())        ;
     }
 }
 
@@ -76,17 +75,15 @@ const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
 const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
-// fn spawn_plank(mut commands: Commands,
-//                mut meshes: ResMut<Assets<Mesh>>,
-//                mut materials: ResMut<Assets<ColorMaterial>>,
-//                // ) -> Entity {
-// ) {
-//     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
-//     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-//     let _id = commands.spawn(create_plank(material_handle, rectangle_mesh_handle.into()),
-//     ).id();
-//     // return id;
-// }
+fn set_physics_time_to_paused_or_unpaused(
+    kjøretistand_state: Res<State<Kjøretilstand>>,
+    mut physics_time: ResMut<Time<Physics>>,) {
+    match kjøretistand_state.get() {
+        Kjøretilstand::Pause => physics_time.pause(),
+        Kjøretilstand::Kjørende => physics_time.unpause(),
+        Kjøretilstand::EvolutionOverhead => physics_time.unpause(),
+    }
+}
 
 pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, LinearVelocity) {
     (
@@ -239,11 +236,7 @@ fn impulse_plank(
 
 fn set_ett_hakk_til_vent_på_input(mut next_state: ResMut<NextState<EttHakkState>>,
                                   mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
-                                  mut physics_time: ResMut<Time<Physics>>,
 ) {
-    println!("setting relative speed to 0");
-    physics_time.set_relative_speed(0.0);
-
     next_state.set(EttHakkState::VENTER_PÅ_INPUT);
     next_kjøretistand_state.set(Kjøretilstand::Pause);
 }
@@ -264,8 +257,7 @@ fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyC
         input_exist = true;
     }
     if input_exist {
-        println!("setter phsyikk tid til 5");
-        physics_time.set_relative_speed(5.0);
+        physics_time.unpause();
         next_state.set(EttHakkState::KJØRER_ETT_HAKK);
         next_kjøretistand_state.set(Kjøretilstand::Kjørende);
     }
