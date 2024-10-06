@@ -22,6 +22,7 @@ use avian2d::prelude::*;
 
 use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
+use rand::seq::SliceRandom;
 use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER};
 use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
 
@@ -178,16 +179,15 @@ fn create_new_children(mut commands: Commands,
                        mut materials: ResMut<Assets<ColorMaterial>>,
                        query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
     let mut population = Vec::new();
-
     //sort_individuals
     for (_, plank) in query.iter() {
         population.push(plank)
     }
+    // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
-    // parents.sort_by(|a, b| if a.score < b.score { Ordering::Less } else if a.score > b.score { Ordering::Greater } else { Ordering::Equal });
     // sort desc
     population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
-    println!("parents after sort:  {:?}", population);
+    // println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
     let mut parents = Vec::new();
@@ -199,18 +199,15 @@ fn create_new_children(mut commands: Commands,
 
     // For now, simple fill up population to pop  size
     let pop_to_fill =  START_POPULATION_SIZE - population.len() as i32 ;
-    let thread_random = thread_rng();
-    for n in 0..pop_to_fill {
-        // let uniform_dist = Uniform::new(-1.0, 1.0);
-        // https://stackoverflow.com/questions/34215280/how-can-i-randomly-select-one-element-from-a-vector-or-array
-        let parent: &PlankPhenotype = parents.sample(&thread_random);
+    let mut thread_random = thread_rng();
+    for _ in 0..pop_to_fill {
 
-        // }
-        // for parent in parents {
+        let mut new_genome = parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype.clone();
+        // NB: mutation is done in a seperate bevy system
+        new_genome.allowed_to_change = true;
+
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-
-        let new_genome = parent.genotype.clone(); // NB: mutation is done in a seperate bevy system
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
