@@ -19,7 +19,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
 use avian2d::prelude::*;
-
+use bevy::ecs::query::QueryIter;
 use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
@@ -67,6 +67,7 @@ fn main() {
             ).chain(),
             check_if_done,
             (
+                print_pop_conditions,
                 increase_generation_counter,
                 lock_mutation_stability,
                 save_best_to_history,
@@ -105,13 +106,7 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     // let mut file = File::create("history.txt").expect("kunne ikke finne filen");
     let mut f = File::options().append(true).open("history.txt").expect("kunne ikke åpne filen");
 
-    let mut population = Vec::new();
-    //sort_individuals
-    for (plank) in query.iter() {
-        population.push(plank)
-    }
-    // sort desc
-    population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
+    let population = get_population_sorted_from_best_to_worst(query.iter());
 
     let best = population[0];
     let best_score = best.score;
@@ -119,6 +114,31 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     let generation = generation_counter.count;
     let row = format!("generation {generation}, Best individual: {best_id}, HIGHEST SCORE: {best_score},  ");
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
+}
+
+fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
+// fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
+    let mut population = Vec::new();
+    //sort_individuals
+    for (plank) in query {
+        population.push(plank)
+    }
+    // sort desc
+    population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
+    return population
+}
+
+fn print_pop_conditions(query: Query<&PlankPhenotype>,
+                        generation_counter: Res<GenerationCounter>) {
+    let population = get_population_sorted_from_best_to_worst(query.iter());
+    let best = population[0];
+
+    let best_id = best.genotype.id;
+    let all_fitnesses = population.iter().map( |plank_phenotype| plank_phenotype.score);
+    println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ",  generation_counter.count,population.len(), best_id, best.score);
+    println!("all fintesses for generation: ");
+    all_fitnesses.for_each( |score| print!("{} ", score));
+    println!();
 }
 
 /////////////////// create/kill/develop  new individuals
@@ -198,7 +218,7 @@ fn create_new_children(mut commands: Commands,
     }
 
     // For now, simple fill up population to pop  size . Note this does ruin some evolution patters if competition between indiviuals are a thing in the environment
-    let pop_to_fill =  START_POPULATION_SIZE - population.len() as i32 ;
+    let pop_to_fill = START_POPULATION_SIZE - population.len() as i32;
     let mut thread_random = thread_rng();
     for _ in 0..pop_to_fill {
         // let uniform_dist = Uniform::new(-1.0, 1.0);
@@ -250,7 +270,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
     // done if one is all the way to the right of the screen
     for (individual, _) in query.iter_mut() {
         if individual.translation.x > max_width {
-            println!("done");
+            // println!("done");
             ; // er det skalert etter reapier logikk eller pixler\?
             next_state.set(Kjøretilstand::EvolutionOverhead)
         }
@@ -376,16 +396,18 @@ fn agent_action(
         // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action * 2.0,
-            EnvValg::FallVelocityHøyre => velocity.0.x += action,
+            EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
+            EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre => {
-                a.x = 3000.0 * action * delta_time;
+                a.x = 3000.0 * action[0] * delta_time;
+                a.y = 3000.0 * action[1] * delta_time;
                 // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
-                // println!("applying force {:#?}", b.force());
+                // println!("applying force {:#?}, and now velocity is {:?}", a.force(), velocity);
                 // a.apply_force(Vector::ZERO);
+
             }
         }
         // println!("option force {:#?}", a.clone());
@@ -451,7 +473,7 @@ struct PhenotypeLayers {
 }
 
 impl PhenotypeLayers {
-    pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> f32 {
+    pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> Vec<f32> {
         let mut clamped_input_values = Vec::new();
         clamped_input_values.reserve(input_values.len());
         for node in input_values {
@@ -505,7 +527,8 @@ impl PhenotypeLayers {
             expanded_output_values.push(node.value * PIXELS_PER_METER);
             // println!("new expianded output value {:?}", node);
         }
-        return expanded_output_values[0];
+        // return expanded_output_values[0];
+        return expanded_output_values;
         // return self.output_layer[0].value;
         // return random::<f32>();
     }

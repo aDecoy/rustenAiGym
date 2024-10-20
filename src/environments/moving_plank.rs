@@ -229,7 +229,7 @@ fn impulse_plank(
         for mut velocity in query.iter_mut() {
             // velocity.linvel.x += delta_x * time.delta_seconds();
             velocity.0.x += delta_x * time.delta_seconds();
-            println!("impulse plank has delta x { }", velocity.0.x);
+            // println!("impulse plank has delta x { }", velocity.0.x);
         }
     }
 }
