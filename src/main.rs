@@ -38,14 +38,14 @@ fn main() {
 
     let mut app = App::new();
     app
-        // .add_plugins(DefaultPlugins.set(RenderPlugin {
-        //     render_creation: RenderCreation::Automatic(WgpuSettings {
-        //         backends: Some(Backends::DX12),
-        //         ..default()
-        //     }),
-        //     synchronous_pipeline_compilation: false,
-        // }))
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                backends: Some(Backends::DX12),
+                ..default()
+            }),
+            synchronous_pipeline_compilation: false,
+        }))
+        // .add_plugins(DefaultPlugins)
         .insert_state(Kjøretilstand::Kjørende)
         .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
@@ -197,10 +197,13 @@ fn create_new_children(mut commands: Commands,
         parents.push(population[n]);
     }
 
-    // For now, simple fill up population to pop  size
+    // For now, simple fill up population to pop  size . Note this does ruin some evolution patters if competition between indiviuals are a thing in the environment
     let pop_to_fill =  START_POPULATION_SIZE - population.len() as i32 ;
     let mut thread_random = thread_rng();
     for _ in 0..pop_to_fill {
+        // let uniform_dist = Uniform::new(-1.0, 1.0);
+        // https://stackoverflow.com/questions/34215280/how-can-i-randomly-select-one-element-from-a-vector-or-array
+        // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
         let mut new_genome = parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype.clone();
         // NB: mutation is done in a seperate bevy system
