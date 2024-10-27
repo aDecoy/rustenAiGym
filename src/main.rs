@@ -203,7 +203,7 @@ fn kill_worst_individuals(
     }
 }
 
-#derive!()
+#[derive(Clone)]
 struct PhentypeGenome<'lifetime_a>{
     phenotype: &'lifetime_a PlankPhenotype,
     genome: &'lifetime_a Genome,
@@ -251,8 +251,6 @@ fn create_new_children(mut commands: Commands,
 
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-
-        let genome_entity = commands.spawn(new_genome).id();
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)),
