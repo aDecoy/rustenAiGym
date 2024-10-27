@@ -110,9 +110,10 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 
     let best = population[0];
     let best_score = best.score;
-    let best_id = best.genotype.index();
+    // let best_id = best;
     let generation = generation_counter.count;
-    let row = format!("generation {generation}, Best individual: {best_id}, HIGHEST SCORE: {best_score},  ");
+    // let row = format!("generation {generation}, Best individual: {best}, HIGHEST SCORE: {best_score},  ");
+    let row = format!("generation {generation}, HIGHEST SCORE: {best_score},  ");
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
@@ -133,9 +134,10 @@ fn print_pop_conditions(query: Query<&PlankPhenotype>,
     let population = get_population_sorted_from_best_to_worst(query.iter());
     let best = population[0];
 
-    let best_id = best.genotype.index();
+    // let best_id = best.genotype.index();
     let all_fitnesses = population.iter().map(|plank_phenotype| plank_phenotype.score);
-    println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
+    // println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
+    println!("generation {} just ended, has population size {} Best individual has fitness {} ", generation_counter.count, population.len(), best.score);
     println!("all fintesses for generation: ");
     all_fitnesses.for_each(|score| print!("{} ", score));
     println!();
@@ -154,15 +156,15 @@ fn spawn_x_individuals(mut commands: Commands,
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
         let mut genome = new_random_genome(2, 2);
-        let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
-        let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
+        // let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
+        // let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
 
-        println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
+        // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
 
         match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, genome_entity, new_random_genome(2, 2))),
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, genome_entity, new_random_genome(2, 2))),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_random_genome(2, 2))) }
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
         };
     }
 }
@@ -212,6 +214,9 @@ fn create_new_children(mut commands: Commands,
     }
     // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
+    // todo legge inn generation_rank som en komponent, og sortere i ett system ??
+    // todo alt. ha sorterte Plank også ta inn genom eller entity/ eller (phenotype,genom) tuples eller ny struct som bare brukes til dette. ..
+    sadfasdf
     // sort desc
     population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
     // println!("parents after sort:  {:?}", population);
@@ -435,7 +440,8 @@ pub struct PlankPhenotype {
     // pub phenotype: f32,
     phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
     // pub genotype: Genome,
-    pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 
@@ -558,6 +564,7 @@ pub struct WeightGene {
 struct Genome {
     // nodeGene can not be queried, since genome is a compnent and not an Entity. (It can be changed, but I feel like it is acceptable to give the entire genome to the bevy system
 
+    // kan også kanskje vurdere å bruke bevy_hirearky for å operere på agenene idividuelt, istedenfor å altid gå via Genom parent
     pub node_genes: Vec<NodeGene>,
     pub weight_genes: Vec<WeightGene>,
     pub id: usize,

@@ -86,7 +86,7 @@ fn set_physics_time_to_paused_or_unpaused(
     }
 }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, LinearVelocity) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, MovingPlankObservation, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -100,8 +100,9 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome_entity,
+            // genotype: genome_entity,
         }, // alt 1
+        genome,
         // Collider::cuboid(0.5, 0.5),
         Collider::rectangle(0.5, 0.5),
         MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
@@ -118,7 +119,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype,Genome, Collider, RigidBody, CollisionLayers, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -132,8 +133,9 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome_entity,
+            // genotype: genome_entity,
         }, // alt 1
+        genome,
         Collider::rectangle(1.0, 1.0),
         // Collider::cuboid(0.5, 0.5),
         RigidBody::Dynamic,
@@ -157,7 +159,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
+pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
         (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -170,8 +172,9 @@ pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome_entity,
+            // genotype: genome_entity,
         }, // alt 1
+            genome,
         Collider::rectangle(1.0, 1.0),
         RigidBody::Dynamic,
         CollisionLayers::new(0b0001, 0b0010),
