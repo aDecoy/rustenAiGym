@@ -2,6 +2,7 @@ use std::vec;
 use avian2d::math::Vector;
 use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
+use bevy::ecs::system::EntityCommands;
 use bevy::math::vec3;
 use crate::environments::simulation_teller::SimulationRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
@@ -85,7 +86,7 @@ fn set_physics_time_to_paused_or_unpaused(
     }
 }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, LinearVelocity) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, MovingPlankObservation, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -99,7 +100,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome,
+            genotype: genome_entity,
         }, // alt 1
         // Collider::cuboid(0.5, 0.5),
         Collider::rectangle(0.5, 0.5),
@@ -117,7 +118,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -131,7 +132,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome,
+            genotype: genome_entity,
         }, // alt 1
         Collider::rectangle(1.0, 1.0),
         // Collider::cuboid(0.5, 0.5),
@@ -156,8 +157,8 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
-    (
+pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome_entity: Entity,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
+        (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
             transform: Transform::from_translation(start_position)
@@ -169,7 +170,7 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
             phenotype_layers: create_phenotype_layers(genome.clone()),
-            genotype: genome,
+            genotype: genome_entity,
         }, // alt 1
         Collider::rectangle(1.0, 1.0),
         RigidBody::Dynamic,
@@ -179,7 +180,7 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         },
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
-    )
+        )
 }
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 

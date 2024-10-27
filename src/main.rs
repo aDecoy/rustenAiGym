@@ -55,6 +55,7 @@ fn main() {
             setup_camera,
             spawn_x_individuals,
             spawn_ground,
+            spawn_roof,
         ))
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
@@ -74,8 +75,7 @@ fn main() {
                 kill_worst_individuals,
                 create_new_children,
                 // mutate_planks,
-                mutate_existing_nodes,
-                mutate_existing_weights,
+                mutate_genomes,
                 reset_to_star_pos,
                 set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead)),
         ),
@@ -110,14 +110,14 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 
     let best = population[0];
     let best_score = best.score;
-    let best_id = best.genotype.id;
+    let best_id = best.genotype.index();
     let generation = generation_counter.count;
     let row = format!("generation {generation}, Best individual: {best_id}, HIGHEST SCORE: {best_score},  ");
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
 fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
-// fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
+    // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
     for (plank) in query {
@@ -125,7 +125,7 @@ fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifet
     }
     // sort desc
     population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
-    return population
+    return population;
 }
 
 fn print_pop_conditions(query: Query<&PlankPhenotype>,
@@ -133,11 +133,11 @@ fn print_pop_conditions(query: Query<&PlankPhenotype>,
     let population = get_population_sorted_from_best_to_worst(query.iter());
     let best = population[0];
 
-    let best_id = best.genotype.id;
-    let all_fitnesses = population.iter().map( |plank_phenotype| plank_phenotype.score);
-    println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ",  generation_counter.count,population.len(), best_id, best.score);
+    let best_id = best.genotype.index();
+    let all_fitnesses = population.iter().map(|plank_phenotype| plank_phenotype.score);
+    println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
     println!("all fintesses for generation: ");
-    all_fitnesses.for_each( |score| print!("{} ", score));
+    all_fitnesses.for_each(|score| print!("{} ", score));
     println!();
 }
 
@@ -152,10 +152,17 @@ fn spawn_x_individuals(mut commands: Commands,
         // for n in 0i32..1 {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+
+        let mut genome = new_random_genome(2, 2);
+        let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
+        let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
+
+        println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
+
         match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, genome_entity, new_random_genome(2, 2))),
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, genome_entity, new_random_genome(2, 2))),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_random_genome(2, 2))) }
         };
     }
 }
@@ -225,17 +232,20 @@ fn create_new_children(mut commands: Commands,
         // https://stackoverflow.com/questions/34215280/how-can-i-randomly-select-one-element-from-a-vector-or-array
         // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
-        let mut new_genome = parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype.clone();
+        let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
+
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
 
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
+        let genome_entity = commands.spawn(new_genome).id();
+
         match ACTIVE_ENVIROMENT {
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)) }
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)),
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)) }
         };
     }
 }
@@ -407,7 +417,6 @@ fn agent_action(
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
                 // println!("applying force {:#?}, and now velocity is {:?}", a.force(), velocity);
                 // a.apply_force(Vector::ZERO);
-
             }
         }
         // println!("option force {:#?}", a.clone());
@@ -425,7 +434,8 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
-    pub genotype: Genome,
+    // pub genotype: Genome,
+    pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 
@@ -534,7 +544,7 @@ impl PhenotypeLayers {
     }
 }
 
-#[derive(Debug, Component, Clone)]
+#[derive(Debug, Clone)]
 pub struct WeightGene {
     innovation_number: i32,
     value: f32,
@@ -544,9 +554,10 @@ pub struct WeightGene {
     mutation_stability: f32,
 }
 
-// alternativ 2 er å ha Noder som components , og legge de på plankBundle, og querlyie for with plank
 #[derive(Debug, Component, Clone)]
 struct Genome {
+    // nodeGene can not be queried, since genome is a compnent and not an Entity. (It can be changed, but I feel like it is acceptable to give the entire genome to the bevy system
+
     pub node_genes: Vec<NodeGene>,
     pub weight_genes: Vec<WeightGene>,
     pub id: usize,
@@ -682,8 +693,26 @@ fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
     }
 }
 
-// todo only mutate new kids? maybe lock old ones?
-pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
+pub fn mutate_genomes(mut genes: Query<&mut Genome>) {
+    for mut gene in genes.iter_mut() {
+        println!("mutating genome {}, if allowed: {} ", gene.id, gene.allowed_to_change);
+        if gene.allowed_to_change {
+            mutate_existing_nodes(&mut gene.node_genes);
+            mutate_existing_weights(&mut gene.weight_genes);
+        }
+    }
+}
+// Gets the Position component of all Entities whose Velocity has changed since the last run of the System
+fn genome_changed_event_update_phenotype(query: Query<&PlankPhenotype, Changed<Genome>>) {
+    for position in &query {
+    }
+}
+
+
+
+pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
+    println!("mutating {} nodes ", node_genes.iter().count());
+
     for mut node_gene in node_genes.iter_mut() {
         if random::<f32>() > node_gene.mutation_stability {
             node_gene.bias += random::<f32>() * 2.0 - 1.0;
@@ -693,7 +722,9 @@ pub fn mutate_existing_nodes(mut node_genes: Query<&mut NodeGene>) {
     }
 }
 
-pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
+pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
+    println!("mutating {} weights ", weight_genes.iter().count());
+
     for mut weight_gene in weight_genes.iter_mut() {
         if random::<f32>() > weight_gene.mutation_stability {
             weight_gene.value += random::<f32>() * 2.0 - 1.0;
@@ -713,6 +744,8 @@ pub fn mutate_existing_weights(mut weight_genes: Query<&mut WeightGene>) {
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
 const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -200.0, z: 1.0 };
+
+const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };
 // const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 
@@ -725,6 +758,27 @@ fn spawn_ground(mut commands: Commands,
                            mesh: meshes.add(Rectangle::default()).into(),
                            material: materials.add(GROUND_COLOR),
                            transform: Transform::from_translation(GROUND_STARTING_POSITION)
+                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 10.0 }.extend(1.)),
+                           ..default()
+                       },
+                       // Sleeping::disabled(),
+                       Collider::rectangle(1.0, 1.0),
+                       Restitution::new(0.0),
+                       Friction::new(0.5),
+                       CollisionLayers::new(0b0010, LayerMask::ALL),
+                   ), );
+}
+
+
+fn spawn_roof(mut commands: Commands,
+              mut meshes: ResMut<Assets<Mesh>>,
+              mut materials: ResMut<Assets<ColorMaterial>>, ) {
+    commands.spawn((
+                       RigidBody::Static,
+                       MaterialMesh2dBundle {
+                           mesh: meshes.add(Rectangle::default()).into(),
+                           material: materials.add(GROUND_COLOR),
+                           transform: Transform::from_translation(ROOF_STARTING_POSITION)
                                .with_scale(Vec2 { x: GROUND_LENGTH, y: 10.0 }.extend(1.)),
                            ..default()
                        },
