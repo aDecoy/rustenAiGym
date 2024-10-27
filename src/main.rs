@@ -203,22 +203,28 @@ fn kill_worst_individuals(
     }
 }
 
+#derive!()
+struct PhentypeGenome<'lifetime_a>{
+    phenotype: &'lifetime_a PlankPhenotype,
+    genome: &'lifetime_a Genome,
+}
+
 fn create_new_children(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>,
-                       query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
+                       query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>) {
     let mut population = Vec::new();
     //sort_individuals
-    for (_, plank) in query.iter() {
-        population.push(plank)
+    for (_, plank, genome) in query.iter() {
+        population.push(PhentypeGenome { phenotype :plank, genome:  genome})
     }
     // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
     // todo legge inn generation_rank som en komponent, og sortere i ett system ??
     // todo alt. ha sorterte Plank også ta inn genom eller entity/ eller (phenotype,genom) tuples eller ny struct som bare brukes til dette. ..
-    sadfasdf
+    // sadfasdf
     // sort desc
-    population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
     // println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
@@ -226,7 +232,7 @@ fn create_new_children(mut commands: Commands,
 
     // Parent selection is set to top 3
     for n in 0..min(3, population.len()) {
-        parents.push(population[n]);
+        parents.push(population[n].clone());
     }
 
     // For now, simple fill up population to pop  size . Note this does ruin some evolution patters if competition between indiviuals are a thing in the environment
@@ -237,7 +243,8 @@ fn create_new_children(mut commands: Commands,
         // https://stackoverflow.com/questions/34215280/how-can-i-randomly-select-one-element-from-a-vector-or-array
         // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
-        let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
+        // let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
+        let mut new_genome : Genome = parents.choose(&mut thread_random).expect("No potential parents :O !?").genome.clone();
 
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
@@ -248,9 +255,9 @@ fn create_new_children(mut commands: Commands,
         let genome_entity = commands.spawn(new_genome).id();
 
         match ACTIVE_ENVIROMENT {
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)),
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome_entity, new_genome)) }
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)),
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)),
+            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)) }
         };
     }
 }
