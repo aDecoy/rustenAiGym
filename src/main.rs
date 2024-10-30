@@ -145,7 +145,7 @@ fn print_pop_conditions(query: Query<&PlankPhenotype>,
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 10;
+static START_POPULATION_SIZE: i32 = 100;
 
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
@@ -197,8 +197,12 @@ fn kill_worst_individuals(
     //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
     population.sort_by(|(_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
     // println!("population after sort:  {:?}", population);
-    let number_of_individuals_to_kill = min(4, population.len() - 1);
+    // let number_of_individuals_to_kill = min(4, population.len() - 1);
+    let number_of_individuals_to_leave_alive = 3;
+    let number_of_individuals_to_kill = max(1, population.len() - number_of_individuals_to_leave_alive);
+    println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
+        // println!("despawning entity {} ", entity.index());
         commands.entity(*entity).despawn();
     }
 }
@@ -207,6 +211,7 @@ fn kill_worst_individuals(
 struct PhentypeGenome<'lifetime_a>{
     phenotype: &'lifetime_a PlankPhenotype,
     genome: &'lifetime_a Genome,
+    entity_index: u32,
 }
 
 fn create_new_children(mut commands: Commands,
@@ -215,8 +220,8 @@ fn create_new_children(mut commands: Commands,
                        query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>) {
     let mut population = Vec::new();
     //sort_individuals
-    for (_, plank, genome) in query.iter() {
-        population.push(PhentypeGenome { phenotype :plank, genome:  genome})
+    for (entity, plank, genome) in query.iter() {
+        population.push(PhentypeGenome { phenotype :plank, genome:  genome , entity_index : entity.index()})
     }
     // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
@@ -244,7 +249,9 @@ fn create_new_children(mut commands: Commands,
         // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
         // let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
-        let mut new_genome : Genome = parents.choose(&mut thread_random).expect("No potential parents :O !?").genome.clone();
+        let parent : &PhentypeGenome = parents.choose(&mut thread_random).expect("No potential parents :O !?");
+        // println!("the lucky winner was parent with entity index {}, that had score {} ", parent.entity_index, parent.phenotype.score );
+        let mut new_genome : Genome = parent.genome.clone();
 
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
@@ -572,7 +579,7 @@ struct Genome {
     // kan også kanskje vurdere å bruke bevy_hirearky for å operere på agenene idividuelt, istedenfor å altid gå via Genom parent
     pub node_genes: Vec<NodeGene>,
     pub weight_genes: Vec<WeightGene>,
-    pub id: usize,
+    pub original_ancestor_id: usize,
     pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
 }
 
@@ -683,31 +690,31 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
                 innovation_number: 42,
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
-                mutation_stability: 0.5,
+                mutation_stability: 0.0,
             })
         }
     }
 
 
-    return Genome { node_genes: node_genes, weight_genes: weight_genes, id: random(), allowed_to_change: true };
+    return Genome { node_genes: node_genes, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
 }
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
 fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
     for mut genome in genome_query.iter_mut() {
-        for mut node_gene in genome.node_genes.iter_mut() {
-            node_gene.mutation_stability = 1.0
-        }
-        for mut weight_gene in genome.weight_genes.iter_mut() {
-            weight_gene.mutation_stability = 1.0
-        }
+        // for mut node_gene in genome.node_genes.iter_mut() {
+        //     // node_gene.mutation_stability = 1.0
+        // }
+        // for mut weight_gene in genome.weight_genes.iter_mut() {
+            // weight_gene.mutation_stability = 1.0
+        // }
         genome.allowed_to_change = false;
     }
 }
 
 pub fn mutate_genomes(mut genes: Query<&mut Genome>) {
     for mut gene in genes.iter_mut() {
-        println!("mutating genome {}, if allowed: {} ", gene.id, gene.allowed_to_change);
+        // println!("mutating genome with original ancestor {}, if allowed: {} ", gene.original_ancestor_id, gene.allowed_to_change);
         if gene.allowed_to_change {
             mutate_existing_nodes(&mut gene.node_genes);
             mutate_existing_weights(&mut gene.weight_genes);
@@ -723,24 +730,28 @@ fn genome_changed_event_update_phenotype(query: Query<&PlankPhenotype, Changed<G
 
 
 pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
-    println!("mutating {} nodes ", node_genes.iter().count());
-
+    // println!("mutating {} nodes ", node_genes.iter().count());
+    let mutation_strength = 2.0;
     for mut node_gene in node_genes.iter_mut() {
         if random::<f32>() > node_gene.mutation_stability {
-            node_gene.bias += random::<f32>() * 2.0 - 1.0;
-            node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
+            node_gene.bias += (random::<f32>() * 2.0 - 1.0) * mutation_strength ;
+            // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
         }
     }
 }
 
 pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
-    println!("mutating {} weights ", weight_genes.iter().count());
+    // println!("mutating {} weights ", weight_genes.iter().count());
+    let mutation_strength = 2.0;
 
     for mut weight_gene in weight_genes.iter_mut() {
+        // println!("weight gene mutation_stability : {}", weight_gene.mutation_stability);
         if random::<f32>() > weight_gene.mutation_stability {
-            weight_gene.value += random::<f32>() * 2.0 - 1.0;
-            weight_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
+            // println!("weight gene value before mutation: {}", weight_gene.value);
+            weight_gene.value += (random::<f32>() * 2.0 - 1.0) * mutation_strength;
+            // println!("weight gene value after mutation: {}", weight_gene.value);
+            // weight_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
         }
         if random::<f32>() > weight_gene.mutation_stability {
             weight_gene.enabled = !weight_gene.enabled;
