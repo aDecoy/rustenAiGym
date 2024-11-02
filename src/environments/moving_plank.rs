@@ -4,7 +4,7 @@ use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
 use bevy::ecs::system::EntityCommands;
 use bevy::math::vec3;
-use crate::environments::simulation_teller::SimulationRunningTeller;
+use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
 use bevy::prelude::*;
@@ -283,12 +283,12 @@ fn print_environment_observations(query: Query<&Transform, With<PlankPhenotype>>
     }
 }
 
-fn get_score(time_alive: Res<SimulationRunningTeller>) -> u32 {
+fn get_score(time_alive: Res<SimulationTotalRuntimeRunningTeller>) -> u32 {
     let score = time_alive.count.clone();
     return score;
 }
 
-fn print_score(time_alive: Res<SimulationRunningTeller>) {
+fn print_score(time_alive: Res<SimulationTotalRuntimeRunningTeller>) {
     println!("score is time alive: {}", get_score(time_alive));
 }
 

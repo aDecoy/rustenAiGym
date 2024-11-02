@@ -99,9 +99,9 @@ fn every_time() -> impl Condition<()> {
 fn every_time_if_stop_on_right_window() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
         *flag = match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre |  EnvValg::Fall |EnvValg::FallVelocityHøyre|EnvValg::FallExternalForcesHøyre  => { true }
-            EnvValg::Homing => {false}
-        } ;
+            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => { true }
+            EnvValg::Homing => { false }
+        };
         *flag
     })
 }
@@ -122,6 +122,9 @@ struct SimulationTimer {
 struct GenerationCounter {
     count: i32,
 }
+
+
+static SimulationGenerationMaxTime: f64 = 10.0; // seconds
 
 fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>) {
     generation_counter.count += 1;
@@ -332,7 +335,7 @@ enum EnvValg {
 static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
 
 
-static LANDING_SITE : Vec2 = Vec2{ x: 100.0, y: -100.0};
+static LANDING_SITE: Vec2 = Vec2 { x: 100.0, y: -100.0 };
 
 // state control
 
@@ -351,32 +354,25 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
 
 
     match ACTIVE_ENVIROMENT {
-        EnvValg::Høyre |  EnvValg::Fall |EnvValg::FallVelocityHøyre|EnvValg::FallExternalForcesHøyre  => {
+        EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
 
             // done if one is all the way to the right of the screen
             for (individual, _) in query.iter_mut() {
-
                 if individual.translation.x > max_width {
-                // println!("done");
-                ; // er det skalert etter reapier logikk eller pixler\?
-                next_state.set(Kjøretilstand::EvolutionOverhead)
+                    // println!("done");
+                    ; // er det skalert etter reapier logikk eller pixler\?
+                    next_state.set(Kjøretilstand::EvolutionOverhead)
+                }
             }
         }
-        }
         EnvValg::Homing => {
-            if {
+            if false {
                 // println!("done");
                 ; // er det skalert etter reapier logikk eller pixler\?
-                next_state.set(Kjøretilstand::EvolutionOverhead)
+                next_state.set(Kjøretilstand::EvolutionOverhead);
             }
         }
     }
-
-
-
-
-
-
 }
 
 
@@ -521,10 +517,9 @@ fn agent_action(
             }
             EnvValg::Homing => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
-                let distance =  (LANDING_SITE.x - transform.translation.x).powi(2) +  (LANDING_SITE.y - transform.translation.y).powi(2);
+                let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
                 // smaller sitance is good
-                plank.score = 1000.0/distance;
-
+                plank.score = 1000.0 / distance;
             }
         }
         // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
