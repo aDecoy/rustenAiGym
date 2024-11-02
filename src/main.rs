@@ -50,6 +50,7 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
+        // .init_resource(     EnvValg { Homing} )
         .add_event::<ResetToStartPositionsEvent>()
         .add_systems(Startup, (
             setup_camera,
@@ -67,6 +68,7 @@ fn main() {
                 agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             ).chain(),
             check_if_done,
+            // check_if_done.run_if(every_time_if_stop_on_right_window()),
             (
                 print_pop_conditions,
                 increase_generation_counter,
@@ -85,6 +87,32 @@ fn main() {
         .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
+}
+
+
+fn every_time() -> impl Condition<()> {
+    IntoSystem::into_system(|mut flag: Local<bool>| {
+        *flag = true;
+        *flag
+    })
+}
+fn every_time_if_stop_on_right_window() -> impl Condition<()> {
+    IntoSystem::into_system(|mut flag: Local<bool>| {
+        *flag = match ACTIVE_ENVIROMENT {
+            EnvValg::Høyre |  EnvValg::Fall |EnvValg::FallVelocityHøyre|EnvValg::FallExternalForcesHøyre  => { true }
+            EnvValg::Homing => {false}
+        } ;
+        *flag
+    })
+}
+
+
+//////////////
+
+
+#[derive(Resource, Default, Debug)]
+struct SimulationTimer {
+    count: i32,
 }
 
 
@@ -129,23 +157,41 @@ fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifet
     return population;
 }
 
-fn print_pop_conditions(query: Query<&PlankPhenotype>,
+// all the lifteimes bassicly just means to keep return value alive as long as the input value
+fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(query: QueryIter<'lifetime_a, '_, (Entity, &PlankPhenotype, &Genome), ()>) -> Vec<PhentypeGenome<'lifetime_a>> {
+    // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
+    let mut population = Vec::new();
+    //sort_individuals
+    for (entity, plank, genome) in query {
+        // for (plank) in query {
+        // population.push(plank)
+        population.push(PhentypeGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() });
+    }
+    // sort desc
+    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    return population;
+}
+
+fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
                         generation_counter: Res<GenerationCounter>) {
-    let population = get_population_sorted_from_best_to_worst(query.iter());
-    let best = population[0];
+    let population = get_population_sorted_from_best_to_worst_v2(query.iter());
+    let best = population[0].clone();
 
     // let best_id = best.genotype.index();
-    let all_fitnesses = population.iter().map(|plank_phenotype| plank_phenotype.score);
+    let all_fitnesses = population.iter().map(|individ| individ.phenotype.score);
     // println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
-    println!("generation {} just ended, has population size {} Best individual has fitness {} ", generation_counter.count, population.len(), best.score);
+    println!("generation {} just ended, has population size {} Best individual has fitness {} ", generation_counter.count, population.len(), best.phenotype.score);
+    // println!("all fintesses for generation: ");
+    // all_fitnesses.for_each(|score| print!("{} ", score));
+    println!();
     println!("all fintesses for generation: ");
-    all_fitnesses.for_each(|score| print!("{} ", score));
+    population.into_iter().for_each(|individ| print!("Entity {} from bevy-generation {} har score {},", individ.entity_index, individ.entity_bevy_generation, individ.phenotype.score));
     println!();
 }
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 100;
+static START_POPULATION_SIZE: i32 = 20;
 
 fn spawn_x_individuals(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
@@ -164,7 +210,7 @@ fn spawn_x_individuals(mut commands: Commands,
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
         };
     }
 }
@@ -200,7 +246,7 @@ fn kill_worst_individuals(
     // let number_of_individuals_to_kill = min(4, population.len() - 1);
     let number_of_individuals_to_leave_alive = 3;
     let number_of_individuals_to_kill = max(1, population.len() - number_of_individuals_to_leave_alive);
-    println!("killing of {} entities", number_of_individuals_to_kill);
+    // println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         // println!("despawning entity {} ", entity.index());
         commands.entity(*entity).despawn();
@@ -208,10 +254,11 @@ fn kill_worst_individuals(
 }
 
 #[derive(Clone)]
-struct PhentypeGenome<'lifetime_a>{
+struct PhentypeGenome<'lifetime_a> {
     phenotype: &'lifetime_a PlankPhenotype,
     genome: &'lifetime_a Genome,
     entity_index: u32,
+    entity_bevy_generation: u32,
 }
 
 fn create_new_children(mut commands: Commands,
@@ -221,7 +268,7 @@ fn create_new_children(mut commands: Commands,
     let mut population = Vec::new();
     //sort_individuals
     for (entity, plank, genome) in query.iter() {
-        population.push(PhentypeGenome { phenotype :plank, genome:  genome , entity_index : entity.index()})
+        population.push(PhentypeGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
     }
     // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
@@ -237,7 +284,9 @@ fn create_new_children(mut commands: Commands,
 
     // Parent selection is set to top 3
     for n in 0..min(3, population.len()) {
-        parents.push(population[n].clone());
+        let parent = population[n].clone();
+        println!("the lucky winner was parent with entity index {}, with entity generation {} that had score: {} ", parent.entity_index, parent.entity_bevy_generation, parent.phenotype.score);
+        parents.push(parent);
     }
 
     // For now, simple fill up population to pop  size . Note this does ruin some evolution patters if competition between indiviuals are a thing in the environment
@@ -249,9 +298,9 @@ fn create_new_children(mut commands: Commands,
         // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
         // let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
-        let parent : &PhentypeGenome = parents.choose(&mut thread_random).expect("No potential parents :O !?");
-        // println!("the lucky winner was parent with entity index {}, that had score {} ", parent.entity_index, parent.phenotype.score );
-        let mut new_genome : Genome = parent.genome.clone();
+        let parent: &PhentypeGenome = parents.choose(&mut thread_random).expect("No potential parents :O !?");
+        // println!("the lucky winner was parent with entity index {}, that had score {} ", parent.entity_index, parent.phenotype.score);
+        let mut new_genome: Genome = parent.genome.clone();
 
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
@@ -260,25 +309,30 @@ fn create_new_children(mut commands: Commands,
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
         match ACTIVE_ENVIROMENT {
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)),
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)),
-            EnvValg::FallExternalForcesHøyre => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 },  new_genome)) }
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)) }
         };
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Resource)]
 enum EnvValg {
     Høyre,
     // has velocity
     Fall,
     // uses velocity
     FallVelocityHøyre,
-    // uses impulse
+    // uses impulse/force
     FallExternalForcesHøyre,
+    // Aiming at a target
+    Homing,
 }
 
-static ACTIVE_ENVIROMENT: EnvValg = EnvValg::FallExternalForcesHøyre;
+static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
+
+
+static LANDING_SITE : Vec2 = Vec2{ x: 100.0, y: -100.0};
 
 // state control
 
@@ -290,18 +344,39 @@ fn set_to_kjørende_state(
 }
 fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>,
                  mut next_state: ResMut<NextState<Kjøretilstand>>,
+                 generation_counter: Res<GenerationCounter>,
                  window: Query<&Window>,
 ) {
     let max_width = window.single().width() * 0.5;
 
-    // done if one is all the way to the right of the screen
-    for (individual, _) in query.iter_mut() {
-        if individual.translation.x > max_width {
-            // println!("done");
-            ; // er det skalert etter reapier logikk eller pixler\?
-            next_state.set(Kjøretilstand::EvolutionOverhead)
+
+    match ACTIVE_ENVIROMENT {
+        EnvValg::Høyre |  EnvValg::Fall |EnvValg::FallVelocityHøyre|EnvValg::FallExternalForcesHøyre  => {
+
+            // done if one is all the way to the right of the screen
+            for (individual, _) in query.iter_mut() {
+
+                if individual.translation.x > max_width {
+                // println!("done");
+                ; // er det skalert etter reapier logikk eller pixler\?
+                next_state.set(Kjøretilstand::EvolutionOverhead)
+            }
+        }
+        }
+        EnvValg::Homing => {
+            if {
+                // println!("done");
+                ; // er det skalert etter reapier logikk eller pixler\?
+                next_state.set(Kjøretilstand::EvolutionOverhead)
+            }
         }
     }
+
+
+
+
+
+
 }
 
 
@@ -337,7 +412,7 @@ struct ResetToStartPositionsEvent;
 fn reset_to_star_pos_on_event(
     mut reset_events: EventReader<ResetToStartPositionsEvent>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
-    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity), ( With<crate::PlankPhenotype>)>,
+    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
 ) {
     if reset_events.read().next().is_some() {
         reset_to_star_pos(query);
@@ -384,8 +459,8 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
 }
 
 
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity), ( With<PlankPhenotype>)>) {
-    for (mut individual, mut plank, mut linvel) in query.iter_mut() {
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>) {
+    for (mut individual, mut plank, mut linvel, option_force) in query.iter_mut() {
         individual.translation.x = 0.0;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             individual.translation.y = 0.0;
@@ -396,7 +471,9 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
         linvel.x = 0.0;
         linvel.y = 0.0;
 
-        // println!("velocity {:?}", linvel);
+        if let Some(mut force) = option_force {
+            force.apply_force(Vector::ZERO);
+        }
     }
 }
 
@@ -427,7 +504,7 @@ fn agent_action(
             EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
-            EnvValg::FallExternalForcesHøyre => {
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
                 a.x = 3000.0 * action[0] * delta_time;
                 a.y = 3000.0 * action[1] * delta_time;
                 // a.y = action;
@@ -438,7 +515,18 @@ fn agent_action(
         }
         // println!("option force {:#?}", a.clone());
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
-        plank.score = transform.translation.x.clone();
+        match ACTIVE_ENVIROMENT {
+            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
+                plank.score = transform.translation.x.clone();
+            }
+            EnvValg::Homing => {
+                // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
+                let distance =  (LANDING_SITE.x - transform.translation.x).powi(2) +  (LANDING_SITE.y - transform.translation.y).powi(2);
+                // smaller sitance is good
+                plank.score = 1000.0/distance;
+
+            }
+        }
         // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
     }
 }
@@ -706,7 +794,7 @@ fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
         //     // node_gene.mutation_stability = 1.0
         // }
         // for mut weight_gene in genome.weight_genes.iter_mut() {
-            // weight_gene.mutation_stability = 1.0
+        // weight_gene.mutation_stability = 1.0
         // }
         genome.allowed_to_change = false;
     }
@@ -723,10 +811,8 @@ pub fn mutate_genomes(mut genes: Query<&mut Genome>) {
 }
 // Gets the Position component of all Entities whose Velocity has changed since the last run of the System
 fn genome_changed_event_update_phenotype(query: Query<&PlankPhenotype, Changed<Genome>>) {
-    for position in &query {
-    }
+    for position in &query {}
 }
-
 
 
 pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
@@ -734,7 +820,7 @@ pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
     let mutation_strength = 2.0;
     for mut node_gene in node_genes.iter_mut() {
         if random::<f32>() > node_gene.mutation_stability {
-            node_gene.bias += (random::<f32>() * 2.0 - 1.0) * mutation_strength ;
+            node_gene.bias += (random::<f32>() * 2.0 - 1.0) * mutation_strength;
             // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
         }
