@@ -24,7 +24,7 @@ use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
 use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER};
-use crate::environments::simulation_teller::SimulationRunningTellerPlugin;
+use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
 
 mod environments;
 
@@ -47,7 +47,7 @@ fn main() {
         }))
         // .add_plugins(DefaultPlugins)
         .insert_state(Kjøretilstand::Kjørende)
-        .add_plugins(WorldInspectorPlugin::new())
+        // .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
         // .init_resource(     EnvValg { Homing} )
@@ -347,7 +347,7 @@ fn set_to_kjørende_state(
 }
 fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>,
                  mut next_state: ResMut<NextState<Kjøretilstand>>,
-                 generation_counter: Res<GenerationCounter>,
+                 simulation_timer: Res<SimulationGenerationTimer>,
                  window: Query<&Window>,
 ) {
     let max_width = window.single().width() * 0.5;
@@ -366,7 +366,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
             }
         }
         EnvValg::Homing => {
-            if false {
+            if simulation_timer.main_timer.just_finished() {
                 // println!("done");
                 ; // er det skalert etter reapier logikk eller pixler\?
                 next_state.set(Kjøretilstand::EvolutionOverhead);
