@@ -36,6 +36,7 @@ impl Plugin for MovingPlankPlugin {
             .insert_resource(Time::<Physics>::default().with_relative_speed(1.0))
 
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+            .insert_resource(Time::<Physics>::default().with_relative_speed(10.5))
 
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
