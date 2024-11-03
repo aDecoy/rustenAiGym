@@ -19,7 +19,7 @@ impl Plugin for SimulationRunningTellerPlugin {
                 add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
                 oppdater_bevy_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst, SimulationTotalRuntimeRunningTeller>,
                 resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
-                timerTick,
+                timer_tick,
                 oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
             ).chain()).run_if(in_state(Kjøretilstand::Kjørende)),
             );
@@ -148,7 +148,7 @@ pub struct SimulationGenerationTimer {
 pub struct SimulationGenerationRunningTimerTekst;
 
 
-fn timerTick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>) {
+fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>) {
     countdown.main_timer.tick(time.delta());
 }
 

@@ -23,7 +23,7 @@ use bevy::ecs::query::QueryIter;
 use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER};
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH};
 use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
 
 mod environments;
@@ -57,6 +57,7 @@ fn main() {
             spawn_x_individuals,
             spawn_ground,
             spawn_roof,
+            spawn_landing_target,
         ))
         .add_systems(Update, (
             endre_kjøretilstand_ved_input,
@@ -65,6 +66,7 @@ fn main() {
             extinction_on_t,
             (
                 // print_pois_velocity_and_force,
+                label_plank_with_current_score,
                 agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
             ).chain(),
             check_if_done,
@@ -77,7 +79,7 @@ fn main() {
                 kill_worst_individuals,
                 create_new_children,
                 // mutate_planks,
-                mutate_genomes,
+                // mutate_genomes,
                 reset_to_star_pos,
                 set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead)),
         ),
@@ -124,7 +126,7 @@ struct GenerationCounter {
 }
 
 
-static SimulationGenerationMaxTime: f64 = 10.0; // seconds
+static SIMULATION_GENERATION_MAX_TIME: f64 = 4.0; // seconds
 
 fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>) {
     generation_counter.count += 1;
@@ -201,7 +203,8 @@ fn spawn_x_individuals(mut commands: Commands,
                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
-        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
+       let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new( PLANK_LENGTH, PLANK_HIGHT ));
+
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
         let mut genome = new_random_genome(2, 2);
@@ -264,6 +267,7 @@ struct PhentypeGenome<'lifetime_a> {
     entity_bevy_generation: u32,
 }
 
+
 fn create_new_children(mut commands: Commands,
                        mut meshes: ResMut<Assets<Mesh>>,
                        mut materials: ResMut<Assets<ColorMaterial>>,
@@ -286,7 +290,7 @@ fn create_new_children(mut commands: Commands,
     let mut parents = Vec::new();
 
     // Parent selection is set to top 3
-    for n in 0..min(3, population.len()) {
+    for n in 0..min(1, population.len()) {
         let parent = population[n].clone();
         println!("the lucky winner was parent with entity index {}, with entity generation {} that had score: {} ", parent.entity_index, parent.entity_bevy_generation, parent.phenotype.score);
         parents.push(parent);
@@ -308,14 +312,35 @@ fn create_new_children(mut commands: Commands,
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
 
-        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::default());
-        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new( PLANK_LENGTH, PLANK_HIGHT ));
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE).with_alpha(0.5));
+
+        let text_style = TextStyle {
+            font_size: 300.0,
+            color: Color::WHITE,
+            ..default()
+        };
+        let text_justification = JustifyText::Center;
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)) }
-        };
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
+
+                commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 0.0 }, new_genome))
+
+            }
+        }
+            .with_children(|builder| {
+                builder.spawn(
+                    Text2dBundle {
+                        text: Text::from_section("translation", text_style.clone())
+                            .with_justify(text_justification),
+                        transform : Transform::from_xyz(0.0, 0.0, 2.0),
+                        ..default()
+                    });
+            })
+        ;
     }
 }
 
@@ -476,14 +501,18 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action(
-    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>,
+    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>, Entity), ( With<PlankPhenotype>)>,
     time: Res<Time>,
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    for (mut transform, mut plank, mut velocity, option_force) in query.iter_mut() {
+    println!();
+    println!();
+    println!();
+
+    for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
         plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
 
         // let input_values = vec![1.0, 2.0]; // 2 inputs
@@ -501,8 +530,11 @@ fn agent_action(
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
-                a.x = 3000.0 * action[0] * delta_time;
-                a.y = 3000.0 * action[1] * delta_time;
+                // a.x = 100.0 * action[0] * delta_time;
+                // a.y = 100.0 * action[1] * delta_time;
+                a.x = 1.0 * action[0];
+                a.y = 1.0 * action[1];
+
                 // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
                 // println!("applying force {:#?}, and now velocity is {:?}", a.force(), velocity);
@@ -518,11 +550,21 @@ fn agent_action(
             EnvValg::Homing => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
                 let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
+                println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
+                         (LANDING_SITE.x - transform.translation.x).powi(2), (LANDING_SITE.y - transform.translation.y).powi(2));
                 // smaller sitance is good
                 plank.score = 1000.0 / distance;
             }
         }
         // println!("individual {} chose action {} with inputs {}", plank.genotype.id.clone(), action ,plank.obseravations.clone()  );
+    }
+}
+
+
+fn label_plank_with_current_score(mut query: Query<(&mut Text, &PlankPhenotype), With<PlankPhenotype>>) {
+    for (mut tekst, phenotype) in query.iter_mut() {
+        tekst.sections[0].value = phenotype.score.to_string();
+        println!("oppdatert tekst til å være {}", phenotype.score.to_string());
     }
 }
 
@@ -847,7 +889,7 @@ pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
-const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -200.0, z: 1.0 };
+const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };
 // const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
@@ -870,6 +912,23 @@ fn spawn_ground(mut commands: Commands,
                        Restitution::new(0.0),
                        Friction::new(0.5),
                        CollisionLayers::new(0b0010, LayerMask::ALL),
+                   ), );
+}
+
+
+fn spawn_landing_target(mut commands: Commands,
+                        mut meshes: ResMut<Assets<Mesh>>,
+                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
+    commands.spawn((
+                       RigidBody::Static,
+                       MaterialMesh2dBundle {
+                           mesh: meshes.add(Circle::default()).into(),
+                           material: materials.add(GROUND_COLOR),
+                           transform: Transform::from_translation(LANDING_SITE.extend(0.0))
+                               .with_scale(Vec2 { x: 5.0, y: 10.0 }.extend(1.)),
+                           ..default()
+                       },
+                       // Sleeping::disabled(),
                    ), );
 }
 

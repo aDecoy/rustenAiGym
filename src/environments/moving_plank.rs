@@ -9,6 +9,7 @@ use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, Plank
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyE, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::text::BreakLineOn;
 use bevy::utils::tracing::instrument::WithSubscriber;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
@@ -17,7 +18,7 @@ pub struct MovingPlankPlugin;
 
 impl MovingPlankPlugin {}
 
-pub const PIXELS_PER_METER: f32 = 100.0;
+pub const PIXELS_PER_METER: f32 = 10.0;
 
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
@@ -36,7 +37,7 @@ impl Plugin for MovingPlankPlugin {
             .insert_resource(Time::<Physics>::default().with_relative_speed(1.0))
 
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
-            .insert_resource(Time::<Physics>::default().with_relative_speed(10.5))
+            .insert_resource(Time::<Physics>::default().with_relative_speed(10.5)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
 
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
@@ -56,7 +57,7 @@ impl Plugin for MovingPlankPlugin {
                 ),
                 (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
                 (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
-            ).chain())        ;
+            ).chain());
     }
 }
 
@@ -69,9 +70,9 @@ pub struct MovingPlankObservation {
 }
 
 
-const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 1.0 };
-const PLANK_LENGTH: f32 = 95.;
-const PLANK_HIGHT: f32 = 30.;
+const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 0.0 };
+pub const PLANK_LENGTH: f32 = 9.0  * PIXELS_PER_METER;
+pub const PLANK_HIGHT: f32 = 3.0 * PIXELS_PER_METER;
 const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
 const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
@@ -79,7 +80,7 @@ const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
 fn set_physics_time_to_paused_or_unpaused(
     kjøretistand_state: Res<State<Kjøretilstand>>,
-    mut physics_time: ResMut<Time<Physics>>,) {
+    mut physics_time: ResMut<Time<Physics>>, ) {
     match kjøretistand_state.get() {
         Kjøretilstand::Pause => physics_time.pause(),
         Kjøretilstand::Kjørende => physics_time.unpause(),
@@ -87,7 +88,7 @@ fn set_physics_time_to_paused_or_unpaused(
     }
 }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, MovingPlankObservation, LinearVelocity) {
+pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, MovingPlankObservation, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -120,7 +121,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype,Genome, Collider, RigidBody, CollisionLayers, LinearVelocity) {
+pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity) {
     (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
@@ -160,12 +161,18 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3,genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce) {
-        (
+pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Mesh2dHandle, start_position: Vec3, genome: Genome) -> (MaterialMesh2dBundle<ColorMaterial>, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, Text) {
+    let text_style = TextStyle {
+        font_size: 30.0,
+        color: Color::WHITE,
+        ..default()
+    };
+    let text_justification = JustifyText::Center;
+    (
         MaterialMesh2dBundle {
             mesh: mesh2d_handle,
             transform: Transform::from_translation(start_position)
-                .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
+                .with_scale(Vec2 { x: 1.0 , y: 1.0 }.extend(1.)),
             material: material_handle,
             ..default()
         },
@@ -184,10 +191,27 @@ pub fn create_plank_ext_force_env_falling( material_handle: Handle<ColorMaterial
         },
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
-        )
+        Text::from_section("START", text_style.clone()).with_justify(text_justification),
+    )
+    // .with_children(|builder| {
+    //     builder.spawn(Text2dBundle {
+    //         text: Text {
+    //             sections: vec![TextSection::new(
+    //                 "this text wraps in the box\n(Unicode linebreaks)",
+    //                 text_style.clone(),
+    //             )],
+    //             justify: JustifyText::Left,
+    //             linebreak_behavior: BreakLineOn::WordBoundary,
+    //         },
+    //         // ensure the text is drawn on top of the box
+    //         transform: Transform::from_translation(Vec3::Z),
+    //         ..default()
+    //     });
+    //
 }
-static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
+// )
 
+static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 
 // pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
 //     for mut plank in query.iter_mut() {
