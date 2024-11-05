@@ -255,7 +255,7 @@ fn kill_worst_individuals(
     // println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         // println!("despawning entity {} ", entity.index());
-        commands.entity(*entity).despawn();
+        commands.entity(*entity).despawn_recursive();
     }
 }
 
@@ -316,7 +316,7 @@ fn create_new_children(mut commands: Commands,
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE).with_alpha(0.5));
 
         let text_style = TextStyle {
-            font_size: 300.0,
+            font_size: 20.0,
             color: Color::WHITE,
             ..default()
         };
@@ -338,11 +338,16 @@ fn create_new_children(mut commands: Commands,
                             .with_justify(text_justification),
                         transform : Transform::from_xyz(0.0, 0.0, 2.0),
                         ..default()
-                    });
+                    },
+                    IndividLabelText,
+                );
             })
         ;
     }
 }
+
+#[derive(Component)]
+struct IndividLabelText;
 
 #[derive(PartialEq, Resource)]
 enum EnvValg {
@@ -561,8 +566,9 @@ fn agent_action(
 }
 
 
-fn label_plank_with_current_score(mut query: Query<(&mut Text, &PlankPhenotype), With<PlankPhenotype>>) {
-    for (mut tekst, phenotype) in query.iter_mut() {
+fn label_plank_with_current_score(mut query: Query<(&mut Text, Entity), With<IndividLabelText>>) {
+    for (mut tekst, entity) in query.iter_mut() {
+        entity.get
         tekst.sections[0].value = phenotype.score.to_string();
         println!("oppdatert tekst til å være {}", phenotype.score.to_string());
     }
