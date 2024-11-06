@@ -20,6 +20,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 // use bevy_rapier2d::prelude::*;
 use avian2d::prelude::*;
 use bevy::ecs::query::QueryIter;
+use lazy_static::lazy_static;
 use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
@@ -103,7 +104,7 @@ fn every_time_if_stop_on_right_window() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
         *flag = match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => { true }
-            EnvValg::Homing => { false }
+            _ => { false }
         };
         *flag
     })
@@ -242,9 +243,8 @@ fn spawn_a_random_new_individual2(mut commands: Commands,
 fn spawn_a_random_new_individual(commands: &mut Commands,
                                  meshes: &mut ResMut<Assets<Mesh>>,
                                  materials: &mut ResMut<Assets<ColorMaterial>>,
-                                 n: i32
+                                 n: i32,
 ) {
-
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
     // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
@@ -258,7 +258,7 @@ fn spawn_a_random_new_individual(commands: &mut Commands,
     match ACTIVE_ENVIROMENT {
         EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
         EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-        EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
     }
         .with_children(|builder| {
             builder.spawn((
@@ -378,7 +378,7 @@ fn create_new_children(mut commands: Commands,
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
                 commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 0.0 }, new_genome))
             }
         }
@@ -400,7 +400,7 @@ fn create_new_children(mut commands: Commands,
 #[derive(Component)]
 struct IndividLabelText;
 
-#[derive(PartialEq, Resource)]
+#[derive(PartialEq, Resource, Eq, Hash)]
 enum EnvValg {
     Høyre,
     // has velocity
@@ -409,14 +409,25 @@ enum EnvValg {
     FallVelocityHøyre,
     // uses impulse/force
     FallExternalForcesHøyre,
-    // Aiming at a target
+    // Aiming at a target in the air
     Homing,
+    // Aiming at a target on the ground
+    HomingGroud,
 }
 
-static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
+static ACTIVE_ENVIROMENT: EnvValg = EnvValg::HomingGroud;
 
+lazy_static! {
+     static ref LANDING_SITE_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
+ HashMap::from([
+    ( EnvValg::Homing, Vec2 { x: 100.0, y: -100.0 }),
+    ( EnvValg::HomingGroud, Vec2 { x: 00.0, y: GROUND_STARTING_POSITION.y + GROUND_HEIGHT }),
+    ])
+    };
+    static ref LANDING_SITE: Vec2 = LANDING_SITE_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];
+}
 
-static LANDING_SITE: Vec2 = Vec2 { x: 100.0, y: -100.0 };
+// static LANDING_SITE: Vec2 = Vec2 { x: 100.0, y: -100.0 };
 
 // state control
 
@@ -446,7 +457,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
                 }
             }
         }
-        EnvValg::Homing => {
+        EnvValg::Homing | EnvValg::HomingGroud => {
             if simulation_timer.main_timer.just_finished() {
                 // println!("done");
                 ; // er det skalert etter reapier logikk eller pixler\?
@@ -585,7 +596,7 @@ fn agent_action(
             EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing  | EnvValg::HomingGroud => {
                 // a.x = 100.0 * action[0] * delta_time;
                 // a.y = 100.0 * action[1] * delta_time;
                 a.x = 1.0 * action[0];
@@ -603,7 +614,7 @@ fn agent_action(
             EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
                 plank.score = transform.translation.x.clone();
             }
-            EnvValg::Homing => {
+            EnvValg::Homing  | EnvValg::HomingGroud => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
                 let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
                 // println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
@@ -947,6 +958,7 @@ pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
 }
 
 const GROUND_LENGTH: f32 = 5495.;
+const GROUND_HEIGHT: f32 = 10.;
 const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
 const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
@@ -963,7 +975,7 @@ fn spawn_ground(mut commands: Commands,
                            mesh: meshes.add(Rectangle::default()).into(),
                            material: materials.add(GROUND_COLOR),
                            transform: Transform::from_translation(GROUND_STARTING_POSITION)
-                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 10.0 }.extend(1.)),
+                               .with_scale(Vec2 { x: GROUND_LENGTH, y: GROUND_HEIGHT }.extend(1.)),
                            ..default()
                        },
                        // Sleeping::disabled(),
@@ -982,7 +994,7 @@ fn spawn_landing_target(mut commands: Commands,
                        RigidBody::Static,
                        MaterialMesh2dBundle {
                            mesh: meshes.add(Circle::default()).into(),
-                           material: materials.add(Color::linear_rgb(1.0,0.0,0.0)),
+                           material: materials.add(Color::linear_rgb(1.0, 0.0, 0.0)),
                            transform: Transform::from_translation(LANDING_SITE.extend(0.0))
                                .with_scale(Vec2 { x: 10.0, y: 10.0 }.extend(1.)),
                            ..default()
