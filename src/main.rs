@@ -54,7 +54,7 @@ fn main() {
         .add_event::<ResetToStartPositionsEvent>()
         .add_systems(Startup, (
             setup_camera,
-            spawn_x_individuals,
+            spawn_start_population,
             spawn_ground,
             spawn_roof,
             spawn_landing_target,
@@ -78,6 +78,7 @@ fn main() {
                 save_best_to_history,
                 kill_worst_individuals,
                 create_new_children,
+                spawn_a_random_new_individual2,
                 // mutate_planks,
                 // mutate_genomes,
                 reset_to_star_pos,
@@ -198,27 +199,79 @@ fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
 
 static START_POPULATION_SIZE: i32 = 20;
 
-fn spawn_x_individuals(mut commands: Commands,
-                       mut meshes: ResMut<Assets<Mesh>>,
-                       mut materials: ResMut<Assets<ColorMaterial>>, ) {
+fn spawn_start_population(mut commands: Commands,
+                          mut meshes: ResMut<Assets<Mesh>>,
+                          mut materials: ResMut<Assets<ColorMaterial>>, ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
-       let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new( PLANK_LENGTH, PLANK_HIGHT ));
 
-        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-
-        let mut genome = new_random_genome(2, 2);
-        // let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
-        // let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
-
-        // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
-
-        match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
-        };
+        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, n);
     }
+}
+
+// fn spawn_a_new_random_individual_2(commands: &mut Commands, meshes: &mut ResMut<Assets<Mesh>>, materials: &mut ResMut<Assets<ColorMaterial>>) {
+//     let n: i32;
+//
+//     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
+//
+//     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+//
+//     let mut genome = new_random_genome(2, 2);
+//     // let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
+//     // let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
+//
+//     // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
+//
+//     match ACTIVE_ENVIROMENT {
+//         EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
+//         EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+//         EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+//     };
+// }
+
+
+// Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
+fn spawn_a_random_new_individual2(mut commands: Commands,
+                                  mut meshes: ResMut<Assets<Mesh>>,
+                                  mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let n: i32 = 1;
+    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, n)
+}
+
+fn spawn_a_random_new_individual(commands: &mut Commands,
+                                 meshes: &mut ResMut<Assets<Mesh>>,
+                                 materials: &mut ResMut<Assets<ColorMaterial>>,
+                                 n: i32
+) {
+
+    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
+    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+    // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
+    let text_style = TextStyle {
+        font_size: 20.0,
+        color: Color::WHITE,
+        ..default()
+    };
+    let text_justification = JustifyText::Center;
+
+    match ACTIVE_ENVIROMENT {
+        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
+        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
+        EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+    }
+        .with_children(|builder| {
+            builder.spawn((
+                Text2dBundle {
+                    text: Text::from_section("translation", text_style.clone())
+                        .with_justify(text_justification),
+                    transform: Transform::from_xyz(0.0, 0.0, 2.0),
+                    ..default()
+                },
+                IndividLabelText,
+            )
+            );
+        });
 }
 
 fn extinction_on_t(mut commands: Commands,
@@ -231,7 +284,7 @@ fn extinction_on_t(mut commands: Commands,
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_x_individuals(commands, meshes, materials)
+        spawn_start_population(commands, meshes, materials)
     }
 }
 
@@ -312,7 +365,7 @@ fn create_new_children(mut commands: Commands,
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
 
-        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new( PLANK_LENGTH, PLANK_HIGHT ));
+        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE).with_alpha(0.5));
 
         let text_style = TextStyle {
@@ -326,23 +379,21 @@ fn create_new_children(mut commands: Commands,
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing => {
-
                 commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 0.0 }, new_genome))
-
             }
         }
             .with_children(|builder| {
-                builder.spawn(
+                builder.spawn((
                     Text2dBundle {
                         text: Text::from_section("translation", text_style.clone())
                             .with_justify(text_justification),
-                        transform : Transform::from_xyz(0.0, 0.0, 2.0),
+                        transform: Transform::from_xyz(0.0, 0.0, 2.0),
                         ..default()
                     },
                     IndividLabelText,
+                )
                 );
-            })
-        ;
+            });
     }
 }
 
@@ -555,8 +606,8 @@ fn agent_action(
             EnvValg::Homing => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
                 let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
-                println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
-                         (LANDING_SITE.x - transform.translation.x).powi(2), (LANDING_SITE.y - transform.translation.y).powi(2));
+                // println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
+                //          (LANDING_SITE.x - transform.translation.x).powi(2), (LANDING_SITE.y - transform.translation.y).powi(2));
                 // smaller sitance is good
                 plank.score = 1000.0 / distance;
             }
@@ -565,12 +616,14 @@ fn agent_action(
     }
 }
 
-
-fn label_plank_with_current_score(mut query: Query<(&mut Text, Entity), With<IndividLabelText>>) {
-    for (mut tekst, entity) in query.iter_mut() {
-        entity.get
-        tekst.sections[0].value = phenotype.score.to_string();
-        println!("oppdatert tekst til å være {}", phenotype.score.to_string());
+fn label_plank_with_current_score(
+    mut query: Query<(&mut Text, &Parent), With<IndividLabelText>>,
+    parent_query: Query<&PlankPhenotype>,
+) {
+    for (mut tekst, parent_entity) in query.iter_mut() {
+        if let Ok(plank_phenotype) = parent_query.get(**parent_entity) {
+            tekst.sections[0].value = plank_phenotype.score.to_string();
+        }
     }
 }
 

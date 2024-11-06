@@ -193,33 +193,9 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         ExternalForce::new(Vec2::X).with_persistence(false),
         Text::from_section("START", text_style.clone()).with_justify(text_justification),
     )
-    // .with_children(|builder| {
-    //     builder.spawn(Text2dBundle {
-    //         text: Text {
-    //             sections: vec![TextSection::new(
-    //                 "this text wraps in the box\n(Unicode linebreaks)",
-    //                 text_style.clone(),
-    //             )],
-    //             justify: JustifyText::Left,
-    //             linebreak_behavior: BreakLineOn::WordBoundary,
-    //         },
-    //         // ensure the text is drawn on top of the box
-    //         transform: Transform::from_translation(Vec3::Z),
-    //         ..default()
-    //     });
-    //
 }
-// )
 
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
-
-// pub fn mutate_planks(mut query: Query<&mut PlankPhenotype>) {
-//     for mut plank in query.iter_mut() {
-//         let old_phenotype = plank.phenotype.clone();
-//         plank.phenotype += random::<f32>() * 2.0 - 1.0;
-//         println!("Changed phenotype from {} to {}", old_phenotype, plank.phenotype)
-//     }
-// }
 
 fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
               keyboard_input: Res<ButtonInput<KeyCode>>,
