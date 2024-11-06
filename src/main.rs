@@ -982,9 +982,9 @@ fn spawn_landing_target(mut commands: Commands,
                        RigidBody::Static,
                        MaterialMesh2dBundle {
                            mesh: meshes.add(Circle::default()).into(),
-                           material: materials.add(GROUND_COLOR),
+                           material: materials.add(Color::linear_rgb(1.0,0.0,0.0)),
                            transform: Transform::from_translation(LANDING_SITE.extend(0.0))
-                               .with_scale(Vec2 { x: 5.0, y: 10.0 }.extend(1.)),
+                               .with_scale(Vec2 { x: 10.0, y: 10.0 }.extend(1.)),
                            ..default()
                        },
                        // Sleeping::disabled(),
