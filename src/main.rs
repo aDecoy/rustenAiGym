@@ -51,6 +51,7 @@ fn main() {
         // .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
+        .insert_resource(InnovationNumberGlobalCounter { count: 0 })
         // .init_resource(     EnvValg { Homing} )
         .add_event::<ResetToStartPositionsEvent>()
         .add_systems(Startup, (
@@ -152,7 +153,7 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
-fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
+fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype<'lifetime_a>> {
     // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
@@ -198,15 +199,17 @@ fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 20;
+static START_POPULATION_SIZE: i32 = 1;
 
 fn spawn_start_population(mut commands: Commands,
                           mut meshes: ResMut<Assets<Mesh>>,
-                          mut materials: ResMut<Assets<ColorMaterial>>, ) {
+                          mut materials: ResMut<Assets<ColorMaterial>>,
+                          mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
 
-        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, n);
+        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovationNumberGlobalCounter, n);
     }
 }
 
@@ -235,14 +238,16 @@ fn spawn_start_population(mut commands: Commands,
 fn spawn_a_random_new_individual2(mut commands: Commands,
                                   mut meshes: ResMut<Assets<Mesh>>,
                                   mut materials: ResMut<Assets<ColorMaterial>>,
+                                  mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     let n: i32 = 1;
-    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, n)
+    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovationNumberGlobalCounter, n)
 }
 
 fn spawn_a_random_new_individual(commands: &mut Commands,
                                  meshes: &mut ResMut<Assets<Mesh>>,
                                  materials: &mut ResMut<Assets<ColorMaterial>>,
+                                 innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
                                  n: i32,
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
@@ -255,10 +260,12 @@ fn spawn_a_random_new_individual(commands: &mut Commands,
     };
     let text_justification = JustifyText::Center;
 
+    let genome = new_random_genome(2, 2, innovationNumberGlobalCounter);
+
     match ACTIVE_ENVIROMENT {
-        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
+        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, genome)),
+        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, genome)),
+        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome)) }
     }
         .with_children(|builder| {
             builder.spawn((
@@ -279,12 +286,13 @@ fn extinction_on_t(mut commands: Commands,
                    materials: ResMut<Assets<ColorMaterial>>,
                    query: Query<(Entity), With<PlankPhenotype>>,
                    key_input: Res<ButtonInput<KeyCode>>,
+                   innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_start_population(commands, meshes, materials)
+        spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter )
     }
 }
 
@@ -314,8 +322,8 @@ fn kill_worst_individuals(
 
 #[derive(Clone)]
 struct PhentypeGenome<'lifetime_a> {
-    phenotype: &'lifetime_a PlankPhenotype,
-    genome: &'lifetime_a Genome,
+    phenotype: &'lifetime_a PlankPhenotype<'lifetime_a>,
+    genome: &'lifetime_a Genome<'lifetime_a>,
     entity_index: u32,
     entity_bevy_generation: u32,
 }
@@ -577,7 +585,6 @@ fn agent_action(
 
     println!();
     println!();
-    println!();
 
     for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
         plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
@@ -596,7 +603,7 @@ fn agent_action(
             EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing  | EnvValg::HomingGroud => {
+            EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
                 // a.x = 100.0 * action[0] * delta_time;
                 // a.y = 100.0 * action[1] * delta_time;
                 a.x = 1.0 * action[0];
@@ -614,7 +621,7 @@ fn agent_action(
             EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
                 plank.score = transform.translation.x.clone();
             }
-            EnvValg::Homing  | EnvValg::HomingGroud => {
+            EnvValg::Homing | EnvValg::HomingGroud => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
                 let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
                 // println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
@@ -641,7 +648,7 @@ fn label_plank_with_current_score(
 
 #[derive(Component, Debug, )]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
-pub struct PlankPhenotype {
+pub struct PlankPhenotype<> {
     pub score: f32,
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
@@ -656,7 +663,8 @@ pub struct PlankPhenotype {
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
 pub struct Individ {}
 
-#[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
+// #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
+#[derive(Debug, Component, Clone)] // todo spesifisker eq uten f32 verdiene
 pub struct NodeGene {
     innovation_number: i32,
     bias: f32,
@@ -684,7 +692,7 @@ impl std::hash::Hash for NodeGene {
 }
 
 #[derive(Debug)]
-struct PhenotypeLayers {
+struct PhenotypeLayers<> {
     ant_layers: usize,
     hidden_layers: Vec<Vec<NodeGene>>,
     input_layer: Vec<NodeGene>,
@@ -692,10 +700,10 @@ struct PhenotypeLayers {
     // &'a to promise compiler that it lives the same length
     // weights_per_destination_node : HashMap<&'a NodeGene, Vec<&'a WeightGene>>,
     // weights_per_destination_node: HashMap<i32, Vec<WeightGene>>,
-    weights_per_destination_node: HashMap<NodeGene, Vec<WeightGene>>,
+    weights_per_destination_node: HashMap<NodeGene, Vec<&WeightGene>>,
 }
 
-impl PhenotypeLayers {
+impl PhenotypeLayers<'_> {
     pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> Vec<f32> {
         let mut clamped_input_values = Vec::new();
         clamped_input_values.reserve(input_values.len());
@@ -758,22 +766,35 @@ impl PhenotypeLayers {
 }
 
 #[derive(Debug, Clone)]
-pub struct WeightGene {
+pub struct WeightGene<'node_lifetime> {
     innovation_number: i32,
     value: f32,
     enabled: bool,
-    kildenode: i32,
-    destinationsnode: i32,
+    // kildenode: i32,
+    kildenode: &'node_lifetime NodeGene,
+    // destinationsnode: i32,
+    destinationsnode: &'node_lifetime NodeGene,
     mutation_stability: f32,
 }
 
+#[derive(Debug, Clone, Resource)]
+pub struct InnovationNumberGlobalCounter {
+    count: i32,
+}
+impl InnovationNumberGlobalCounter {
+    fn get_number(&mut self) -> i32 {
+        self.count += 1;
+        return self.count;
+    }
+}
+
 #[derive(Debug, Component, Clone)]
-struct Genome {
+struct Genome<'a> {
     // nodeGene can not be queried, since genome is a compnent and not an Entity. (It can be changed, but I feel like it is acceptable to give the entire genome to the bevy system
 
     // kan også kanskje vurdere å bruke bevy_hirearky for å operere på agenene idividuelt, istedenfor å altid gå via Genom parent
     pub node_genes: Vec<NodeGene>,
-    pub weight_genes: Vec<WeightGene>,
+    pub weight_genes: Vec<WeightGene<'a>>,
     pub original_ancestor_id: usize,
     pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
 }
@@ -787,6 +808,11 @@ struct Genome {
 // fn create_phenotype_layers (genome: &Genome) -> (PhenotypeLayers, &Genome) {
 
 // alt 2 tar inn en klone
+
+// Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
+// Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
+// Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
+
 pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     // for now just connect input output directly, and ignore hidden
@@ -796,15 +822,15 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     let mut input_layer2: Vec<NodeGene> = Vec::new();
     let mut output_layer2: Vec<NodeGene> = Vec::new();
+    let mut alleNoder: Vec<NodeGene> = Vec::new();
     // let mut weights_per_destination_node : HashMap<usize, Vec<WeightGene>>  = HashMap::new();
     let mut weights_per_destination_node: HashMap<NodeGene, Vec<WeightGene>> = HashMap::new();
 
     weights_per_destination_node.reserve(genome.node_genes.clone().len());
     // for node in genome.node_genes.iter(){
     for node in genome.node_genes {
-        if node.outputnode {
-            output_layer2.push(node);
-        } else if node.inputnode { input_layer2.push(node) }
+        if node.inputnode { input_layer2.push(node) } else if node.outputnode { output_layer2.push(node); }
+        alleNoder.push(node);
     }
 
     // let input_layer = genome.node_genes.iter().filter( |node_gene: &&NodeGene | node_gene.inputnode ).collect();
@@ -814,7 +840,7 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // println!("output layer {:?}", output_layer2);
     let weights_genes = genome.weight_genes.clone();  //  todo jeg har ingen weight genes!!!
     // println!("weights_genes  {:?}", weights_genes.clone());
-    for node in output_layer2.iter() {
+    for node in alleNoder.iter() {
         // let relevant_weigh_nodes: Vec<&WeightGene> = genome.weight_genes.iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
         for weight_gene in weights_genes.clone() {
             // if weights_per_destination_node.contains_key(&weight_gene.destinationsnode) {
@@ -823,16 +849,17 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
                 weights_per_destination_node.get_mut(node).expect("REASON").push(weight_gene);
                 // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
             } else {
-                // weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
-                weights_per_destination_node.insert(*node, vec![weight_gene]);
+                weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
+                // weights_per_destination_node.insert(*node, vec![weight_gene]); // adds all blindly
             }
             // .iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
             // weights_per_destination_node.insert(node.innovation_number, relevant_weigh_nodes);
         }
     }
+    // for node in uplassertHidden.iter() {
 
 
-    // println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
+    println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
     let layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
 
 
@@ -841,14 +868,16 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     return layers;
 }
 
-pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
+pub fn new_random_genome<'a>(ant_inputs: usize, ant_outputs: usize, innovationNumberGlobalCounter: &'a mut ResMut<'a , InnovationNumberGlobalCounter>) -> Genome<'a> {
     let mut node_genes = Vec::new();
     let mut thread_random = thread_rng();
     let uniform_dist = Uniform::new(-1.0, 1.0);
-
+    // let mut input_layer2: Vec<NodeGene> = Vec::new();
+    // let mut output_layer2: Vec<NodeGene> = Vec::new();
     for n in 0..ant_inputs {
         node_genes.push(NodeGene {
-            innovation_number: n as i32,
+            // innovation_number: n as i32,
+            innovation_number: innovationNumberGlobalCounter.get_number(),
             bias: thread_random.sample(uniform_dist),
             enabled: true,
             inputnode: true,
@@ -861,7 +890,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
 
     for n in 0..ant_outputs {
         node_genes.push(NodeGene {
-            innovation_number: n as i32,
+            innovation_number: innovationNumberGlobalCounter.get_number(),
             bias: thread_random.sample(uniform_dist),
             enabled: true,
             inputnode: false,
@@ -875,14 +904,17 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize) -> Genome {
 
     // fully connected input output
     let mut weight_genes = Vec::new();
-    for n in 0..ant_inputs {
-        for m in 0..ant_outputs {
+    for n in node_genes.iter().filter( |node_gene| node_gene.inputnode) {
+    // for n in 0..ant_inputs {
+    //     for m in 0..ant_outputs {
+        for m in  node_genes.iter().filter( |node_gene| node_gene.outputnode) {
             weight_genes.push(WeightGene {
                 // kildenode : &node_genes[n],
                 // destinationsnode: node_genes[m],
-                kildenode: n as i32,
-                destinationsnode: m as i32,
-                innovation_number: 42,
+                // kildenode: n as i32,
+                kildenode: n.innovation_number,
+                destinationsnode: m.innovation_number,
+                innovation_number: innovationNumberGlobalCounter.get_number(),
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
                 mutation_stability: 0.0,
