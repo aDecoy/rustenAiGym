@@ -1,8 +1,9 @@
 use std::cmp::{max, min, Ordering, PartialEq};
 use std::collections::HashMap;
 use std::fs::File;
-use std::hash::Hasher;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
+use std::sync::Arc;
 use std::vec::Vec;
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::{CollisionLayers, LayerMask};
@@ -153,7 +154,8 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
     writeln!(&mut f, "{}", row).expect("TODO: panic message");
 }
 
-fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype<'lifetime_a>> {
+// fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
+fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
     // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
@@ -166,14 +168,14 @@ fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifet
 }
 
 // all the lifteimes bassicly just means to keep return value alive as long as the input value
-fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(query: QueryIter<'lifetime_a, '_, (Entity, &PlankPhenotype, &Genome), ()>) -> Vec<PhentypeGenome<'lifetime_a>> {
+fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(query: QueryIter<'lifetime_a, '_, (Entity, &PlankPhenotype, &Genome), ()>) -> Vec<&'lifetime_a PhentypeGenome<'lifetime_a> > {
     // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
     for (entity, plank, genome) in query {
         // for (plank) in query {
         // population.push(plank)
-        population.push(PhentypeGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() });
+        population.push(&PhentypeGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() });
     }
     // sort desc
     population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
@@ -292,7 +294,7 @@ fn extinction_on_t(mut commands: Commands,
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter )
+        spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter)
     }
 }
 
@@ -320,10 +322,18 @@ fn kill_worst_individuals(
     }
 }
 
+// #[derive(Clone)]
+// struct PhentypeGenome<'lifetime_a> {
+//     phenotype: &'lifetime_a PlankPhenotype<'lifetime_a>,
+//     genome: &'lifetime_a Genome<'lifetime_a>,
+//     entity_index: u32,
+//     entity_bevy_generation: u32,
+// }
+
 #[derive(Clone)]
 struct PhentypeGenome<'lifetime_a> {
-    phenotype: &'lifetime_a PlankPhenotype<'lifetime_a>,
-    genome: &'lifetime_a Genome<'lifetime_a>,
+    phenotype: &'lifetime_a PlankPhenotype,
+    genome: &'lifetime_a Genome,
     entity_index: u32,
     entity_bevy_generation: u32,
 }
@@ -646,13 +656,13 @@ fn label_plank_with_current_score(
 }
 
 
-#[derive(Component, Debug, )]
+#[derive(Component, Debug )]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
-pub struct PlankPhenotype<> {
+pub struct PlankPhenotype {
     pub score: f32,
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
-    phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
+    pub phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
     // pub genotype: Genome,
     // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
     // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
@@ -676,34 +686,43 @@ pub struct NodeGene {
 
     value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
 }
-impl std::cmp::PartialEq for NodeGene {
+impl PartialEq for NodeGene {
     fn eq(&self, other: &Self) -> bool {
         self.innovation_number == other.innovation_number
     }
 }
-
-
 impl Eq for NodeGene {}
-//
-impl std::hash::Hash for NodeGene {
+
+impl Hash for NodeGene {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.innovation_number.hash(state);
+        self.enabled.hash(state);
+        self.inputnode.hash(state);
+        self.outputnode.hash(state);
+        self.layer.hash(state);
     }
 }
 
-#[derive(Debug)]
-struct PhenotypeLayers<> {
+
+
+
+#[derive(Debug, )]
+struct PhenotypeLayers {
     ant_layers: usize,
-    hidden_layers: Vec<Vec<NodeGene>>,
-    input_layer: Vec<NodeGene>,
-    output_layer: Vec<NodeGene>,
+    // Holder på objektene
+    alleNoder: Vec<NodeGene>,
+    alleVekter: Vec<WeightGene>,
+    // hidden_layers: Vec<Vec<&'a NodeGene>>,
+    hidden_nodes: Vec<Vec<Arc<NodeGene>>>,
+    input_layer: Vec<Arc<NodeGene>>,
+    output_layer: Vec<Arc<NodeGene>>,
     // &'a to promise compiler that it lives the same length
     // weights_per_destination_node : HashMap<&'a NodeGene, Vec<&'a WeightGene>>,
     // weights_per_destination_node: HashMap<i32, Vec<WeightGene>>,
-    weights_per_destination_node: HashMap<NodeGene, Vec<&WeightGene>>,
+    weights_per_destination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
 }
 
-impl PhenotypeLayers<'_> {
+impl PhenotypeLayers {
     pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> Vec<f32> {
         let mut clamped_input_values = Vec::new();
         clamped_input_values.reserve(input_values.len());
@@ -734,7 +753,8 @@ impl PhenotypeLayers<'_> {
             for weight_node in relevant_weigh_nodes.iter() {
                 let mut kildenode: NodeGene;
                 for x in self.input_layer.iter() {
-                    if x.innovation_number == weight_node.kildenode {
+                    // if x.innovation_number == weight_node.kildenode {
+                    if *x == weight_node.kildenode {  // todo ikke sikekrt
                         acc_value += x.value * weight_node.value;
                         break;
                     }
@@ -765,17 +785,20 @@ impl PhenotypeLayers<'_> {
     }
 }
 
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Debug, Clone)]
-pub struct WeightGene<'node_lifetime> {
+pub struct WeightGene {
     innovation_number: i32,
     value: f32,
     enabled: bool,
     // kildenode: i32,
-    kildenode: &'node_lifetime NodeGene,
+    kildenode: Arc<NodeGene>,
     // destinationsnode: i32,
-    destinationsnode: &'node_lifetime NodeGene,
+    destinationsnode: Arc<NodeGene>,
     mutation_stability: f32,
 }
+
+
 
 #[derive(Debug, Clone, Resource)]
 pub struct InnovationNumberGlobalCounter {
@@ -789,12 +812,12 @@ impl InnovationNumberGlobalCounter {
 }
 
 #[derive(Debug, Component, Clone)]
-struct Genome<'a> {
+struct Genome {
     // nodeGene can not be queried, since genome is a compnent and not an Entity. (It can be changed, but I feel like it is acceptable to give the entire genome to the bevy system
 
     // kan også kanskje vurdere å bruke bevy_hirearky for å operere på agenene idividuelt, istedenfor å altid gå via Genom parent
     pub node_genes: Vec<NodeGene>,
-    pub weight_genes: Vec<WeightGene<'a>>,
+    pub weight_genes: Vec<WeightGene>,
     pub original_ancestor_id: usize,
     pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
 }
@@ -815,52 +838,32 @@ struct Genome<'a> {
 
 pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
-    // for now just connect input output directly, and ignore hidden
+    // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
 
-    // let mut input_layer2 : Vec<&NodeGene>= Vec::new();
-    // let mut  output_layer2: Vec<&NodeGene> = Vec::new();
-
-    let mut input_layer2: Vec<NodeGene> = Vec::new();
-    let mut output_layer2: Vec<NodeGene> = Vec::new();
+    // Holder på objektene
     let mut alleNoder: Vec<NodeGene> = Vec::new();
-    // let mut weights_per_destination_node : HashMap<usize, Vec<WeightGene>>  = HashMap::new();
-    let mut weights_per_destination_node: HashMap<NodeGene, Vec<WeightGene>> = HashMap::new();
+    let mut alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
 
-    weights_per_destination_node.reserve(genome.node_genes.clone().len());
-    // for node in genome.node_genes.iter(){
+    let mut input_layer2: Vec<&NodeGene> = Vec::new();
+    let mut output_layer2: Vec<&NodeGene> = Vec::new();
+
     for node in genome.node_genes {
-        if node.inputnode { input_layer2.push(node) } else if node.outputnode { output_layer2.push(node); }
+        if node.inputnode { input_layer2.push(&node) } else if node.outputnode { output_layer2.push(&node); }
         alleNoder.push(node);
     }
 
-    // let input_layer = genome.node_genes.iter().filter( |node_gene: &&NodeGene | node_gene.inputnode ).collect();
-    // let output_layer = genome.node_genes.iter().filter( |node_gene: &&NodeGene | node_gene.outputnode ).collect();
-    // let mut layers = PhenotypeLayers { ant_layers: 2 , hidden_layers : Vec::new(), input_layer, output_layer };
-
-    // println!("output layer {:?}", output_layer2);
-    let weights_genes = genome.weight_genes.clone();  //  todo jeg har ingen weight genes!!!
-    // println!("weights_genes  {:?}", weights_genes.clone());
-    for node in alleNoder.iter() {
-        // let relevant_weigh_nodes: Vec<&WeightGene> = genome.weight_genes.iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-        for weight_gene in weights_genes.clone() {
-            // if weights_per_destination_node.contains_key(&weight_gene.destinationsnode) {
-            if weights_per_destination_node.contains_key(node) {
-                // weights_per_destination_node.get_mut(&weight_gene.destinationsnode.clone()).expect("REASON").push(weight_gene);
-                weights_per_destination_node.get_mut(node).expect("REASON").push(weight_gene);
-                // https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
-            } else {
-                weights_per_destination_node.insert(weight_gene.destinationsnode.clone(), vec![weight_gene]);
-                // weights_per_destination_node.insert(*node, vec![weight_gene]); // adds all blindly
-            }
-            // .iter().filter(|weight_gene: &&WeightGene| weight_gene.destinationsnode == node.innovation_number).collect::<Vec<WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-            // weights_per_destination_node.insert(node.innovation_number, relevant_weigh_nodes);
-        }
+    let mut weights_per_desination_node: HashMap<&NodeGene, Vec<&WeightGene>> = HashMap::new();
+    // weights_per_desination_node.reserve(alleNoder.clone().len());
+    for weight in alleVekter.iter() {
+        let list = weights_per_desination_node.entry(weight.destinationsnode).or_insert_with(|| Vec::new());
+        list.push(weight);
     }
+
     // for node in uplassertHidden.iter() {
 
 
-    println!("weights_per_destination_node {:#?}", weights_per_destination_node.clone());
-    let layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_destination_node };
+    println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
+    let layers = PhenotypeLayers { ant_layers: 2, hidden_layers: Vec::new(), input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_desination_node };
 
 
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
@@ -868,7 +871,7 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     return layers;
 }
 
-pub fn new_random_genome<'a>(ant_inputs: usize, ant_outputs: usize, innovationNumberGlobalCounter: &'a mut ResMut<'a , InnovationNumberGlobalCounter>) -> Genome<'a> {
+pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumberGlobalCounter: & mut ResMut<InnovationNumberGlobalCounter>) -> Genome {
     let mut node_genes = Vec::new();
     let mut thread_random = thread_rng();
     let uniform_dist = Uniform::new(-1.0, 1.0);
@@ -904,16 +907,16 @@ pub fn new_random_genome<'a>(ant_inputs: usize, ant_outputs: usize, innovationNu
 
     // fully connected input output
     let mut weight_genes = Vec::new();
-    for n in node_genes.iter().filter( |node_gene| node_gene.inputnode) {
-    // for n in 0..ant_inputs {
-    //     for m in 0..ant_outputs {
-        for m in  node_genes.iter().filter( |node_gene| node_gene.outputnode) {
+    for n in node_genes.iter().filter(|node_gene| node_gene.inputnode) {
+        // for n in 0..ant_inputs {
+        //     for m in 0..ant_outputs {
+        for m in node_genes.iter().filter(|node_gene| node_gene.outputnode) {
             weight_genes.push(WeightGene {
-                // kildenode : &node_genes[n],
-                // destinationsnode: node_genes[m],
+                kildenode: &node_genes[n],
+                destinationsnode: node_genes[m],
                 // kildenode: n as i32,
-                kildenode: n.innovation_number,
-                destinationsnode: m.innovation_number,
+                // kildenode: n.innovation_number,
+                // destinationsnode: m.innovation_number,
                 innovation_number: innovationNumberGlobalCounter.get_number(),
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
