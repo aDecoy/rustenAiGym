@@ -207,7 +207,7 @@ fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 1;
+static START_POPULATION_SIZE: i32 = 10;
 
 fn spawn_start_population(mut commands: Commands,
                           mut meshes: ResMut<Assets<Mesh>>,
@@ -320,10 +320,14 @@ fn kill_worst_individuals(
     // println!("population after sort:  {:?}", population);
     // let number_of_individuals_to_kill = min(4, population.len() - 1);
     let number_of_individuals_to_leave_alive = 3;
-    let number_of_individuals_to_kill = max(1, population.len() - number_of_individuals_to_leave_alive);
-    // println!("killing of {} entities", number_of_individuals_to_kill);
+
+    // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0", population.len(), population.len()  as i32- number_of_individuals_to_leave_alive);
+    // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0, ressulting in {}", population.len(), population.len() - number_of_individuals_to_leave_alive, max(0, population.len() - number_of_individuals_to_leave_alive));
+
+    let number_of_individuals_to_kill : usize = max(0, population.len() as i32 - number_of_individuals_to_leave_alive)  as usize;
+    println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
-        // println!("despawning entity {} ", entity.index());
+        println!("despawning entity {} ", entity.index());
         commands.entity(*entity).despawn_recursive();
     }
 }
@@ -598,9 +602,6 @@ fn agent_action(
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    println!();
-    println!();
-
     for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
         plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
 
@@ -784,7 +785,7 @@ impl PhenotypeLayers {
             //  acc_value += kildenode.value * weight_node.value;
             // }
             // destination_node.value = acc_value + destination_node.bias;
-            let total_påvirking : f32 = alle_inputs_til_destination_node.iter().sum();
+            let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
             {
                 let mut verdi = destination_node.value.write().unwrap();
                 *verdi = *verdi + total_påvirking;
@@ -815,7 +816,7 @@ impl PhenotypeLayers {
 // #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Debug, Clone)]
 pub struct WeightGene {
-    innovation_number: i32,
+    // innovation_number: i32, // kanskje ikke egentlig i bruk... . Skal samme forbindelse som oppstår i ulike muteringer utveksle informasjon? Kan brukes til å skille på det.
     value: f32,
     enabled: bool,
     // kildenode: i32,
@@ -855,31 +856,47 @@ impl Clone for Genome {
         // Vi kan ikke gjøre en naiv copy, siden vi ikke vil at vektene til nye kopiert objekt skal reffere til noder i det orginale genomet
         let mut nye_noder = Vec::new();
 
-        for node in self.node_genes.iter(){
-            let ny_node : Arc<NodeGene>;
+        for node in self.node_genes.iter() {
+            let ny_node: Arc<NodeGene>;
             {
-                let  bias = node.bias.read().unwrap();
-                ny_node =  Arc::new(NodeGene {
+                let bias = node.bias.read().unwrap();
+                ny_node = Arc::new(NodeGene {
                     innovation_number: node.innovation_number.clone(),
                     bias: RwLock::new(bias.clone()),
                     enabled: node.enabled,
-                    inputnode:  node.inputnode,
-                    outputnode:  node.outputnode,
-                    mutation_stability:  node.mutation_stability,
+                    inputnode: node.inputnode,
+                    outputnode: node.outputnode,
+                    mutation_stability: node.mutation_stability,
                     layer: 0,
-                    value: RwLock::new(0.0) }
+                    value: RwLock::new(0.0),
+                }
                 );
             }
             nye_noder.push(ny_node);
         }
-    Genome {
-        node_genes: nye_noder,
-        weight_genes: Vec::new(),
-        original_ancestor_id: self.original_ancestor_id.clone(),
-        allowed_to_change:  self.allowed_to_change.clone(),
-    }dxfghzdfvghjftesfg
-}
+        let mut nye_vekter = Vec::new();
+        for vekt in self.weight_genes.iter() {
+            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).count(), 1);
+            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).count(), 1);
 
+
+            let ny_vekt = WeightGene {
+                enabled: vekt.enabled,
+                mutation_stability: vekt.mutation_stability,
+                value: vekt.value,
+                kildenode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).next().expect("fant ikke kildenode til vekten")),
+                destinationsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
+            };
+            nye_vekter.push(ny_vekt);
+        }
+
+        Genome {
+            node_genes: nye_noder,
+            weight_genes: nye_vekter,
+            original_ancestor_id: self.original_ancestor_id.clone(),
+            allowed_to_change: self.allowed_to_change.clone(),
+        }
+    }
 }
 
 // skal layers absorbere genome, skal den returnere genome og layers, eller skal den ta inn en copy av genome?
@@ -933,15 +950,11 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
         // list.push(Rc::new(*weight));
         // list.push(&weight);
     }
-    println!("vekter_gruppert {:?}", weights_per_desination_node);
-
+    // println!("vekter_gruppert {:?}", weights_per_desination_node);
     // for node in uplassertHidden.iter() {
 
-
-    println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
+    // println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
     let layers = PhenotypeLayers { ant_layers: 2, alleNoder: alleNoder, alleNoderArc: alleNoderArc, alleVekter: alleVekter, input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_desination_node, hidden_nodes: vec![] };
-
-
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
     // return (layers , genome);
     return layers;
@@ -957,13 +970,13 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
         node_genes.push(NodeGene {
             // innovation_number: n as i32,
             innovation_number: innovationNumberGlobalCounter.get_number(),
-            bias: RwLock::new( thread_random.sample(uniform_dist)),
+            bias: RwLock::new(thread_random.sample(uniform_dist)),
             enabled: true,
             inputnode: true,
             outputnode: false,
             mutation_stability: 0.0,
             layer: 0,
-            value: RwLock::new(  0.0),
+            value: RwLock::new(0.0),
         });
     }
 
@@ -971,13 +984,13 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
         node_genes.push(NodeGene {
             innovation_number: innovationNumberGlobalCounter.get_number(),
             // bias: thread_random.sample(uniform_dist),
-            bias: RwLock::new( thread_random.sample(uniform_dist)),
+            bias: RwLock::new(thread_random.sample(uniform_dist)),
             enabled: true,
             inputnode: false,
             outputnode: true,
             mutation_stability: 0.0,
             layer: 0,
-            value:RwLock::new(  0.0),
+            value: RwLock::new(0.0),
         });
     }
 
@@ -1004,7 +1017,8 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
                 // kildenode: n as i32,
                 // kildenode: n.innovation_number,
                 // destinationsnode: m.innovation_number,
-                innovation_number: innovationNumberGlobalCounter.get_number(),
+                // innovation_number: innovationNumberGlobalCounter.get_number(),
+
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
                 mutation_stability: 0.0,
@@ -1048,8 +1062,8 @@ pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
         if random::<f32>() > node_gene.mutation_stability {
             let change = (random::<f32>() * 2.0 - 1.0) * mutation_strength;
             {
-            let mut bias = node_gene.bias.write().unwrap();
-            *bias = *bias + change;
+                let mut bias = node_gene.bias.write().unwrap();
+                *bias = *bias + change;
             }
             // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
