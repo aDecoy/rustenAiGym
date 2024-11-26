@@ -26,8 +26,8 @@ impl Plugin for SimulationRunningTellerPlugin {
     }
 }
 
-// static GENERATION_TIME: f32 = 10.0;
-static GENERATION_TIME: f32 = 5.0;
+static GENERATION_TIME: f32 = 10.0;
+// static GENERATION_TIME: f32 = 5.0;
 
 #[derive(Component)]
 pub struct SimulationTotalRuntimeRunningTellerTekst;

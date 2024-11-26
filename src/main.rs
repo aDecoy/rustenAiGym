@@ -443,7 +443,7 @@ enum EnvValg {
     HomingGroud,
 }
 
-static ACTIVE_ENVIROMENT: EnvValg = EnvValg::HomingGroud;
+static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
 
 lazy_static! {
      static ref LANDING_SITE_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
@@ -622,8 +622,8 @@ fn agent_action(
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
                 // a.x = 100.0 * action[0] * delta_time;
                 // a.y = 100.0 * action[1] * delta_time;
-                a.x = 1.0 * action[0];
-                a.y = 1.0 * action[1];
+                a.x = 10.0 * action[0] ;
+                a.y = 10.0 * action[1];
 
                 // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
@@ -721,7 +721,7 @@ impl Hash for NodeGene {
 struct PhenotypeLayers {
     ant_layers: usize,
     // Holder på objektene
-    alleNoder: Vec<NodeGene>,
+    // alleNoder: Vec<NodeGene>,
     alleNoderArc: Vec<Arc<NodeGene>>,
     alleVekter: Vec<WeightGene>,
     // hidden_layers: Vec<Vec<&'a NodeGene>>,
@@ -754,17 +754,18 @@ impl PhenotypeLayers {
             // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
         }
 
-        for mut destination_node in self.output_layer.iter_mut() {
+        // for mut destination_node in self.output_layer.iter_mut() {
+        for mut destination_node in self.alleNoderArc.iter_mut() {
             // let relevant_weigh_nodes : Vec<&WeightGene> =  self.genome.weight_genes.iter().filter(  | weight_gene: &&WeightGene | weight_gene.destinationsnode == node.innovation_number  ).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
             // let relevant_weigh_nodes : Vec<WeightGene> =  self.weights_per_destination_node.get(node); // todo, jeg må bruke key ref som jeg orginalt brukte. Altså node. Men om jeg borrower node inn i phenotypelayer
-            let relevant_weigh_nodes = self.weights_per_destination_node.get(destination_node).expect("burde være her");
-            // let relevant_weigh_nodes = match self.weights_per_destination_node.get(node) {
-            //     Some(weights) => weights,
-            //     None => &Vec::new()
-            // };
+            // let relevant_weigh_nodes = self.weights_per_destination_node.get(destination_node);
+            let relevant_weigh_nodes = match self.weights_per_destination_node.get(destination_node) {
+                Some(weights) => weights,
+                None => &Vec::new()
+            };
 
 
-            let mut acc_value = 0.0;
+
             let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
             for weight_node in relevant_weigh_nodes.iter() {
                 {
@@ -788,15 +789,14 @@ impl PhenotypeLayers {
             let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
             {
                 let mut verdi = destination_node.value.write().unwrap();
-                *verdi = *verdi + total_påvirking;
+                // println!("verdi før halvering {}", verdi);
+                *verdi = *verdi * 0.5 ;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
+                *verdi = *verdi + total_påvirking;  // ,
             }
         }
-
-
         // for node in self.output_layer.iter() {
         // println!("output nodes {:?}", node);
         // }
-
         // todo, not sure if this is good or not
         let mut expanded_output_values = Vec::new();
         clamped_input_values.reserve(self.output_layer.len());
@@ -807,6 +807,7 @@ impl PhenotypeLayers {
             // println!("new expianded output value {:?}", node);
         }
         // return expanded_output_values[0];
+        // println!("expanded_output_values {:?} " ,expanded_output_values);
         return expanded_output_values;
         // return self.output_layer[0].value;
         // return random::<f32>();
@@ -954,7 +955,9 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // for node in uplassertHidden.iter() {
 
     // println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
-    let layers = PhenotypeLayers { ant_layers: 2, alleNoder: alleNoder, alleNoderArc: alleNoderArc, alleVekter: alleVekter, input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_desination_node, hidden_nodes: vec![] };
+    let layers = PhenotypeLayers { ant_layers: 2,
+        // alleNoder: alleNoder,
+        alleNoderArc: alleNoderArc, alleVekter: alleVekter, input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_desination_node, hidden_nodes: vec![] };
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
     // return (layers , genome);
     return layers;

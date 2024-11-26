@@ -19,6 +19,7 @@ pub struct MovingPlankPlugin;
 impl MovingPlankPlugin {}
 
 pub const PIXELS_PER_METER: f32 = 10.0;
+pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
 
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
@@ -34,10 +35,8 @@ impl Plugin for MovingPlankPlugin {
             // ).chain() // overasknede viktig. uten den så lagger ting
             //     .run_if(in_state(Kjøretilstand::Kjørende)),
             // )
-            .insert_resource(Time::<Physics>::default().with_relative_speed(1.0))
-
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
-            .insert_resource(Time::<Physics>::default().with_relative_speed(10.5)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
+            .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
 
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
@@ -62,6 +61,8 @@ impl Plugin for MovingPlankPlugin {
 }
 
 
+
+
 /// Defines the state found in the cart pole environment.
 #[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct MovingPlankObservation {
@@ -71,8 +72,8 @@ pub struct MovingPlankObservation {
 
 
 const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 0.0 };
-pub const PLANK_LENGTH: f32 = 9.0 * PIXELS_PER_METER;
-pub const PLANK_HIGHT: f32 = 3.0 * PIXELS_PER_METER;
+pub const PLANK_LENGTH: f32 = 9.0   * PIXELS_PER_METER;  // in meters
+pub const PLANK_HIGHT: f32 = 3.0  * PIXELS_PER_METER; // in meters
 const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
 const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
