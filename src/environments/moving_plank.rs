@@ -183,7 +183,8 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
             // genotype: genome_entity,
         }, // alt 1
         genome,
-        Collider::rectangle(1.0, 1.0),
+        // Collider::rectangle(1.0, 1.0),
+        Collider::rectangle(PLANK_LENGTH, PLANK_HIGHT, ),
         RigidBody::Dynamic,
         CollisionLayers::new(0b0001, 0b0010),
         LinearVelocity {
