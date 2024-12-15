@@ -1,32 +1,29 @@
-use std::cmp::{max, min, Ordering, PartialEq};
-use std::collections::HashMap;
-use std::fs::File;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::Write;
-use std::sync::{Arc, RwLock};
-use std::vec::Vec;
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH};
+use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
 use avian2d::math::{AdjustPrecision, Vector};
-use avian2d::prelude::{CollisionLayers, LayerMask};
-use bevy::asset::AsyncWriteExt;
-// use bevy::asset::io::memory::Value::Vec;
-use bevy::color::palettes::basic::PURPLE;
-use bevy::prelude::*;
-use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
-use bevy::render::RenderPlugin;
-use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
-use bevy::sprite::MaterialMesh2dBundle;
-use bevy_inspector_egui::egui::emath::Numeric;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
 use avian2d::prelude::*;
+use bevy::asset::AsyncWriteExt;
+// use bevy::asset::io::memory::Value::Vec;
+use bevy::color::palettes::basic::PURPLE;
 use bevy::ecs::query::QueryIter;
+use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
+use bevy::prelude::*;
+use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+use bevy::render::RenderPlugin;
+use bevy_inspector_egui::egui::emath::Numeric;
 use lazy_static::lazy_static;
-use rand::{random, Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH};
-use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
+use rand::{random, thread_rng, Rng};
+use std::cmp::{max, min, Ordering, PartialEq};
+use std::collections::HashMap;
+use std::fs::File;
+use std::hash::{Hash, Hasher};
+use std::io::Write;
+use std::sync::{Arc, RwLock};
+use std::vec::Vec;
 
 mod environments;
 
@@ -261,11 +258,11 @@ fn spawn_a_random_new_individual(commands: &mut Commands,
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
     // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
-    let text_style = TextStyle {
-        font_size: 20.0,
-        color: Color::WHITE,
-        ..default()
-    };
+    // let text_style = TextStyle {
+    //     font_size: 20.0,
+    //     color: Color::WHITE,
+    //     ..default()
+    // };
     let text_justification = JustifyText::Center;
 
     let genome = new_random_genome(2, 2, innovationNumberGlobalCounter);
@@ -277,12 +274,11 @@ fn spawn_a_random_new_individual(commands: &mut Commands,
     }
         .with_children(|builder| {
             builder.spawn((
-                Text2dBundle {
-                    text: Text::from_section("translation", text_style.clone())
-                        .with_justify(text_justification),
-                    transform: Transform::from_xyz(0.0, 0.0, 2.0),
-                    ..default()
-                },
+                Text2d::new("translation"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0,
+                                    0.0,
+                                    2.0),
                 IndividLabelText,
             )
             );
@@ -324,7 +320,7 @@ fn kill_worst_individuals(
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0", population.len(), population.len()  as i32- number_of_individuals_to_leave_alive);
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0, ressulting in {}", population.len(), population.len() - number_of_individuals_to_leave_alive, max(0, population.len() - number_of_individuals_to_leave_alive));
 
-    let number_of_individuals_to_kill : usize = max(0, population.len() as i32 - number_of_individuals_to_leave_alive)  as usize;
+    let number_of_individuals_to_kill: usize = max(0, population.len() as i32 - number_of_individuals_to_leave_alive) as usize;
     println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         println!("despawning entity {} ", entity.index());
@@ -396,11 +392,11 @@ fn create_new_children(mut commands: Commands,
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE).with_alpha(0.5));
 
-        let text_style = TextStyle {
-            font_size: 20.0,
-            color: Color::WHITE,
-            ..default()
-        };
+        // let text_style = TextStyle {
+        //     font_size: 20.0,
+        //     color: Color::WHITE,
+        //     ..default()
+        // };
         let text_justification = JustifyText::Center;
 
         match ACTIVE_ENVIROMENT {
@@ -412,12 +408,9 @@ fn create_new_children(mut commands: Commands,
         }
             .with_children(|builder| {
                 builder.spawn((
-                    Text2dBundle {
-                        text: Text::from_section("translation", text_style.clone())
-                            .with_justify(text_justification),
-                        transform: Transform::from_xyz(0.0, 0.0, 2.0),
-                        ..default()
-                    },
+                    Text2d::new("Fitness label"),
+                    TextLayout::new_with_justify(JustifyText::Center),
+                    Transform::from_xyz(0.0, 0.0, 2.0),
                     IndividLabelText,
                 )
                 );
@@ -527,7 +520,8 @@ struct ResetToStartPositionsEvent;
 fn reset_to_star_pos_on_event(
     mut reset_events: EventReader<ResetToStartPositionsEvent>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
-    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
+    // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
+    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>)>,
 ) {
     if reset_events.read().next().is_some() {
         reset_to_star_pos(query);
@@ -574,7 +568,7 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
 }
 
 
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<PlankPhenotype>)>) {
+fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>)>) {
     for (mut individual, mut plank, mut linvel, option_force) in query.iter_mut() {
         individual.translation.x = 0.0;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
@@ -600,7 +594,7 @@ fn agent_action(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
         plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
@@ -622,7 +616,7 @@ fn agent_action(
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
                 // a.x = 100.0 * action[0] * delta_time;
                 // a.y = 100.0 * action[1] * delta_time;
-                a.x = 10.0 * action[0] ;
+                a.x = 10.0 * action[0];
                 a.y = 10.0 * action[1];
 
                 // a.y = action;
@@ -651,12 +645,12 @@ fn agent_action(
 }
 
 fn label_plank_with_current_score(
-    mut query: Query<(&mut Text, &Parent), With<IndividLabelText>>,
+    mut query: Query<(&mut Text2d, &Parent), With<IndividLabelText>>,
     parent_query: Query<&PlankPhenotype>,
 ) {
     for (mut tekst, parent_entity) in query.iter_mut() {
         if let Ok(plank_phenotype) = parent_query.get(**parent_entity) {
-            tekst.sections[0].value = plank_phenotype.score.to_string();
+            tekst.0 = plank_phenotype.score.to_string();
         }
     }
 }
@@ -765,7 +759,6 @@ impl PhenotypeLayers {
             };
 
 
-
             let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
             for weight_node in relevant_weigh_nodes.iter() {
                 {
@@ -790,7 +783,7 @@ impl PhenotypeLayers {
             {
                 let mut verdi = destination_node.value.write().unwrap();
                 // println!("verdi før halvering {}", verdi);
-                *verdi = *verdi * 0.5 ;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
+                *verdi = *verdi * 0.5;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
                 *verdi = *verdi + total_påvirking;  // ,
             }
         }
@@ -955,9 +948,16 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // for node in uplassertHidden.iter() {
 
     // println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
-    let layers = PhenotypeLayers { ant_layers: 2,
+    let layers = PhenotypeLayers {
+        ant_layers: 2,
         // alleNoder: alleNoder,
-        alleNoderArc: alleNoderArc, alleVekter: alleVekter, input_layer: input_layer2, output_layer: output_layer2, weights_per_destination_node: weights_per_desination_node, hidden_nodes: vec![] };
+        alleNoderArc: alleNoderArc,
+        alleVekter: alleVekter,
+        input_layer: input_layer2,
+        output_layer: output_layer2,
+        weights_per_destination_node: weights_per_desination_node,
+        hidden_nodes: vec![],
+    };
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
     // return (layers , genome);
     return layers;
@@ -1126,20 +1126,21 @@ fn spawn_ground(mut commands: Commands,
                 mut meshes: ResMut<Assets<Mesh>>,
                 mut materials: ResMut<Assets<ColorMaterial>>, ) {
     commands.spawn((
-                       RigidBody::Static,
-                       MaterialMesh2dBundle {
-                           mesh: meshes.add(Rectangle::default()).into(),
-                           material: materials.add(GROUND_COLOR),
-                           transform: Transform::from_translation(GROUND_STARTING_POSITION)
-                               .with_scale(Vec2 { x: GROUND_LENGTH, y: GROUND_HEIGHT }.extend(1.)),
-                           ..default()
-                       },
-                       // Sleeping::disabled(),
-                       Collider::rectangle(1.0, 1.0),
-                       Restitution::new(0.0),
-                       Friction::new(0.5),
-                       CollisionLayers::new(0b0010, LayerMask::ALL),
-                   ), );
+        RigidBody::Static,
+        Mesh2d(meshes.add(Rectangle::default()).into()),
+        MeshMaterial2d(materials.add(GROUND_COLOR)),
+        Transform::from_translation(GROUND_STARTING_POSITION)
+            .with_scale(Vec2 {
+                x: GROUND_LENGTH,
+                y: GROUND_HEIGHT,
+            }.extend(1.)),
+        // Sleeping::disabled(),
+        Collider::rectangle(1.0, 1.0),
+        Restitution::new(0.0),
+        Friction::new(0.5),
+        CollisionLayers::new(0b0010, LayerMask::ALL),
+    )
+    );
 }
 
 
@@ -1148,13 +1149,13 @@ fn spawn_landing_target(mut commands: Commands,
                         mut materials: ResMut<Assets<ColorMaterial>>, ) {
     commands.spawn((
                        RigidBody::Static,
-                       MaterialMesh2dBundle {
-                           mesh: meshes.add(Circle::default()).into(),
-                           material: materials.add(Color::linear_rgb(1.0, 0.0, 0.0)),
-                           transform: Transform::from_translation(LANDING_SITE.extend(0.0))
-                               .with_scale(Vec2 { x: 10.0, y: 10.0 }.extend(1.)),
-                           ..default()
-                       },
+                       Mesh2d(meshes.add(Circle::default()).into()),
+                       MeshMaterial2d(materials.add(Color::linear_rgb(1.0, 0.0, 0.0))),
+                       Transform::from_translation(LANDING_SITE.extend(0.0))
+                           .with_scale(Vec2 {
+                               x: 10.0,
+                               y: 10.0,
+                           }.extend(1.)),
                        // Sleeping::disabled(),
                    ), );
 }
@@ -1165,13 +1166,13 @@ fn spawn_roof(mut commands: Commands,
               mut materials: ResMut<Assets<ColorMaterial>>, ) {
     commands.spawn((
                        RigidBody::Static,
-                       MaterialMesh2dBundle {
-                           mesh: meshes.add(Rectangle::default()).into(),
-                           material: materials.add(GROUND_COLOR),
-                           transform: Transform::from_translation(ROOF_STARTING_POSITION)
-                               .with_scale(Vec2 { x: GROUND_LENGTH, y: 10.0 }.extend(1.)),
-                           ..default()
-                       },
+                       Mesh2d(meshes.add(Rectangle::default()).into()),
+                       MeshMaterial2d(materials.add(GROUND_COLOR)),
+                       Transform::from_translation(ROOF_STARTING_POSITION)
+                           .with_scale(Vec2 {
+                               x: GROUND_LENGTH,
+                               y: 10.0,
+                           }.extend(1.)),
                        // Sleeping::disabled(),
                        Collider::rectangle(1.0, 1.0),
                        Restitution::new(0.0),
