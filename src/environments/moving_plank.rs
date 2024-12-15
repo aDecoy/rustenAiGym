@@ -1,10 +1,11 @@
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{create_phenotype_layers, EttHakkState, Genome, Kjøretilstand, PlankPhenotype};
+use crate::{create_phenotype_layers, EttHakkState,  Kjøretilstand, PlankPhenotype};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
+use crate::environments::GenomeStuff::Genome;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 

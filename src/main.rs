@@ -1,3 +1,4 @@
+use crate::environments::GenomeStuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH};
 use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
 use avian2d::math::{AdjustPrecision, Vector};
@@ -24,6 +25,9 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
+use crate::environments::GenomeStuff::{NodeGene, WeightGene};
+use crate::environments::GenomMuteringer::lock_mutation_stability;
+use crate::environments::LunarLanderEnvironment::{spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE};
 
 mod environments;
 
@@ -438,15 +442,6 @@ enum EnvValg {
 
 static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
 
-lazy_static! {
-     static ref LANDING_SITE_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
- HashMap::from([
-    ( EnvValg::Homing, Vec2 { x: 100.0, y: -100.0 }),
-    ( EnvValg::HomingGroud, Vec2 { x: 00.0, y: GROUND_STARTING_POSITION.y + GROUND_HEIGHT }),
-    ])
-    };
-    static ref LANDING_SITE: Vec2 = LANDING_SITE_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];
-}
 
 // static LANDING_SITE: Vec2 = Vec2 { x: 100.0, y: -100.0 };
 
@@ -673,44 +668,6 @@ pub struct PlankPhenotype {
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
 pub struct Individ {}
 
-// #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
-#[derive(Debug)] // todo spesifisker eq uten f32 verdiene
-pub struct NodeGene {
-    innovation_number: i32,
-    // bias: f32,
-    bias: RwLock<f32>, // fordi at andre ting (vekter) har refferanser til NodeGene, så er NodeGene pakket inn i en Arc (bevy kan ha flere systemer kjøre på entity med komponent samtidig, så asyncaronus).
-    // For å få lov til å mutere bias, så må den være inne i en rwlock, siden hele klassen er inne i en Arc, som ikke gir skrivetilgang til vanlig
-    enabled: bool,
-
-    inputnode: bool,
-    outputnode: bool,
-    mutation_stability: f32, // 1 is compleat lock/static genome. 0 is a mutation for all genes
-    layer: usize,
-
-    // value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
-
-    //  Rwlock, slik at denne kan endres selv om den er inne i en Arc, som den må være om flere WeightGene skal kunne ha en peker på den,
-    // og samtidig at jeg kan oppdatere verdien
-    value: RwLock<f32>,
-}
-
-impl PartialEq for NodeGene {
-    fn eq(&self, other: &Self) -> bool {
-        self.innovation_number == other.innovation_number
-    }
-}
-impl Eq for NodeGene {}
-
-impl Hash for NodeGene {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.innovation_number.hash(state);
-        self.enabled.hash(state);
-        self.inputnode.hash(state);
-        self.outputnode.hash(state);
-        self.layer.hash(state);
-    }
-}
-
 #[derive(Debug, )]
 struct PhenotypeLayers {
     ant_layers: usize,
@@ -807,105 +764,10 @@ impl PhenotypeLayers {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Debug, Clone)]
-pub struct WeightGene {
-    // innovation_number: i32, // kanskje ikke egentlig i bruk... . Skal samme forbindelse som oppstår i ulike muteringer utveksle informasjon? Kan brukes til å skille på det.
-    value: f32,
-    enabled: bool,
-    // kildenode: i32,
-    kildenode: Arc<NodeGene>,
-    // destinationsnode: i32,
-    destinationsnode: Arc<NodeGene>,
-    mutation_stability: f32,
-}
-
-
-#[derive(Debug, Clone, Resource)]
-pub struct InnovationNumberGlobalCounter {
-    count: i32,
-}
-impl InnovationNumberGlobalCounter {
-    fn get_number(&mut self) -> i32 {
-        self.count += 1;
-        return self.count;
-    }
-}
-
-// #[derive(Debug, Component, Clone)]
-#[derive(Debug, Component)]
-struct Genome {
-    // nodeGene can not be queried, since genome is a compnent and not an Entity. (It can be changed, but I feel like it is acceptable to give the entire genome to the bevy system
-
-    // kan også kanskje vurdere å bruke bevy_hirearky for å operere på agenene idividuelt, istedenfor å altid gå via Genom parent
-    // pub node_genes: Vec<NodeGene>,
-    pub node_genes: Vec<Arc<NodeGene>>,
-    pub weight_genes: Vec<WeightGene>,
-    pub original_ancestor_id: usize,
-    pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
-}
-
-impl Clone for Genome {
-    fn clone(&self) -> Self {
-        // Vi kan ikke gjøre en naiv copy, siden vi ikke vil at vektene til nye kopiert objekt skal reffere til noder i det orginale genomet
-        let mut nye_noder = Vec::new();
-
-        for node in self.node_genes.iter() {
-            let ny_node: Arc<NodeGene>;
-            {
-                let bias = node.bias.read().unwrap();
-                ny_node = Arc::new(NodeGene {
-                    innovation_number: node.innovation_number.clone(),
-                    bias: RwLock::new(bias.clone()),
-                    enabled: node.enabled,
-                    inputnode: node.inputnode,
-                    outputnode: node.outputnode,
-                    mutation_stability: node.mutation_stability,
-                    layer: 0,
-                    value: RwLock::new(0.0),
-                }
-                );
-            }
-            nye_noder.push(ny_node);
-        }
-        let mut nye_vekter = Vec::new();
-        for vekt in self.weight_genes.iter() {
-            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).count(), 1);
-            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).count(), 1);
-
-
-            let ny_vekt = WeightGene {
-                enabled: vekt.enabled,
-                mutation_stability: vekt.mutation_stability,
-                value: vekt.value,
-                kildenode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).next().expect("fant ikke kildenode til vekten")),
-                destinationsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
-            };
-            nye_vekter.push(ny_vekt);
-        }
-
-        Genome {
-            node_genes: nye_noder,
-            weight_genes: nye_vekter,
-            original_ancestor_id: self.original_ancestor_id.clone(),
-            allowed_to_change: self.allowed_to_change.clone(),
-        }
-    }
-}
-
-// skal layers absorbere genome, skal den returnere genome og layers, eller skal den ta inn en copy av genome?
-// trenger vi genome senere etter env ? Ja.
-// Prøver å returenre begge
-
-
-// fn create_phenotype_layers (genome: &Genome) -> (PhenotypeLayers, &Genome) {
-
-// alt 2 tar inn en klone
 
 // Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
 // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
 // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
-
 pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
 
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
@@ -963,223 +825,6 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     return layers;
 }
 
-pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>) -> Genome {
-    let mut node_genes = Vec::new();
-    let mut thread_random = thread_rng();
-    let uniform_dist = Uniform::new(-1.0, 1.0);
-    // let mut input_layer2: Vec<NodeGene> = Vec::new();
-    // let mut output_layer2: Vec<NodeGene> = Vec::new();
-    for n in 0..ant_inputs {
-        node_genes.push(NodeGene {
-            // innovation_number: n as i32,
-            innovation_number: innovationNumberGlobalCounter.get_number(),
-            bias: RwLock::new(thread_random.sample(uniform_dist)),
-            enabled: true,
-            inputnode: true,
-            outputnode: false,
-            mutation_stability: 0.0,
-            layer: 0,
-            value: RwLock::new(0.0),
-        });
-    }
-
-    for n in 0..ant_outputs {
-        node_genes.push(NodeGene {
-            innovation_number: innovationNumberGlobalCounter.get_number(),
-            // bias: thread_random.sample(uniform_dist),
-            bias: RwLock::new(thread_random.sample(uniform_dist)),
-            enabled: true,
-            inputnode: false,
-            outputnode: true,
-            mutation_stability: 0.0,
-            layer: 0,
-            value: RwLock::new(0.0),
-        });
-    }
-
-    // Arc slik at jeg kan reffere til nodene inne i bevy sin asynkrone stuff, og slik at jeg kan ha flere blorrows
-
-    let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
-    for node in node_genes {
-        let nodeArc = Arc::new(node);
-        alleNoderArc.push(nodeArc);
-    }
-
-
-    // start with no connections, start with fully connected, or random
-
-    // fully connected input output
-    let mut weight_genes = Vec::new();
-    for n in alleNoderArc.iter().filter(|node_gene| node_gene.inputnode) {
-        // for n in 0..ant_inputs {
-        //     for m in 0..ant_outputs {
-        for m in alleNoderArc.iter().filter(|node_gene| node_gene.outputnode) {
-            weight_genes.push(WeightGene {
-                kildenode: Arc::clone(n),
-                destinationsnode: Arc::clone(m),
-                // kildenode: n as i32,
-                // kildenode: n.innovation_number,
-                // destinationsnode: m.innovation_number,
-                // innovation_number: innovationNumberGlobalCounter.get_number(),
-
-                value: thread_random.sample(uniform_dist),
-                enabled: true,
-                mutation_stability: 0.0,
-            })
-        }
-    }
-    return Genome { node_genes: alleNoderArc, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
-}
-
-// lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
-fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
-    for mut genome in genome_query.iter_mut() {
-        // for mut node_gene in genome.node_genes.iter_mut() {
-        //     // node_gene.mutation_stability = 1.0
-        // }
-        // for mut weight_gene in genome.weight_genes.iter_mut() {
-        // weight_gene.mutation_stability = 1.0
-        // }
-        genome.allowed_to_change = false;
-    }
-}
-
-pub fn mutate_genomes(mut genes: Query<&mut Genome>) {
-    for mut gene in genes.iter_mut() {
-        // println!("mutating genome with original ancestor {}, if allowed: {} ", gene.original_ancestor_id, gene.allowed_to_change);
-        if gene.allowed_to_change {
-            mutate_existing_nodesArc(&mut gene.node_genes);
-            mutate_existing_weights(&mut gene.weight_genes);
-        }
-    }
-}
-// Gets the Position component of all Entities whose Velocity has changed since the last run of the System
-fn genome_changed_event_update_phenotype(query: Query<&PlankPhenotype, Changed<Genome>>) {
-    for position in &query {}
-}
-
-pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
-    // println!("mutating {} nodes ", node_genes.iter().count());
-    let mutation_strength = 2.0;
-    for mut node_gene in node_genes.iter_mut() {
-        if random::<f32>() > node_gene.mutation_stability {
-            let change = (random::<f32>() * 2.0 - 1.0) * mutation_strength;
-            {
-                let mut bias = node_gene.bias.write().unwrap();
-                *bias = *bias + change;
-            }
-            // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
-            // enabling
-        }
-    }
-}
-pub fn mutate_existing_nodesArc(mut node_genes: &mut Vec<Arc<NodeGene>>) {
-    // println!("mutating {} nodes ", node_genes.iter().count());
-    let mutation_strength = 2.0;
-    for mut node_gene in node_genes.iter_mut() {
-        if random::<f32>() > node_gene.mutation_stability {
-            let change = (random::<f32>() * 2.0 - 1.0) * mutation_strength;
-            {
-                let mut bias = node_gene.bias.write().unwrap();
-                *bias = *bias + change;
-            }
-            // node_gene.bias += (random::<f32>() * 2.0 - 1.0) * mutation_strength;
-            // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
-            // enabling
-        }
-    }
-}
-
-pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
-    // println!("mutating {} weights ", weight_genes.iter().count());
-    let mutation_strength = 2.0;
-
-    for mut weight_gene in weight_genes.iter_mut() {
-        // println!("weight gene mutation_stability : {}", weight_gene.mutation_stability);
-        if random::<f32>() > weight_gene.mutation_stability {
-            // println!("weight gene value before mutation: {}", weight_gene.value);
-            weight_gene.value += (random::<f32>() * 2.0 - 1.0) * mutation_strength;
-            // println!("weight gene value after mutation: {}", weight_gene.value);
-            // weight_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
-        }
-        if random::<f32>() > weight_gene.mutation_stability {
-            weight_gene.enabled = !weight_gene.enabled;
-        }
-
-        // evo devo eller hardkoded layer?
-        if random::<f32>() > weight_gene.mutation_stability {
-            weight_gene.enabled = !weight_gene.enabled;
-        }
-    }
-}
-
-const GROUND_LENGTH: f32 = 5495.;
-const GROUND_HEIGHT: f32 = 10.;
-const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
-const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
-
-const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };
-// const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
-
-
-fn spawn_ground(mut commands: Commands,
-                mut meshes: ResMut<Assets<Mesh>>,
-                mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    commands.spawn((
-        RigidBody::Static,
-        Mesh2d(meshes.add(Rectangle::default()).into()),
-        MeshMaterial2d(materials.add(GROUND_COLOR)),
-        Transform::from_translation(GROUND_STARTING_POSITION)
-            .with_scale(Vec2 {
-                x: GROUND_LENGTH,
-                y: GROUND_HEIGHT,
-            }.extend(1.)),
-        // Sleeping::disabled(),
-        Collider::rectangle(1.0, 1.0),
-        Restitution::new(0.0),
-        Friction::new(0.5),
-        CollisionLayers::new(0b0010, LayerMask::ALL),
-    )
-    );
-}
-
-
-fn spawn_landing_target(mut commands: Commands,
-                        mut meshes: ResMut<Assets<Mesh>>,
-                        mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    commands.spawn((
-                       RigidBody::Static,
-                       Mesh2d(meshes.add(Circle::default()).into()),
-                       MeshMaterial2d(materials.add(Color::linear_rgb(1.0, 0.0, 0.0))),
-                       Transform::from_translation(LANDING_SITE.extend(0.0))
-                           .with_scale(Vec2 {
-                               x: 10.0,
-                               y: 10.0,
-                           }.extend(1.)),
-                       // Sleeping::disabled(),
-                   ), );
-}
-
-
-fn spawn_roof(mut commands: Commands,
-              mut meshes: ResMut<Assets<Mesh>>,
-              mut materials: ResMut<Assets<ColorMaterial>>, ) {
-    commands.spawn((
-                       RigidBody::Static,
-                       Mesh2d(meshes.add(Rectangle::default()).into()),
-                       MeshMaterial2d(materials.add(GROUND_COLOR)),
-                       Transform::from_translation(ROOF_STARTING_POSITION)
-                           .with_scale(Vec2 {
-                               x: GROUND_LENGTH,
-                               y: 10.0,
-                           }.extend(1.)),
-                       // Sleeping::disabled(),
-                       Collider::rectangle(1.0, 1.0),
-                       Restitution::new(0.0),
-                       Friction::new(0.5),
-                       CollisionLayers::new(0b0010, LayerMask::ALL),
-                   ), );
-}
 
 
 // not used abstraction ideas for/from ai gym
