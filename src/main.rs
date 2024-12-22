@@ -645,9 +645,8 @@ fn agent_action_and_fitness_evaluation
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
         let input_values = plank.obseravations.clone();
-        let action = plank.phenotype_layers.decide_on_action(input_values);            // fungerer
-        // let action = plank.phenotype_layers.decide_on_action(  plank.obseravations.clone() );  // fungerer ikke ?!?!
-
+        let action = plank.phenotype_layers.decide_on_action2(input_values);            // fungerer
+        // dbg!(&action);
         // individual.translation.x += random::<f32>() * action * 5.0;
         // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
@@ -731,6 +730,8 @@ struct PhenotypeNeuralNetwork {
     // weights_per_destination_node : HashMap<&'a NodeGene, Vec<&'a WeightGene>>,
     // weights_per_destination_node: HashMap<i32, Vec<WeightGene>>,
     weights_per_destination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
+    node_to_layer: HashMap<Arc<NodeGene>, i32>,
+    layers_ordered_output_to_input: Vec<Vec<Arc<NodeGene>>>,
 }
 
 impl PhenotypeNeuralNetwork {
@@ -742,7 +743,6 @@ impl PhenotypeNeuralNetwork {
             clamped_input_values.push(value / PIXELS_PER_METER);
             // println!("new clamped input value {:?}", node);
         }
-
         // todo clamp x = x / max X = x -  (window_with/2)   ...... not very scalable....
 
         // how to use
@@ -811,7 +811,80 @@ impl PhenotypeNeuralNetwork {
         // return random::<f32>();
     }
 
+    pub(crate) fn decide_on_action2(&self, input_values: Vec<f32>) -> Vec<f32> {
+
+        // Normalisering
+        // ikke helt sikker på hvordan jeg skal normalisere input verdier enda.
+        let mut clamped_input_values = Vec::new();
+        clamped_input_values.reserve(input_values.len());
+        for value in input_values {
+            //     println!("raw input values {:?}", node);
+            clamped_input_values.push(value / PIXELS_PER_METER);
+            // println!("new clamped input value {:?}", node);
+        }
+        // dbg!(&clamped_input_values);
+
+
+        // Feed/load in input values
+
+        for i in 0..clamped_input_values.len() {
+            let mut verdi = self.input_layer[i].value.write().unwrap();
+            let bias = self.input_layer[i].bias.read().unwrap();
+            *verdi = *verdi + *bias;
+            // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
+        }
+        println!("(self.ant_layers..0)  {:?}", (self.ant_layers..0));
+        println!("(0..self.ant_layers).rev()  {:?}", (0..self.ant_layers).rev());
+        // update all values
+        // for i in (self.ant_layers..0) {
+        for i in  (0..self.ant_layers).rev() {
+            dbg!(i);
+            for mut destination_node in &self.layers_ordered_output_to_input[i]{
+                dbg!(destination_node);
+                self.absorber_inkommende_verdier_og_set_ny_verdi(destination_node);
+                dbg!(destination_node);
+            }
+        }
+
+        // Read of output neurons  (always last layer)
+
+        let mut output_values = Vec::new();
+        for node in self.output_layer.iter() {
+            let verdi = node.value.read().unwrap();
+            output_values.push(verdi.clone());
+        }
+
+        // burde kanksje normalisere output også....
+        return output_values;
+    }
+
+    fn absorber_inkommende_verdier_og_set_ny_verdi(&self, mut destination_node: &Arc<NodeGene>) {
+        let relevant_weights = match self.weights_per_destination_node.get(destination_node) {
+            Some(weights) => weights,
+            None => &Vec::new()
+        };
+        let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
+        for weight in relevant_weights.iter() {
+            {
+                let kildenode = &weight.kildenode;
+                let kildenode_verdi = kildenode.value.read().unwrap();
+                let kildenode_påvirkning = *kildenode_verdi * weight.value;
+                alle_inputs_til_destination_node.push(kildenode_påvirkning);
+            }
+        }
+        let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
+        {
+            let mut verdi = destination_node.value.write().unwrap();
+            // println!("verdi før halvering {}", verdi);
+            *verdi = *verdi * 0.5;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
+            *verdi = *verdi + total_påvirking;
+        }
+    }
+
     pub(crate) fn new(genome: &Genome) -> Self {
+        // Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
+        // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
+        // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
 
         let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
         let mut alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
@@ -827,7 +900,7 @@ impl PhenotypeNeuralNetwork {
 
         /* `PhenotypeNeuralNetwork` value */
         PhenotypeNeuralNetwork {
-            ant_layers: 2,
+            ant_layers: node_to_layer.len(),
             // alleNoder: alleNoder,
             alleNoderArc: alleNoderArc,
             alleVekter: alleVekter,
@@ -836,8 +909,9 @@ impl PhenotypeNeuralNetwork {
             // weights_per_destination_node: weights_per_desination_node,
             weights_per_destination_node: HashMap::new(),
             hidden_nodes: vec![],
+            node_to_layer,
+            layers_ordered_output_to_input,
         }
-
     }
 
     pub(crate) fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
@@ -913,13 +987,10 @@ impl PhenotypeNeuralNetwork {
         }
         next_layer
     }
-
 }
 
+// todo bytte ut med PhenotypeNeuralNetwork
 
-// Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
-// Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
-// Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
 pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // todo kanksje bare bytt ut med det jeg gjør for tengning
 
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
@@ -970,7 +1041,10 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // 
         input_layer: input_layer2,
         output_layer: output_layer2,
         weights_per_destination_node: weights_per_desination_node,
+        node_to_layer: Default::default(),
         hidden_nodes: vec![],
+
+        layers_ordered_output_to_input: vec![],
     };
     // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
     // return (layers , genome);

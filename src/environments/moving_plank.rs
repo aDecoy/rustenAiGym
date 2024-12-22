@@ -1,5 +1,5 @@
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{create_phenotype_layers, EttHakkState,  Kjøretilstand, PlankPhenotype};
+use crate::{create_phenotype_layers, EttHakkState, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
@@ -91,7 +91,8 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         PlankPhenotype {
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
-            phenotype_layers: create_phenotype_layers(genome.clone()),
+            // phenotype_layers: create_phenotype_layers(genome.clone()),
+            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
         }, // alt 1
         genome,
@@ -123,7 +124,8 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         PlankPhenotype {
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
-            phenotype_layers: create_phenotype_layers(genome.clone()),
+            // phenotype_layers:  create_phenotype_layers(genome.clone()),
+            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
         }, // alt 1
         genome,
@@ -163,7 +165,8 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         PlankPhenotype {
             score: 0.0,
             obseravations: vec!(0.0, 0.0),
-            phenotype_layers: create_phenotype_layers(genome.clone()),
+            // phenotype_layers: create_phenotype_layers(genome.clone()),
+            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
         }, // alt 1
         genome,
