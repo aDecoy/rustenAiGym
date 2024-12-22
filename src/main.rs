@@ -705,7 +705,7 @@ pub struct PlankPhenotype {
     pub score: f32,
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
-    pub phenotype_layers: PhenotypeLayers, // for now we always have a neural network to make decisions for the agent
+    pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
     // pub genotype: Genome,
     // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
     // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
@@ -717,7 +717,7 @@ pub struct PlankPhenotype {
 pub struct Individ {}
 
 #[derive(Debug, )]
-struct PhenotypeLayers {
+struct PhenotypeNeuralNetwork {
     ant_layers: usize,
     // Holder på objektene
     // alleNoder: Vec<NodeGene>,
@@ -733,7 +733,7 @@ struct PhenotypeLayers {
     weights_per_destination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
 }
 
-impl PhenotypeLayers {
+impl PhenotypeNeuralNetwork {
     pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> Vec<f32> {
         let mut clamped_input_values = Vec::new();
         clamped_input_values.reserve(input_values.len());
@@ -810,13 +810,117 @@ impl PhenotypeLayers {
         // return self.output_layer[0].value;
         // return random::<f32>();
     }
+
+    pub(crate) fn new(genome: &Genome) -> Self {
+
+        let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
+        let mut alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
+
+        let weights_per_desination_node = genome.få_vekter_per_destinasjonskode();
+
+
+        let (node_to_layer, layers_ordered_output_to_input) = PhenotypeNeuralNetwork::lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
+
+
+        // WE DONT flip it around to be sorted so that output nodes are last . No need. just fill in input node values and iterate         for i in (ant_layers..0){
+
+
+        /* `PhenotypeNeuralNetwork` value */
+        PhenotypeNeuralNetwork {
+            ant_layers: 2,
+            // alleNoder: alleNoder,
+            alleNoderArc: alleNoderArc,
+            alleVekter: alleVekter,
+            input_layer: vec![],
+            output_layer: vec![],
+            // weights_per_destination_node: weights_per_desination_node,
+            weights_per_destination_node: HashMap::new(),
+            hidden_nodes: vec![],
+        }
+
+    }
+
+    pub(crate) fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
+        let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();
+
+        // Start on input, and look at what connects.  STARTER PÅ OUTPUT OG BEVEGEWR OSS MOT INPUT
+        // Starter på output for å bare inkludere noder og vekter som faktisk påvirker utfallet
+        let mut node_to_layer = HashMap::new();
+        output_nodes.iter().for_each(|node| { node_to_layer.insert(node.clone(), 0); });
+        let mut layers_ordered_output_to_input: Vec<Vec<Arc<NodeGene>>> = vec![output_nodes];
+
+        // dbg!(&node_to_layer);
+
+        // I tilfeller vi har sykler, så vil vi hindre å evig flytte ting bakover i nettet. På et punkt så må vi bare godta en node kan få input som ikke er fra "venstre side". Bygger opp fra høyre side med outputs og jobber oss mot venstre.
+        // Dette er løst ved å kun flytte en node en gang per vekt. (dette vil gjøre at sykluser kan gi hidden noder som er til venstre for input noder).
+        // Merk at syklus noder vil gjøre litt ekstra forsterkning av sine verdier i forhold til andre vanlige hidden noder om de er til venstre for input noder.  Disse vil "ta inn nåtid data + sin fortid data og gi ut begge"
+        let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+        // let next_layer = få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, 1);
+        // layers_ordered_output_to_input.push(next_layer);
+
+        let mut layer_index = 1;
+        loop {
+            // dbg!(&layer_index);
+            let next_layer = PhenotypeNeuralNetwork::få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, layer_index);
+            layer_index += 1;
+            // dbg!(&next_layer);
+            // dbg!(&next_layer.len());
+            if next_layer.len() == 0 { break; }
+            layers_ordered_output_to_input.push(next_layer);
+            // break;
+        }
+        (node_to_layer, layers_ordered_output_to_input)
+    }
+
+    fn få_neste_lag<'a>(
+        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        layer_per_node: &mut HashMap<Arc<NodeGene>, i32>,
+        layers_output_to_input: &mut Vec<Vec<Arc<NodeGene>>>,
+        node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        lag_index: i32,
+    ) -> Vec<Arc<NodeGene>> {
+        let mut next_layer = vec![];
+        // for node in input_layer.iter() {
+        // for node in layers_output_to_input.iter().last().unwrap() {
+        // let last_layer = layers_output_to_input.iter().last();
+        // for node in layers_output_to_input.last().iter() {
+        // dbg!(&lag_index);
+        // dbg!(&weights_per_desination_node);
+        // dbg!(&layers_output_to_input);
+
+        for node in layers_output_to_input.last().unwrap() {
+            // for node in layers_output_to_input.iter().last().iter() {
+            //     let node2 : &Arc<NodeGene> = *node;
+            //     for weight in weights_per_desination_node.get(&Arc::clone(node)).expect("burde eksistere") {
+            let mut vekter_allerede_brukt = match node_to_vekt_som_flyttet_på_noden.get_mut(&Arc::clone(node)) {
+                None => { Vec::new() }
+                Some(liste) => { liste.clone() }
+            };
+            // dbg!(&node);
+            match weights_per_desination_node.get(node) {
+                Some(weights) => {
+                    for weight in weights {
+                        if !vekter_allerede_brukt.contains(weight) {
+                            next_layer.push(Arc::clone(&weight.kildenode));
+                            layer_per_node.insert(Arc::clone(&weight.kildenode), lag_index);
+                            vekter_allerede_brukt.push(weight);
+                        }
+                    }
+                }
+                _ => {}
+            };
+            node_to_vekt_som_flyttet_på_noden.insert(Arc::clone(node), vekter_allerede_brukt);
+        }
+        next_layer
+    }
+
 }
 
 
 // Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
 // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
 // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
-pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) { // todo kanksje bare bytt ut med det jeg gjør for tengning
+pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // todo kanksje bare bytt ut med det jeg gjør for tengning
 
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
 
@@ -858,7 +962,7 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) { // todo ka
     // for node in uplassertHidden.iter() {
 
     // println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
-    let layers = PhenotypeLayers {
+    let layers = PhenotypeNeuralNetwork {
         ant_layers: 2,
         // alleNoder: alleNoder,
         alleNoderArc: alleNoderArc,

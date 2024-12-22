@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};
 use bevy::prelude::{Component, ResMut, Resource};
@@ -203,4 +204,32 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
         }
     }
     return Genome { node_genes: alleNoderArc, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
+}
+
+
+// pub(crate)  fn få_vekter_per_destinasjonskode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
+//     let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+//
+//     for weight in genome.weight_genes.iter() {
+//         let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
+//         // list.push(Arc::clone(&weight));
+//         list.push(weight);
+//     }
+//     weights_per_desination_node
+// }
+
+impl Genome {
+
+    pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
+        let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+
+        for weight in self.weight_genes.iter() {
+            let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
+            // list.push(Arc::clone(&weight));
+            list.push(weight);
+        }
+        weights_per_desination_node
+    }
+
+
 }

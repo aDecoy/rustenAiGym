@@ -20,10 +20,11 @@ pub fn draw_network_in_genome2(mut commands: Commands,
                                mut materials: ResMut<Assets<ColorMaterial>>,
                                genome: &Genome,
 ) {
-    let weights_per_desination_node = få_vekter_per_destinasjonskode(genome);
+    let weights_per_desination_node = Genome::få_vekter_per_destinasjonskode(&genome);
     // let weights_per_kildenode = få_vekter_per_kildenode(genome);
     /////////////////////////////// få_vekter_per_kildenode
     let (node_to_layer, layers_ordered_output_to_input) = lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
+    // let (node_to_layer, layers_ordered_output_to_input) = genome.lag_lag_av_nevroner_sortert_fra_output( &weights_per_desination_node);
     //////////////////////////////
 
     let point_per_node = kordinater_per_node(genome, node_to_layer, layers_ordered_output_to_input);
@@ -226,6 +227,8 @@ fn tegn_forbindelser(commands: &mut Commands, mut meshes: &mut ResMut<Assets<Mes
     }
 }
 
+// todo ha tegning og nettverk hente fra samme sted. Kanskje flytte dette til en phenotypeLayers/ pheonotypeNeuralNetwork og tegne det istedenfor Genome
+
 fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
     let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();;
 
@@ -308,17 +311,6 @@ fn få_vekter_per_kildenode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&Weig
         list.push(weight);
     }
     weights_per_kildenode
-}
-
-fn få_vekter_per_destinasjonskode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
-    let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
-
-    for weight in genome.weight_genes.iter() {
-        let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
-        // list.push(Arc::clone(&weight));
-        list.push(weight);
-    }
-    weights_per_desination_node
 }
 
 fn kordinater_per_node(genome: &Genome, layer_per_node: HashMap<Arc<NodeGene>, i32>, layers_output_to_input: Vec<Vec<Arc<NodeGene>>>) -> HashMap<Arc<NodeGene>, Vec2> {
