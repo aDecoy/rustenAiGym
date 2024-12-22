@@ -25,8 +25,9 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
+use crate::environments::drawNetwork::{draw_network_in_genome, draw_network_in_genome2, oppdater_node_tegninger, remove_drawing_of_network_for_best_individ};
 use crate::environments::GenomeStuff::{NodeGene, WeightGene};
-use crate::environments::GenomMuteringer::lock_mutation_stability;
+use crate::environments::genomMuteringer::lock_mutation_stability;
 use crate::environments::LunarLanderEnvironment::{spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE};
 
 mod environments;
@@ -58,7 +59,8 @@ fn main() {
         .add_event::<ResetToStartPositionsEvent>()
         .add_systems(Startup, (
             setup_camera,
-            spawn_start_population,
+            (spawn_start_population,
+             spawn_drawing_of_network_for_best_individ).chain(),
             spawn_ground,
             spawn_roof,
             spawn_landing_target,
@@ -68,10 +70,12 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
+            oppdater_node_tegninger,
             (
                 // print_pois_velocity_and_force,
                 label_plank_with_current_score,
-                agent_action.run_if(in_state(Kjøretilstand::Kjørende)),
+                oppdater_node_tegninger,
+                agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
             ).chain(),
             check_if_done,
             // check_if_done.run_if(every_time_if_stop_on_right_window()),
@@ -81,6 +85,8 @@ fn main() {
                 lock_mutation_stability,
                 save_best_to_history,
                 kill_worst_individuals,
+                remove_drawing_of_network_for_best_individ,
+                spawn_drawing_of_network_for_best_individ,
                 create_new_children,
                 spawn_a_random_new_individual2,
                 // mutate_planks,
@@ -303,6 +309,47 @@ fn extinction_on_t(mut commands: Commands,
         spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter)
     }
 }
+
+fn spawn_drawing_of_network_for_best_individ<'a>(
+    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+
+    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>) {
+    // query: Query<'a, 'a, (Entity, &'a PlankPhenotype, &'a Genome), With<PlankPhenotype>>) {
+    // let population = get_population_sorted_from_best_to_worst(query.iter());
+
+    let elite = get_best_elite(query.iter());
+    // todo kanskje heller lage en elite Resource som kan hentes inn direkte, istedenfor å sortere her og så kalle tegne funksjonen
+    draw_network_in_genome2(commands, meshes, materials, &elite.genome);
+}
+
+
+fn sort_best_to_worst<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>) -> Vec<PhentypeAndGenome<'a>> {
+    let mut population = Vec::new();
+    //sort_individuals
+    for (entity, plank, genome) in iteratior {
+        population.push(PhentypeAndGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
+    }
+    // sort desc
+    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    // println!("parents after sort:  {:?}", population);
+    population
+}
+fn get_best_elite<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>) -> PhentypeAndGenome<'a> {
+    let mut population = Vec::new();
+    //sort_individuals
+    for (entity, plank, genome) in iteratior {
+        population.push(PhentypeAndGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
+    }
+    // sort desc
+    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    // println!("parents after sort:  {:?}", population);
+    let elite = population.get(0).unwrap();
+    return elite.clone();
+}
+// fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &crate::PlankPhenotype, ()>) -> Vec<&'lifetime_a crate::PlankPhenotype> {
 
 fn kill_worst_individuals(
     mut commands: Commands,
@@ -583,7 +630,8 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
 
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action(
+fn agent_action_and_fitness_evaluation
+(
     mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>, Entity), ( With<PlankPhenotype>)>,
     time: Res<Time>,
 ) {
@@ -768,7 +816,7 @@ impl PhenotypeLayers {
 // Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
 // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
 // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
-pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
+pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) { // todo kanksje bare bytt ut med det jeg gjør for tengning
 
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
 
@@ -800,7 +848,7 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // for weight in genome.weight_genes.iter() {
     for weight in weightRcs {
         // let list = weights_per_desination_node.entry(&*weight.destination_node).or_insert_with(|| Vec::new());
-        let list = weights_per_desination_node.entry(Arc::clone(&weight.destinationsnode)).or_insert_with(|| Vec::new());
+        let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
         // list.push(Rc::clone(weight));
         list.push(Arc::clone(&weight));
         // list.push(Rc::new(*weight));
@@ -824,8 +872,6 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeLayers) {
     // return (layers , genome);
     return layers;
 }
-
-
 
 // not used abstraction ideas for/from ai gym
 

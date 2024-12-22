@@ -52,9 +52,17 @@ pub struct WeightGene {
     // kildenode: i32,
     pub(crate) kildenode: Arc<NodeGene>,
     // destinationsnode: i32,
-    pub(crate) destinationsnode: Arc<NodeGene>,
+    pub(crate) destinasjonsnode: Arc<NodeGene>,
     pub(crate) mutation_stability: f32,
 }
+impl PartialEq for WeightGene {
+    fn eq(&self, other: &Self) -> bool {
+        self.kildenode == other.kildenode &&
+            self.destinasjonsnode == other.destinasjonsnode &&
+            self.value == other.value
+    }
+}
+impl Eq for WeightGene {}
 
 
 #[derive(Debug, Clone, Resource)]
@@ -107,7 +115,7 @@ impl Clone for Genome {
         let mut nye_vekter = Vec::new();
         for vekt in self.weight_genes.iter() {
             assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).count(), 1);
-            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).count(), 1);
+            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinasjonsnode.innovation_number).count(), 1);
 
 
             let ny_vekt = WeightGene {
@@ -115,7 +123,7 @@ impl Clone for Genome {
                 mutation_stability: vekt.mutation_stability,
                 value: vekt.value,
                 kildenode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).next().expect("fant ikke kildenode til vekten")),
-                destinationsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinationsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
+                destinasjonsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinasjonsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
             };
             nye_vekter.push(ny_vekt);
         }
@@ -182,7 +190,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
         for m in alleNoderArc.iter().filter(|node_gene| node_gene.outputnode) {
             weight_genes.push(WeightGene {
                 kildenode: Arc::clone(n),
-                destinationsnode: Arc::clone(m),
+                destinasjonsnode: Arc::clone(m),
                 // kildenode: n as i32,
                 // kildenode: n.innovation_number,
                 // destinationsnode: m.innovation_number,
