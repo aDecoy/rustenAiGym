@@ -229,7 +229,8 @@ fn tegn_forbindelser(commands: &mut Commands, mut meshes: &mut ResMut<Assets<Mes
 
 // todo ha tegning og nettverk hente fra samme sted. Kanskje flytte dette til en phenotypeLayers/ pheonotypeNeuralNetwork og tegne det istedenfor Genome
 
-fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
+// fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
+fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
     let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();;
 
     // Start on input, and look at what connects.  STARTER PÅ OUTPUT OG BEVEGEWR OSS MOT INPUT

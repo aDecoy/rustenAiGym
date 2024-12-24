@@ -220,16 +220,20 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
 
 impl Genome {
 
-    pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
-        let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+    // pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
+    pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> {
+        let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
 
-        for weight in self.weight_genes.iter() {
-            let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
-            // list.push(Arc::clone(&weight));
-            list.push(weight);
+        for weight in self.weight_genes.clone() {
+            // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
+            {
+                let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
+                list.push(Arc::new(weight));
+                // list.push(weight);
+            }
+            // for weight in genome.weight_genes.iter() {
         }
         weights_per_desination_node
+
     }
-
-
-}
+    }

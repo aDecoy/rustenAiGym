@@ -833,14 +833,15 @@ impl PhenotypeNeuralNetwork {
             *verdi = *verdi + *bias;
             // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
         }
-        println!("(self.ant_layers..0)  {:?}", (self.ant_layers..0));
-        println!("(0..self.ant_layers).rev()  {:?}", (0..self.ant_layers).rev());
+
         // update all values
         // for i in (self.ant_layers..0) {
-        for i in  (0..self.ant_layers).rev() {
+        // dbg!( &self.layers_ordered_output_to_input);
+
+        for i in (0..self.ant_layers).rev() {
             dbg!(i);
-            for mut destination_node in &self.layers_ordered_output_to_input[i]{
-                dbg!(destination_node);
+            for mut destination_node in &self.layers_ordered_output_to_input[i] {
+                // dbg!(destination_node);
                 self.absorber_inkommende_verdier_og_set_ny_verdi(destination_node);
                 dbg!(destination_node);
             }
@@ -852,17 +853,24 @@ impl PhenotypeNeuralNetwork {
         for node in self.output_layer.iter() {
             let verdi = node.value.read().unwrap();
             output_values.push(verdi.clone());
+            dbg!(verdi.clone());
         }
 
         // burde kanksje normalisere output også....
+        dbg!(&output_values);
+
         return output_values;
     }
 
     fn absorber_inkommende_verdier_og_set_ny_verdi(&self, mut destination_node: &Arc<NodeGene>) {
+
         let relevant_weights = match self.weights_per_destination_node.get(destination_node) {
             Some(weights) => weights,
             None => &Vec::new()
         };
+        dbg!(&destination_node);
+        dbg!(&relevant_weights);
+        dbg!(&self.weights_per_destination_node);
         let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
         for weight in relevant_weights.iter() {
             {
@@ -873,6 +881,7 @@ impl PhenotypeNeuralNetwork {
             }
         }
         let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
+        dbg!(&total_påvirking);
         {
             let mut verdi = destination_node.value.write().unwrap();
             // println!("verdi før halvering {}", verdi);
@@ -894,21 +903,29 @@ impl PhenotypeNeuralNetwork {
 
         let (node_to_layer, layers_ordered_output_to_input) = PhenotypeNeuralNetwork::lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
 
-
         // WE DONT flip it around to be sorted so that output nodes are last . No need. just fill in input node values and iterate         for i in (ant_layers..0){
 
+        let mut input_layer: Vec<Arc<NodeGene>> = Vec::new();
+        let mut output_layer: Vec<Arc<NodeGene>> = Vec::new();
+
+        for nodeArc in genome.node_genes.iter() {
+            // let  nodeArc = Arc::new(node);
+            if nodeArc.inputnode {
+                input_layer.push(Arc::clone(nodeArc))
+            } else if nodeArc.outputnode { output_layer.push(Arc::clone(nodeArc)); }
+        }
 
         /* `PhenotypeNeuralNetwork` value */
         PhenotypeNeuralNetwork {
-            ant_layers: node_to_layer.len(),
+            ant_layers: layers_ordered_output_to_input.len(),
             // alleNoder: alleNoder,
             alleNoderArc: alleNoderArc,
             alleVekter: alleVekter,
-            input_layer: vec![],
-            output_layer: vec![],
-            // weights_per_destination_node: weights_per_desination_node,
-            weights_per_destination_node: HashMap::new(),
             hidden_nodes: vec![],
+            input_layer: input_layer,
+            output_layer: output_layer,
+            // weights_per_destination_node: weights_per_desination_node,
+            weights_per_destination_node: weights_per_desination_node,
             node_to_layer,
             layers_ordered_output_to_input,
         }
@@ -943,6 +960,8 @@ impl PhenotypeNeuralNetwork {
             layers_ordered_output_to_input.push(next_layer);
             // break;
         }
+        // dbg!(&layers_ordered_output_to_input);
+
         (node_to_layer, layers_ordered_output_to_input)
     }
 
@@ -975,7 +994,10 @@ impl PhenotypeNeuralNetwork {
                 Some(weights) => {
                     for weight in weights {
                         if !vekter_allerede_brukt.contains(weight) {
-                            next_layer.push(Arc::clone(&weight.kildenode));
+                            // It can be multiple weights that would have added the same node to the layer, but we only want one arc refference to the node. But we want vekter allerede brukt to be updated
+                            if !next_layer.contains(&weight.kildenode){
+                                next_layer.push(Arc::clone(&weight.kildenode));
+                            }
                             layer_per_node.insert(Arc::clone(&weight.kildenode), lag_index);
                             vekter_allerede_brukt.push(weight);
                         }
