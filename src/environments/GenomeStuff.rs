@@ -18,7 +18,6 @@ pub struct NodeGene {
     pub(crate) outputnode: bool,
     pub(crate) mutation_stability: f32, // 1 is compleat lock/static genome. 0 is a mutation for all genes
     layer: usize,
-
     // value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
 
     //  Rwlock, slik at denne kan endres selv om den er inne i en Arc, som den må være om flere WeightGene skal kunne ha en peker på den,

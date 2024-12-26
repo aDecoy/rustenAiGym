@@ -50,7 +50,11 @@ pub(crate) fn oppdater_node_tegninger(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut text_query: Query<&mut Text2d, With<NodeLabelTag>>,
 ) {
+    println!("oppdater_node_tegninger");
     for (mut nodeforbindelse, noderef, mut children) in query.iter_mut() {
+        dbg!(&noderef);
+        println!("&&noderef.node addr {:p}", &&&noderef.node);
+        // println!(" en ");
         let node_value = {
             noderef.node.value.read().unwrap().clone()
         };
@@ -60,8 +64,10 @@ pub(crate) fn oppdater_node_tegninger(
 
         let child_entity = children[0];
         let mut text = text_query.get_mut(child_entity).unwrap();
-        text.0 = node_value.clone().round_to_decimal(3).to_string()
+        text.0 = node_value.clone().round_to_decimal(3).to_string();
+        // println!("endrer verdi til {}", node_value.clone().to_string());
     }
+    // println!("oppdater_node_tegninger ferdig");
 }
 
 pub(crate) fn remove_drawing_of_network_for_best_individ(
@@ -96,48 +102,48 @@ fn tegn_og_spawn_noder(commands: &mut Commands, mut meshes: ResMut<Assets<Mesh>>
                        mut materials: ResMut<Assets<ColorMaterial>>,
                        genome: &Genome, point_per_node: &HashMap<Arc<NodeGene>, Vec2>) {
     for node in genome.node_genes.iter() {
-        match point_per_node.get(&Arc::clone(node)) {
-            Some(point) => {
-                let point = point_per_node[&Arc::clone(node)];
-                let node_value = {
-                    node.value.read().unwrap().clone()
-                };
-                let a_color = get_color_for_node_value(node_value);
+        let Some(point) = point_per_node.get(&Arc::clone(node))   else {
+            return;
+        };
 
-                commands.spawn((
-                    Mesh2d(if (node.outputnode) { meshes.add(RegularPolygon::new(25.0, 6)) } else if node.inputnode { meshes.add(RegularPolygon::new(25.0, 8)) } else { meshes.add(Circle { radius: 25.0 }).clone() }),
-                    MeshMaterial2d(materials.add(a_color)),
-                    Transform::from_xyz(
-                        // Distribute shapes from -X_EXTENT/2 to +X_EXTENT/2.
-                        // -X_EXTENT / 2. + i as f32 / (num_shapes - 1) as f32 * X_EXTENT,
-                        point.x,
-                        point.y,
-                        1.0,
-                    ),
-                    NodeRefForDrawing { node: Arc::clone(node) },
-                    DrawingTag,
-                    // Text::from_section("START!!!", text_style.clone()).with_justify(text_justification),
-                ))
-                    .with_children(|builder| {
-                        builder.spawn((
-                                          Text2d::new(
-                                              {
-                                                  node_value.round_to_decimal(3).to_string()
-                                              },
-                                          ),
-                                          TextLayout::new_with_justify(JustifyText::Center),
-                                          // , text_style.clone())                        .with_justify(text_justification),
-                                          Transform::from_xyz(0.0, 0.0, 2.0),
-                                          NodeLabelTag,
-                                      ),
-                        );
-                        // IndividLabelText,
-                    });
-            }
-            _ => {}
-        }
+        let point = point_per_node[&Arc::clone(node)];
+        let node_value = {
+            node.value.read().unwrap().clone()
+        };
+        let a_color = get_color_for_node_value(node_value);
+
+        commands.spawn((
+            Mesh2d(if (node.outputnode) { meshes.add(RegularPolygon::new(25.0, 6)) } else if node.inputnode { meshes.add(RegularPolygon::new(25.0, 8)) } else { meshes.add(Circle { radius: 25.0 }).clone() }),
+            MeshMaterial2d(materials.add(a_color)),
+            Transform::from_xyz(
+                // Distribute shapes from -X_EXTENT/2 to +X_EXTENT/2.
+                // -X_EXTENT / 2. + i as f32 / (num_shapes - 1) as f32 * X_EXTENT,
+                point.x,
+                point.y,
+                1.0,
+            ),
+            NodeRefForDrawing { node: Arc::clone(node) },
+            DrawingTag,
+            // Text::from_section("START!!!", text_style.clone()).with_justify(text_justification),
+        ))
+            .with_children(|builder| {
+                builder.spawn((
+                                  Text2d::new(
+                                      {
+                                          node_value.round_to_decimal(3).to_string()
+                                      },
+                                  ),
+                                  TextLayout::new_with_justify(JustifyText::Center),
+                                  // , text_style.clone())                        .with_justify(text_justification),
+                                  Transform::from_xyz(0.0, 0.0, 2.0),
+                                  NodeLabelTag,
+                              ),
+                );
+                // IndividLabelText,
+            });
     }
 }
+
 
 fn get_color_for_node_value(node_value: f32) -> Color {
     // let gradient = ColorCurve::new([RED, GREEN, BLUE]);
@@ -245,6 +251,7 @@ fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desinatio
     // Dette er løst ved å kun flytte en node en gang per vekt. (dette vil gjøre at sykluser kan gi hidden noder som er til venstre for input noder).
     // Merk at syklus noder vil gjøre litt ekstra forsterkning av sine verdier i forhold til andre vanlige hidden noder om de er til venstre for input noder.  Disse vil "ta inn nåtid data + sin fortid data og gi ut begge"
     let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+    let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
     // let next_layer = få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, 1);
     // layers_ordered_output_to_input.push(next_layer);
 
@@ -263,10 +270,12 @@ fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desinatio
 }
 
 fn få_neste_lag<'a>(
-    weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+    weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
+    // weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
     layer_per_node: &mut HashMap<Arc<NodeGene>, i32>,
     layers_output_to_input: &mut Vec<Vec<Arc<NodeGene>>>,
-    node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+    node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
+    // node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
     lag_index: i32,
 ) -> Vec<Arc<NodeGene>> {
     let mut next_layer = vec![];
@@ -293,7 +302,8 @@ fn få_neste_lag<'a>(
                     if !vekter_allerede_brukt.contains(weight) {
                         next_layer.push(Arc::clone(&weight.kildenode));
                         layer_per_node.insert(Arc::clone(&weight.kildenode), lag_index);
-                        vekter_allerede_brukt.push(weight);
+                        // vekter_allerede_brukt.push(weight);
+                        vekter_allerede_brukt.push(Arc::clone(weight));
                     }
                 }
             }

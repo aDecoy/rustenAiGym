@@ -50,7 +50,7 @@ fn main() {
             synchronous_pipeline_compilation: false,
         }))
         // .add_plugins(DefaultPlugins)
-        .insert_state(Kjøretilstand::Kjørende)
+        .insert_state(Kjøretilstand::Pause)
         // .add_plugins(WorldInspectorPlugin::new())
         .insert_state(EttHakkState::DISABLED)
         .init_resource::<GenerationCounter>()
@@ -70,13 +70,14 @@ fn main() {
             reset_event_ved_input,
             reset_to_star_pos_on_event,
             extinction_on_t,
-            oppdater_node_tegninger,
             (
                 // print_pois_velocity_and_force,
-                label_plank_with_current_score,
-                oppdater_node_tegninger,
                 agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-            ).chain(),
+                label_plank_with_current_score,
+                // oppdater_node_tegninger,
+                remove_drawing_of_network_for_best_individ,
+                spawn_drawing_of_network_for_best_individ,
+            ).chain().run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             // check_if_done.run_if(every_time_if_stop_on_right_window()),
             (
@@ -88,7 +89,7 @@ fn main() {
                 remove_drawing_of_network_for_best_individ,
                 spawn_drawing_of_network_for_best_individ,
                 create_new_children,
-                spawn_a_random_new_individual2,
+                // spawn_a_random_new_individual2,
                 // mutate_planks,
                 // mutate_genomes,
                 reset_to_star_pos,
@@ -214,7 +215,7 @@ fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 10;
+static START_POPULATION_SIZE: i32 = 1;
 
 fn spawn_start_population(mut commands: Commands,
                           mut meshes: ResMut<Assets<Mesh>>,
@@ -322,9 +323,13 @@ fn spawn_drawing_of_network_for_best_individ<'a>(
 
     let elite = get_best_elite(query.iter());
     // todo kanskje heller lage en elite Resource som kan hentes inn direkte, istedenfor å sortere her og så kalle tegne funksjonen
-    draw_network_in_genome2(commands, meshes, materials, &elite.genome);
+    draw_network_in_genome2(commands, meshes, materials, elite.genome);
 }
-
+//
+// #[derive(Debug,Resource)]
+// struct EliteGenome {
+//     Genome
+// }
 
 fn sort_best_to_worst<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>) -> Vec<PhentypeAndGenome<'a>> {
     let mut population = Vec::new();
@@ -347,7 +352,8 @@ fn get_best_elite<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_
     population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
     // println!("parents after sort:  {:?}", population);
     let elite = population.get(0).unwrap();
-    return elite.clone();
+    return PhentypeAndGenome{ genome : elite.genome , entity_index: elite.entity_index, phenotype : elite.phenotype, entity_bevy_generation: elite.entity_bevy_generation };
+    return elite.clone(); // KAN DET VÆRE AT DETTE LAGER EN NY GENOME`?
 }
 // fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &crate::PlankPhenotype, ()>) -> Vec<&'lifetime_a crate::PlankPhenotype> {
 
@@ -448,8 +454,6 @@ fn create_new_children(mut commands: Commands,
         //     color: Color::WHITE,
         //     ..default()
         // };
-        let text_justification = JustifyText::Center;
-
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
@@ -645,6 +649,7 @@ fn agent_action_and_fitness_evaluation
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
         let input_values = plank.obseravations.clone();
+        // dbg!(&input_values);
         let action = plank.phenotype_layers.decide_on_action2(input_values);            // fungerer
         // dbg!(&action);
         // individual.translation.x += random::<f32>() * action * 5.0;
@@ -819,31 +824,34 @@ impl PhenotypeNeuralNetwork {
         clamped_input_values.reserve(input_values.len());
         for value in input_values {
             //     println!("raw input values {:?}", node);
+            // clamped_input_values.push(value / PIXELS_PER_METER);
             clamped_input_values.push(value / PIXELS_PER_METER);
             // println!("new clamped input value {:?}", node);
         }
         // dbg!(&clamped_input_values);
 
-
         // Feed/load in input values
 
         for i in 0..clamped_input_values.len() {
-            let mut verdi = self.input_layer[i].value.write().unwrap();
-            let bias = self.input_layer[i].bias.read().unwrap();
+            let node = &self.input_layer[i];
+            let mut verdi = node.value.write().unwrap();
+            let bias = node.bias.read().unwrap();
             *verdi = *verdi + *bias;
+            dbg!(&verdi);
+            println!("&self.input_layer[i] addr {:p}",*node);
+            dbg!(&node);
             // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
         }
-
         // update all values
         // for i in (self.ant_layers..0) {
         // dbg!( &self.layers_ordered_output_to_input);
 
         for i in (0..self.ant_layers).rev() {
-            dbg!(i);
+            // dbg!(i);
             for mut destination_node in &self.layers_ordered_output_to_input[i] {
                 // dbg!(destination_node);
                 self.absorber_inkommende_verdier_og_set_ny_verdi(destination_node);
-                dbg!(destination_node);
+                // dbg!(destination_node);
             }
         }
 
@@ -853,24 +861,21 @@ impl PhenotypeNeuralNetwork {
         for node in self.output_layer.iter() {
             let verdi = node.value.read().unwrap();
             output_values.push(verdi.clone());
-            dbg!(verdi.clone());
+            // dbg!(verdi.clone());
         }
-
         // burde kanksje normalisere output også....
-        dbg!(&output_values);
-
+        // dbg!(&output_values);
         return output_values;
     }
 
     fn absorber_inkommende_verdier_og_set_ny_verdi(&self, mut destination_node: &Arc<NodeGene>) {
-
         let relevant_weights = match self.weights_per_destination_node.get(destination_node) {
             Some(weights) => weights,
             None => &Vec::new()
         };
-        dbg!(&destination_node);
-        dbg!(&relevant_weights);
-        dbg!(&self.weights_per_destination_node);
+        // dbg!(&destination_node);
+        // dbg!(&relevant_weights);
+        // dbg!(&self.weights_per_destination_node);
         let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
         for weight in relevant_weights.iter() {
             {
@@ -881,7 +886,7 @@ impl PhenotypeNeuralNetwork {
             }
         }
         let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
-        dbg!(&total_påvirking);
+        // dbg!(&total_påvirking);
         {
             let mut verdi = destination_node.value.write().unwrap();
             // println!("verdi før halvering {}", verdi);
@@ -931,7 +936,11 @@ impl PhenotypeNeuralNetwork {
         }
     }
 
-    pub(crate) fn lag_lag_av_nevroner_sortert_fra_output(genome: &Genome, weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
+    pub(crate) fn lag_lag_av_nevroner_sortert_fra_output(
+        genome: &Genome,
+        // weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>)
+        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>)
+        -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
         let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();
 
         // Start on input, and look at what connects.  STARTER PÅ OUTPUT OG BEVEGEWR OSS MOT INPUT
@@ -945,7 +954,8 @@ impl PhenotypeNeuralNetwork {
         // I tilfeller vi har sykler, så vil vi hindre å evig flytte ting bakover i nettet. På et punkt så må vi bare godta en node kan få input som ikke er fra "venstre side". Bygger opp fra høyre side med outputs og jobber oss mot venstre.
         // Dette er løst ved å kun flytte en node en gang per vekt. (dette vil gjøre at sykluser kan gi hidden noder som er til venstre for input noder).
         // Merk at syklus noder vil gjøre litt ekstra forsterkning av sine verdier i forhold til andre vanlige hidden noder om de er til venstre for input noder.  Disse vil "ta inn nåtid data + sin fortid data og gi ut begge"
-        let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+        let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
+        // let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
         // let next_layer = få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, 1);
         // layers_ordered_output_to_input.push(next_layer);
 
@@ -966,10 +976,12 @@ impl PhenotypeNeuralNetwork {
     }
 
     fn få_neste_lag<'a>(
-        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        // weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
         layer_per_node: &mut HashMap<Arc<NodeGene>, i32>,
         layers_output_to_input: &mut Vec<Vec<Arc<NodeGene>>>,
-        node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        // node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<&'a WeightGene>>,
+        node_to_vekt_som_flyttet_på_noden: &mut HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
         lag_index: i32,
     ) -> Vec<Arc<NodeGene>> {
         let mut next_layer = vec![];
@@ -995,11 +1007,11 @@ impl PhenotypeNeuralNetwork {
                     for weight in weights {
                         if !vekter_allerede_brukt.contains(weight) {
                             // It can be multiple weights that would have added the same node to the layer, but we only want one arc refference to the node. But we want vekter allerede brukt to be updated
-                            if !next_layer.contains(&weight.kildenode){
+                            if !next_layer.contains(&weight.kildenode) {
                                 next_layer.push(Arc::clone(&weight.kildenode));
                             }
                             layer_per_node.insert(Arc::clone(&weight.kildenode), lag_index);
-                            vekter_allerede_brukt.push(weight);
+                            vekter_allerede_brukt.push(Arc::clone(weight) );
                         }
                     }
                 }
