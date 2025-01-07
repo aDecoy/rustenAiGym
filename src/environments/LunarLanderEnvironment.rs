@@ -20,6 +20,7 @@ lazy_static! {
  HashMap::from([
     ( EnvValg::Homing, Vec2 { x: 100.0, y: -100.0 }),
     ( EnvValg::HomingGroud, Vec2 { x: 00.0, y: GROUND_STARTING_POSITION.y + GROUND_HEIGHT }),
+    ( EnvValg::HomingGroudY, Vec2 { x: 00.0, y: GROUND_STARTING_POSITION.y + GROUND_HEIGHT }),
     ])
     };
     pub static ref LANDING_SITE: Vec2 = LANDING_SITE_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];

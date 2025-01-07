@@ -50,14 +50,15 @@ pub(crate) fn oppdater_node_tegninger(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut text_query: Query<&mut Text2d, With<NodeLabelTag>>,
 ) {
-    println!("oppdater_node_tegninger");
+    // println!("oppdater_node_tegninger");
     for (mut nodeforbindelse, noderef, mut children) in query.iter_mut() {
-        dbg!(&noderef);
-        println!("&&noderef.node addr {:p}", &&&noderef.node);
+        // dbg!(&noderef);
+        // println!("&&noderef.node addr {:p}", &&&noderef.node);
         // println!(" en ");
         let node_value = {
             noderef.node.value.read().unwrap().clone()
         };
+        // dbg!(node_value);
         let a_color = get_color_for_node_value(node_value);
         let new_handle: Handle<ColorMaterial> = materials.add(a_color);
         nodeforbindelse.0 = new_handle;
@@ -74,12 +75,12 @@ pub(crate) fn remove_drawing_of_network_for_best_individ(
     mut commands: Commands,
     mut query: Query<Entity, With<DrawingTag>>,
 ) {
-    println!("inne i remove_drawing_of_network_for_best_individ");
+    // println!("inne i remove_drawing_of_network_for_best_individ");
     for (entity) in query.iter_mut() {
-        dbg!(entity);
+        // dbg!(entity);
         commands.entity(entity).despawn_recursive();
     }
-    println!("ut av remove_drawing_of_network_for_best_individ");
+    // println!("ut av remove_drawing_of_network_for_best_individ");
 }
 
 trait Round {
@@ -327,8 +328,8 @@ fn få_vekter_per_kildenode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&Weig
 fn kordinater_per_node(genome: &Genome, layer_per_node: HashMap<Arc<NodeGene>, i32>, layers_output_to_input: Vec<Vec<Arc<NodeGene>>>) -> HashMap<Arc<NodeGene>, Vec2> {
     let mut point_per_node = HashMap::new();
 
-    let mut x_output_layer = -100.0;
-    let distanc_x = -100.0;
+    let mut x_output_layer = -150.0;
+    let distanc_x = -200.0;
     for node in genome.node_genes.iter() {
         match (layer_per_node.get(node)) {
             Some(layer) => {

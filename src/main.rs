@@ -1,12 +1,26 @@
+use crate::environments::moving_plank::{
+    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
+    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
+};
+use crate::environments::simulation_teller::{
+    SimulationGenerationTimer, SimulationRunningTellerPlugin,
+};
 use crate::environments::GenomeStuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH};
-use crate::environments::simulation_teller::{SimulationGenerationTimer, SimulationRunningTellerPlugin};
 use avian2d::math::{AdjustPrecision, Vector};
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
+use crate::environments::drawNetwork::{
+    draw_network_in_genome, draw_network_in_genome2, oppdater_node_tegninger,
+    remove_drawing_of_network_for_best_individ,
+};
+use crate::environments::genomMuteringer::lock_mutation_stability;
+use crate::environments::GenomeStuff::{NodeGene, WeightGene};
+use crate::environments::LunarLanderEnvironment::{
+    spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE,
+};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
@@ -25,10 +39,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
-use crate::environments::drawNetwork::{draw_network_in_genome, draw_network_in_genome2, oppdater_node_tegninger, remove_drawing_of_network_for_best_individ};
-use crate::environments::GenomeStuff::{NodeGene, WeightGene};
-use crate::environments::genomMuteringer::lock_mutation_stability;
-use crate::environments::LunarLanderEnvironment::{spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE};
 
 mod environments;
 
@@ -41,31 +51,38 @@ fn main() {
     println!("Starting up AI GYM");
 
     let mut app = App::new();
-    app
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
-            render_creation: RenderCreation::Automatic(WgpuSettings {
-                backends: Some(Backends::DX12),
-                ..default()
-            }),
-            synchronous_pipeline_compilation: false,
-        }))
-        // .add_plugins(DefaultPlugins)
-        .insert_state(Kjøretilstand::Pause)
-        // .add_plugins(WorldInspectorPlugin::new())
-        .insert_state(EttHakkState::DISABLED)
-        .init_resource::<GenerationCounter>()
-        .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-        // .init_resource(     EnvValg { Homing} )
-        .add_event::<ResetToStartPositionsEvent>()
-        .add_systems(Startup, (
+    app.add_plugins(DefaultPlugins.set(RenderPlugin {
+        render_creation: RenderCreation::Automatic(WgpuSettings {
+            backends: Some(Backends::DX12),
+            ..default()
+        }),
+        synchronous_pipeline_compilation: false,
+    }))
+    // .add_plugins(DefaultPlugins)
+    .insert_state(Kjøretilstand::Kjørende)
+    // .add_plugins(WorldInspectorPlugin::new())
+    .insert_state(EttHakkState::DISABLED)
+    .init_resource::<GenerationCounter>()
+    .insert_resource(InnovationNumberGlobalCounter { count: 0 })
+    // .init_resource(     EnvValg { Homing} )
+    .add_event::<ResetToStartPositionsEvent>()
+    .add_systems(
+        Startup,
+        (
             setup_camera,
-            (spawn_start_population,
-             spawn_drawing_of_network_for_best_individ).chain(),
+            (
+                spawn_start_population,
+                spawn_drawing_of_network_for_best_individ,
+            )
+                .chain(),
             spawn_ground,
             spawn_roof,
             spawn_landing_target,
-        ))
-        .add_systems(Update, (
+        ),
+    )
+    .add_systems(
+        Update,
+        (
             endre_kjøretilstand_ved_input,
             reset_event_ved_input,
             reset_to_star_pos_on_event,
@@ -74,10 +91,12 @@ fn main() {
                 // print_pois_velocity_and_force,
                 agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
                 label_plank_with_current_score,
-                // oppdater_node_tegninger,
-                remove_drawing_of_network_for_best_individ,
-                spawn_drawing_of_network_for_best_individ,
-            ).chain().run_if(in_state(Kjøretilstand::Kjørende)),
+                oppdater_node_tegninger,
+                // remove_drawing_of_network_for_best_individ,
+                // spawn_drawing_of_network_for_best_individ,
+            )
+                .chain()
+                .run_if(in_state(Kjøretilstand::Kjørende)),
             check_if_done,
             // check_if_done.run_if(every_time_if_stop_on_right_window()),
             (
@@ -93,16 +112,18 @@ fn main() {
                 // mutate_planks,
                 // mutate_genomes,
                 reset_to_star_pos,
-                set_to_kjørende_state).chain().run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+                set_to_kjørende_state,
+            )
+                .chain()
+                .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
         ),
-        )
-        // Environment spesific : Later changed
-        .add_plugins(MovingPlankPlugin)
-        .add_plugins(SimulationRunningTellerPlugin);
+    )
+    // Environment spesific : Later changed
+    .add_plugins(MovingPlankPlugin)
+    .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
 }
-
 
 fn every_time() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
@@ -113,22 +134,22 @@ fn every_time() -> impl Condition<()> {
 fn every_time_if_stop_on_right_window() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
         *flag = match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => { true }
-            _ => { false }
+            EnvValg::Høyre
+            | EnvValg::Fall
+            | EnvValg::FallVelocityHøyre
+            | EnvValg::FallExternalForcesHøyre => true,
+            _ => false,
         };
         *flag
     })
 }
 
-
 //////////////
-
 
 #[derive(Resource, Default, Debug)]
 struct SimulationTimer {
     count: i32,
 }
-
 
 /////////////////// genration counter
 
@@ -136,7 +157,6 @@ struct SimulationTimer {
 struct GenerationCounter {
     count: i32,
 }
-
 
 static SIMULATION_GENERATION_MAX_TIME: f64 = 4.0; // seconds
 
@@ -146,10 +166,12 @@ fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>
 
 /////////////////// Metadata obvservation
 
-fn save_best_to_history(query: Query<&PlankPhenotype>,
-                        generation_counter: Res<GenerationCounter>) {
+fn save_best_to_history(query: Query<&PlankPhenotype>, generation_counter: Res<GenerationCounter>) {
     // let mut file = File::create("history.txt").expect("kunne ikke finne filen");
-    let mut f = File::options().append(true).open("history.txt").expect("kunne ikke åpne filen");
+    let mut f = File::options()
+        .append(true)
+        .open("history.txt")
+        .expect("kunne ikke åpne filen");
 
     let population = get_population_sorted_from_best_to_worst(query.iter());
 
@@ -163,7 +185,9 @@ fn save_best_to_history(query: Query<&PlankPhenotype>,
 }
 
 // fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
-fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>) -> Vec<&'lifetime_a PlankPhenotype> {
+fn get_population_sorted_from_best_to_worst<'lifetime_a>(
+    query: QueryIter<'lifetime_a, '_, &PlankPhenotype, ()>,
+) -> Vec<&'lifetime_a PlankPhenotype> {
     // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
@@ -171,12 +195,22 @@ fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifet
         population.push(plank)
     }
     // sort desc
-    population.sort_by(|a, b| if a.score > b.score { Ordering::Less } else if a.score < b.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| {
+        if a.score > b.score {
+            Ordering::Less
+        } else if a.score < b.score {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
     return population;
 }
 
 // all the lifteimes bassicly just means to keep return value alive as long as the input value
-fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(query: QueryIter<'lifetime_a, '_, (Entity, &PlankPhenotype, &Genome), ()>) -> Vec<PhentypeAndGenome<'lifetime_a>> {
+fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(
+    query: QueryIter<'lifetime_a, '_, (Entity, &PlankPhenotype, &Genome), ()>,
+) -> Vec<PhentypeAndGenome<'lifetime_a>> {
     // fn get_population_sorted_from_best_to_worst<'a>(query: Query<&'a PlankPhenotype>) -> Vec<&'a PlankPhenotype> {
     let mut population = Vec::new();
     //sort_individuals
@@ -192,40 +226,71 @@ fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(query: QueryIter<'li
     }
 
     // sort desc
-    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| {
+        if a.phenotype.score > b.phenotype.score {
+            Ordering::Less
+        } else if a.phenotype.score < b.phenotype.score {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
     return population;
 }
 
-fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>,
-                        generation_counter: Res<GenerationCounter>) {
+fn print_pop_conditions(
+    query: Query<(Entity, &PlankPhenotype, &Genome)>,
+    generation_counter: Res<GenerationCounter>,
+) {
     let population = get_population_sorted_from_best_to_worst_v2(query.iter());
     let best = population[0].clone();
 
     // let best_id = best.genotype.index();
     let all_fitnesses = population.iter().map(|individ| individ.phenotype.score);
     // println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
-    println!("generation {} just ended, has population size {} Best individual has fitness {} ", generation_counter.count, population.len(), best.phenotype.score);
+    println!(
+        "generation {} just ended, has population size {} Best individual has fitness {} ",
+        generation_counter.count,
+        population.len(),
+        best.phenotype.score
+    );
     // println!("all fintesses for generation: ");
     // all_fitnesses.for_each(|score| print!("{} ", score));
     println!();
     println!("all fintesses for generation: ");
-    population.into_iter().for_each(|individ| print!("Entity {} from bevy-generation {} har score {},", individ.entity_index, individ.entity_bevy_generation, individ.phenotype.score));
+    population.into_iter().for_each(|individ| {
+        print!(
+            "Entity {} from bevy-generation {} har score {},",
+            individ.entity_index, individ.entity_bevy_generation, individ.phenotype.score
+        )
+    });
     println!();
 }
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 1;
+static START_POPULATION_SIZE: i32 = 100;
 
-fn spawn_start_population(mut commands: Commands,
-                          mut meshes: ResMut<Assets<Mesh>>,
-                          mut materials: ResMut<Assets<ColorMaterial>>,
-                          mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+asdfasdf // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
+ // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
+// todo endre farge på individ som er Elite, slik at den er lett å følge.
+
+fn spawn_start_population(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
 
-        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovationNumberGlobalCounter, n);
+        spawn_a_random_new_individual(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut innovationNumberGlobalCounter,
+            n,
+        );
     }
 }
 
@@ -249,22 +314,29 @@ fn spawn_start_population(mut commands: Commands,
 //     };
 // }
 
-
 // Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
-fn spawn_a_random_new_individual2(mut commands: Commands,
-                                  mut meshes: ResMut<Assets<Mesh>>,
-                                  mut materials: ResMut<Assets<ColorMaterial>>,
-                                  mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+fn spawn_a_random_new_individual2(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     let n: i32 = 1;
-    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovationNumberGlobalCounter, n)
+    spawn_a_random_new_individual(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut innovationNumberGlobalCounter,
+        n,
+    )
 }
 
-fn spawn_a_random_new_individual(commands: &mut Commands,
-                                 meshes: &mut ResMut<Assets<Mesh>>,
-                                 materials: &mut ResMut<Assets<ColorMaterial>>,
-                                 innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
-                                 n: i32,
+fn spawn_a_random_new_individual(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
+    n: i32,
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -274,34 +346,63 @@ fn spawn_a_random_new_individual(commands: &mut Commands,
     //     color: Color::WHITE,
     //     ..default()
     // };
-    let text_justification = JustifyText::Center;
-
-    let genome = new_random_genome(2, 2, innovationNumberGlobalCounter);
+    let genome = match ACTIVE_ENVIROMENT {
+        EnvValg::HomingGroudY => new_random_genome(1, 1, innovationNumberGlobalCounter),
+        _ => new_random_genome(2, 2, innovationNumberGlobalCounter),
+    };
 
     match ACTIVE_ENVIROMENT {
-        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, genome)),
-        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, genome)),
-        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, genome)) }
+        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
+            material_handle,
+            rectangle_mesh_handle.into(),
+            Vec3 {
+                x: 0.0,
+                y: -150.0 + n as f32 * 50.0,
+                z: 1.0,
+            },
+            genome,
+        )),
+        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
+            material_handle,
+            rectangle_mesh_handle.into(),
+            Vec3 {
+                x: 0.0,
+                y: -150.0 + (n as f32 * 15.0),
+                z: 1.0,
+            },
+            genome,
+        )),
+        EnvValg::FallExternalForcesHøyre
+        | EnvValg::Homing
+        | EnvValg::HomingGroud
+        | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
+            material_handle,
+            rectangle_mesh_handle.into(),
+            Vec3 {
+                x: 0.0,
+                y: -150.0 + 3.3 * 50.0,
+                z: 1.0,
+            },
+            genome,
+        )),
     }
-        .with_children(|builder| {
-            builder.spawn((
-                Text2d::new("translation"),
-                TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0.0,
-                                    0.0,
-                                    2.0),
-                IndividLabelText,
-            )
-            );
-        });
+    .with_children(|builder| {
+        builder.spawn((
+            Text2d::new("translation"),
+            TextLayout::new_with_justify(JustifyText::Center),
+            Transform::from_xyz(0.0, 0.0, 2.0),
+            IndividLabelText,
+        ));
+    });
 }
 
-fn extinction_on_t(mut commands: Commands,
-                   meshes: ResMut<Assets<Mesh>>,
-                   materials: ResMut<Assets<ColorMaterial>>,
-                   query: Query<(Entity), With<PlankPhenotype>>,
-                   key_input: Res<ButtonInput<KeyCode>>,
-                   innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+fn extinction_on_t(
+    mut commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(Entity), With<PlankPhenotype>>,
+    key_input: Res<ButtonInput<KeyCode>>,
+    innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
@@ -317,11 +418,13 @@ fn spawn_drawing_of_network_for_best_individ<'a>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 
-    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>) {
+    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
+) {
     // query: Query<'a, 'a, (Entity, &'a PlankPhenotype, &'a Genome), With<PlankPhenotype>>) {
     // let population = get_population_sorted_from_best_to_worst(query.iter());
 
     let elite = get_best_elite(query.iter());
+    // dbg!(&elite);
     // todo kanskje heller lage en elite Resource som kan hentes inn direkte, istedenfor å sortere her og så kalle tegne funksjonen
     draw_network_in_genome2(commands, meshes, materials, elite.genome);
 }
@@ -331,35 +434,71 @@ fn spawn_drawing_of_network_for_best_individ<'a>(
 //     Genome
 // }
 
-fn sort_best_to_worst<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>) -> Vec<PhentypeAndGenome<'a>> {
+fn sort_best_to_worst<'a>(
+    iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
+) -> Vec<PhentypeAndGenome<'a>> {
     let mut population = Vec::new();
     //sort_individuals
     for (entity, plank, genome) in iteratior {
-        population.push(PhentypeAndGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
+        population.push(PhentypeAndGenome {
+            phenotype: plank,
+            genome: genome,
+            entity_index: entity.index(),
+            entity_bevy_generation: entity.generation(),
+        })
     }
     // sort desc
-    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| {
+        if a.phenotype.score > b.phenotype.score {
+            Ordering::Less
+        } else if a.phenotype.score < b.phenotype.score {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
     // println!("parents after sort:  {:?}", population);
     population
 }
-fn get_best_elite<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>) -> PhentypeAndGenome<'a> {
+fn get_best_elite<'a>(
+    iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
+) -> PhentypeAndGenome<'a> {
     let mut population = Vec::new();
     //sort_individuals
     for (entity, plank, genome) in iteratior {
-        population.push(PhentypeAndGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
+        population.push(PhentypeAndGenome {
+            phenotype: plank,
+            genome: genome,
+            entity_index: entity.index(),
+            entity_bevy_generation: entity.generation(),
+        })
     }
     // sort desc
-    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| {
+        if a.phenotype.score > b.phenotype.score {
+            Ordering::Less
+        } else if a.phenotype.score < b.phenotype.score {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
     // println!("parents after sort:  {:?}", population);
     let elite = population.get(0).unwrap();
-    return PhentypeAndGenome{ genome : elite.genome , entity_index: elite.entity_index, phenotype : elite.phenotype, entity_bevy_generation: elite.entity_bevy_generation };
+    return PhentypeAndGenome {
+        genome: elite.genome,
+        entity_index: elite.entity_index,
+        phenotype: elite.phenotype,
+        entity_bevy_generation: elite.entity_bevy_generation,
+    };
     return elite.clone(); // KAN DET VÆRE AT DETTE LAGER EN NY GENOME`?
 }
 // fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &crate::PlankPhenotype, ()>) -> Vec<&'lifetime_a crate::PlankPhenotype> {
 
 fn kill_worst_individuals(
     mut commands: Commands,
-    query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
+    query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>,
+) {
     let mut population = Vec::new();
 
     //sort_individuals
@@ -369,7 +508,15 @@ fn kill_worst_individuals(
     // println!("population before sort: {:?}", population);
     // sort asc
     //     population.sort_by(| a, b| if a.1.score > b.1.score { Ordering::Greater } else if a.1.score < b.1.score { Ordering::Less } else { Ordering::Equal });
-    population.sort_by(|(_, a), (_, b)| if a.score > b.score { Ordering::Greater } else if a.score < b.score { Ordering::Less } else { Ordering::Equal });
+    population.sort_by(|(_, a), (_, b)| {
+        if a.score > b.score {
+            Ordering::Greater
+        } else if a.score < b.score {
+            Ordering::Less
+        } else {
+            Ordering::Equal
+        }
+    });
     // println!("population after sort:  {:?}", population);
     // let number_of_individuals_to_kill = min(4, population.len() - 1);
     let number_of_individuals_to_leave_alive = 3;
@@ -377,7 +524,10 @@ fn kill_worst_individuals(
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0", population.len(), population.len()  as i32- number_of_individuals_to_leave_alive);
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0, ressulting in {}", population.len(), population.len() - number_of_individuals_to_leave_alive, max(0, population.len() - number_of_individuals_to_leave_alive));
 
-    let number_of_individuals_to_kill: usize = max(0, population.len() as i32 - number_of_individuals_to_leave_alive) as usize;
+    let number_of_individuals_to_kill: usize = max(
+        0,
+        population.len() as i32 - number_of_individuals_to_leave_alive,
+    ) as usize;
     println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         println!("despawning entity {} ", entity.index());
@@ -393,7 +543,7 @@ fn kill_worst_individuals(
 //     entity_bevy_generation: u32,
 // }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct PhentypeAndGenome<'lifetime_a> {
     phenotype: &'lifetime_a PlankPhenotype,
     genome: &'lifetime_a Genome,
@@ -401,15 +551,21 @@ struct PhentypeAndGenome<'lifetime_a> {
     entity_bevy_generation: u32,
 }
 
-
-fn create_new_children(mut commands: Commands,
-                       mut meshes: ResMut<Assets<Mesh>>,
-                       mut materials: ResMut<Assets<ColorMaterial>>,
-                       query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>) {
+fn create_new_children(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
+) {
     let mut population = Vec::new();
     //sort_individuals
     for (entity, plank, genome) in query.iter() {
-        population.push(PhentypeAndGenome { phenotype: plank, genome: genome, entity_index: entity.index(), entity_bevy_generation: entity.generation() })
+        population.push(PhentypeAndGenome {
+            phenotype: plank,
+            genome: genome,
+            entity_index: entity.index(),
+            entity_bevy_generation: entity.generation(),
+        })
     }
     // println!("population size when making new individuals: {}", population.len() );
     // println!("parents before sort: {:?}", population);
@@ -417,7 +573,15 @@ fn create_new_children(mut commands: Commands,
     // todo alt. ha sorterte Plank også ta inn genom eller entity/ eller (phenotype,genom) tuples eller ny struct som bare brukes til dette. ..
     // sadfasdf
     // sort desc
-    population.sort_by(|a, b| if a.phenotype.score > b.phenotype.score { Ordering::Less } else if a.phenotype.score < b.phenotype.score { Ordering::Greater } else { Ordering::Equal });
+    population.sort_by(|a, b| {
+        if a.phenotype.score > b.phenotype.score {
+            Ordering::Less
+        } else if a.phenotype.score < b.phenotype.score {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
     // println!("parents after sort:  {:?}", population);
 
     // create 3 children for each top 3
@@ -439,15 +603,19 @@ fn create_new_children(mut commands: Commands,
         // let parent: &PlankPhenotype = parents.sample(&mut thread_random);
 
         // let mut new_genome : Genome = commands.get_entity(parents.choose(&mut thread_random).expect("No potential parents :O !?").genotype).expect("burde eksistere").clone();
-        let parent: &PhentypeAndGenome = parents.choose(&mut thread_random).expect("No potential parents :O !?");
+        let parent: &PhentypeAndGenome = parents
+            .choose(&mut thread_random)
+            .expect("No potential parents :O !?");
         // println!("the lucky winner was parent with entity index {}, that had score {} ", parent.entity_index, parent.phenotype.score);
         let mut new_genome: Genome = parent.genome.clone();
 
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
 
-        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
-        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE).with_alpha(0.5));
+        let rectangle_mesh_handle: Handle<Mesh> =
+            meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
+        let material_handle: Handle<ColorMaterial> =
+            materials.add(Color::from(PURPLE).with_alpha(0.5));
 
         // let text_style = TextStyle {
         //     font_size: 20.0,
@@ -455,21 +623,50 @@ fn create_new_children(mut commands: Commands,
         //     ..default()
         // };
         match ACTIVE_ENVIROMENT {
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_genome)),
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
-                commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 0.0 }, new_genome))
+            EnvValg::Fall | EnvValg::FallVelocityHøyre => {
+                commands.spawn(create_plank_env_falling(
+                    material_handle,
+                    rectangle_mesh_handle.into(),
+                    Vec3 {
+                        x: 0.0,
+                        y: -150.0 + 3.3 * 50.0,
+                        z: 1.0,
+                    },
+                    new_genome,
+                ))
             }
+            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
+                material_handle,
+                rectangle_mesh_handle.into(),
+                Vec3 {
+                    x: 0.0,
+                    y: -150.0 + 3.3 * 50.0,
+                    z: 1.0,
+                },
+                new_genome,
+            )),
+            EnvValg::FallExternalForcesHøyre
+            | EnvValg::Homing
+            | EnvValg::HomingGroud
+            | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
+                material_handle,
+                rectangle_mesh_handle.into(),
+                Vec3 {
+                    x: 0.0,
+                    y: -150.0 + 3.3 * 50.0,
+                    z: 0.0,
+                },
+                new_genome,
+            )),
         }
-            .with_children(|builder| {
-                builder.spawn((
-                    Text2d::new("Fitness label"),
-                    TextLayout::new_with_justify(JustifyText::Center),
-                    Transform::from_xyz(0.0, 0.0, 2.0),
-                    IndividLabelText,
-                )
-                );
-            });
+        .with_children(|builder| {
+            builder.spawn((
+                Text2d::new("Fitness label"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+                IndividLabelText,
+            ));
+        });
     }
 }
 
@@ -489,31 +686,32 @@ enum EnvValg {
     Homing,
     // Aiming at a target on the ground
     HomingGroud,
+    // Aiming at a target on the ground, only uses 1 input and 1 output (y)
+    HomingGroudY,
 }
 
-static ACTIVE_ENVIROMENT: EnvValg = EnvValg::Homing;
-
+static ACTIVE_ENVIROMENT: EnvValg = EnvValg::HomingGroud;
 
 // static LANDING_SITE: Vec2 = Vec2 { x: 100.0, y: -100.0 };
 
 // state control
 
-fn set_to_kjørende_state(
-    mut next_state: ResMut<NextState<Kjøretilstand>>,
-) {
+fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
     next_state.set(Kjøretilstand::Kjørende);
 }
-fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<PlankPhenotype>)>,
-                 mut next_state: ResMut<NextState<Kjøretilstand>>,
-                 simulation_timer: Res<SimulationGenerationTimer>,
-                 window: Query<&Window>,
+fn check_if_done(
+    mut query: Query<(&mut Transform, &mut PlankPhenotype), (With<PlankPhenotype>)>,
+    mut next_state: ResMut<NextState<Kjøretilstand>>,
+    simulation_timer: Res<SimulationGenerationTimer>,
+    window: Query<&Window>,
 ) {
     let max_width = window.single().width() * 0.5;
 
-
     match ACTIVE_ENVIROMENT {
-        EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
-
+        EnvValg::Høyre
+        | EnvValg::Fall
+        | EnvValg::FallVelocityHøyre
+        | EnvValg::FallExternalForcesHøyre => {
             // done if one is all the way to the right of the screen
             for (individual, _) in query.iter_mut() {
                 if individual.translation.x > max_width {
@@ -523,7 +721,7 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
                 }
             }
         }
-        EnvValg::Homing | EnvValg::HomingGroud => {
+        EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => {
             if simulation_timer.main_timer.just_finished() {
                 // println!("done");
                 ; // er det skalert etter reapier logikk eller pixler\?
@@ -532,7 +730,6 @@ fn check_if_done(mut query: Query<(&mut Transform, &mut PlankPhenotype), ( With<
         }
     }
 }
-
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
@@ -559,7 +756,6 @@ fn endre_kjøretilstand_ved_input(
 
 // fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>) {
 
-
 #[derive(Event, Debug, Default)]
 struct ResetToStartPositionsEvent;
 
@@ -567,7 +763,12 @@ fn reset_to_star_pos_on_event(
     mut reset_events: EventReader<ResetToStartPositionsEvent>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
-    query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>)>,
+    query: Query<(
+        &mut Transform,
+        &mut crate::PlankPhenotype,
+        &mut LinearVelocity,
+        Option<&mut ExternalForce>,
+    )>,
 ) {
     if reset_events.read().next().is_some() {
         reset_to_star_pos(query);
@@ -604,7 +805,12 @@ enum EttHakkState {
     KJØRER_ETT_HAKK,
 }
 
-fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, &LinearVelocity, &ExternalForce), ( With<crate::PlankPhenotype>)>) {
+fn print_pois_velocity_and_force(
+    mut query: Query<
+        (&Transform, &PlankPhenotype, &LinearVelocity, &ExternalForce),
+        (With<crate::PlankPhenotype>),
+    >,
+) {
     for (translation, plank, linvel, external_force) in query.iter_mut() {
         println!("translation {:#?}", translation);
         println!("linvel {:#?}", linvel);
@@ -613,15 +819,24 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
     }
 }
 
-
-fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>)>) {
+fn reset_to_star_pos(
+    mut query: Query<(
+        &mut Transform,
+        &mut PlankPhenotype,
+        &mut LinearVelocity,
+        Option<&mut ExternalForce>,
+    )>,
+) {
     for (mut individual, mut plank, mut linvel, option_force) in query.iter_mut() {
         individual.translation.x = 0.0;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             individual.translation.y = 0.0;
         }
         plank.score = individual.translation.x.clone();
-        plank.obseravations = vec!(individual.translation.x.clone(), individual.translation.y.clone());
+        plank.obseravations = vec![
+            individual.translation.x.clone(),
+            individual.translation.y.clone(),
+        ];
         // velocity.angvel = 0.0;
         linvel.x = 0.0;
         linvel.y = 0.0;
@@ -632,11 +847,18 @@ fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut
     }
 }
 
-
 // fn agent_action(query: Query<Transform, With<Individual>>) {
-fn agent_action_and_fitness_evaluation
-(
-    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>, Entity), ( With<PlankPhenotype>)>,
+fn agent_action_and_fitness_evaluation(
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut PlankPhenotype,
+            &mut LinearVelocity,
+            Option<&mut ExternalForce>,
+            Entity,
+        ),
+        (With<PlankPhenotype>),
+    >,
     time: Res<Time>,
 ) {
     // Precision is adjusted so that the example works with
@@ -644,16 +866,21 @@ fn agent_action_and_fitness_evaluation
     let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
-        plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
-
+        plank.obseravations = match ACTIVE_ENVIROMENT {
+            EnvValg::HomingGroudY => vec![transform.translation.y.clone()],
+            _ => vec![
+                transform.translation.x.clone(),
+                transform.translation.y.clone(),
+            ],
+        };
         // let input_values = vec![1.0, 2.0]; // 2 inputs
         // let input_values = vec![individual.translation.x.clone() * 0.002, individual.translation.y.clone()* 0.002]; // 2 inputs
         let input_values = plank.obseravations.clone();
         // dbg!(&input_values);
-        let action = plank.phenotype_layers.decide_on_action2(input_values);            // fungerer
-        // dbg!(&action);
-        // individual.translation.x += random::<f32>() * action * 5.0;
-        // println!("action : {action}");
+        let action = plank.phenotype_layers.decide_on_action2(input_values); // fungerer
+                                                                             // dbg!(&action);
+                                                                             // individual.translation.x += random::<f32>() * action * 5.0;
+                                                                             // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
@@ -671,16 +898,31 @@ fn agent_action_and_fitness_evaluation
                 // println!("applying force {:#?}, and now velocity is {:?}", a.force(), velocity);
                 // a.apply_force(Vector::ZERO);
             }
+            EnvValg::HomingGroudY => {
+                a.y = 10.0 * action[0];
+            }
         }
         // println!("option force {:#?}", a.clone());
         // individual.translation.x += random::<f32>() * plank.phenotype * 5.0;
         match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
+            EnvValg::Høyre
+            | EnvValg::Fall
+            | EnvValg::FallVelocityHøyre
+            | EnvValg::FallExternalForcesHøyre => {
                 plank.score = transform.translation.x.clone();
             }
             EnvValg::Homing | EnvValg::HomingGroud => {
                 // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
-                let distance = (LANDING_SITE.x - transform.translation.x).powi(2) + (LANDING_SITE.y - transform.translation.y).powi(2);
+                let distance = (LANDING_SITE.x - transform.translation.x).powi(2)
+                    + (LANDING_SITE.y - transform.translation.y).powi(2);
+                // println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
+                //          (LANDING_SITE.x - transform.translation.x).powi(2), (LANDING_SITE.y - transform.translation.y).powi(2));
+                // smaller sitance is good
+                plank.score = 1000.0 / distance;
+            }
+            EnvValg::HomingGroudY => {
+                // distance score to landingsite =  (x-x2)^2 + (y-y2)^2
+                let distance = (LANDING_SITE.y - transform.translation.y).powi(2);
                 // println!("Entity {} : Landingsite {:?}, and xy {} has x distance {}, and y distance {}", entity.index(), LANDING_SITE, transform.translation.xy(),
                 //          (LANDING_SITE.x - transform.translation.x).powi(2), (LANDING_SITE.y - transform.translation.y).powi(2));
                 // smaller sitance is good
@@ -702,7 +944,6 @@ fn label_plank_with_current_score(
     }
 }
 
-
 #[derive(Component, Debug)]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
 pub struct PlankPhenotype {
@@ -710,17 +951,16 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
-    // pub genotype: Genome,
-    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
-    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+                                                  // pub genotype: Genome,
+                                                  // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+                                                  // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
-
 
 #[derive(Component, Debug)]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
 pub struct Individ {}
 
-#[derive(Debug, )]
+#[derive(Debug)]
 struct PhenotypeNeuralNetwork {
     ant_layers: usize,
     // Holder på objektene
@@ -763,11 +1003,11 @@ impl PhenotypeNeuralNetwork {
             // let relevant_weigh_nodes : Vec<&WeightGene> =  self.genome.weight_genes.iter().filter(  | weight_gene: &&WeightGene | weight_gene.destinationsnode == node.innovation_number  ).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
             // let relevant_weigh_nodes : Vec<WeightGene> =  self.weights_per_destination_node.get(node); // todo, jeg må bruke key ref som jeg orginalt brukte. Altså node. Men om jeg borrower node inn i phenotypelayer
             // let relevant_weigh_nodes = self.weights_per_destination_node.get(destination_node);
-            let relevant_weigh_nodes = match self.weights_per_destination_node.get(destination_node) {
+            let relevant_weigh_nodes = match self.weights_per_destination_node.get(destination_node)
+            {
                 Some(weights) => weights,
-                None => &Vec::new()
+                None => &Vec::new(),
             };
-
 
             let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
             for weight_node in relevant_weigh_nodes.iter() {
@@ -793,8 +1033,8 @@ impl PhenotypeNeuralNetwork {
             {
                 let mut verdi = destination_node.value.write().unwrap();
                 // println!("verdi før halvering {}", verdi);
-                *verdi = *verdi * 0.5;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
-                *verdi = *verdi + total_påvirking;  // ,
+                *verdi = *verdi * 0.5; // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
+                *verdi = *verdi + total_påvirking; // ,
             }
         }
         // for node in self.output_layer.iter() {
@@ -817,7 +1057,6 @@ impl PhenotypeNeuralNetwork {
     }
 
     pub(crate) fn decide_on_action2(&self, input_values: Vec<f32>) -> Vec<f32> {
-
         // Normalisering
         // ikke helt sikker på hvordan jeg skal normalisere input verdier enda.
         let mut clamped_input_values = Vec::new();
@@ -826,22 +1065,27 @@ impl PhenotypeNeuralNetwork {
             //     println!("raw input values {:?}", node);
             // clamped_input_values.push(value / PIXELS_PER_METER);
             clamped_input_values.push(value / PIXELS_PER_METER);
-            // println!("new clamped input value {:?}", node);
+            // println!("new clamped input value {:?}", value);
         }
         // dbg!(&clamped_input_values);
 
         // Feed/load in input values
-
+        // dbg!(&self.input_layer);
         for i in 0..clamped_input_values.len() {
             let node = &self.input_layer[i];
             let mut verdi = node.value.write().unwrap();
             let bias = node.bias.read().unwrap();
-            *verdi = *verdi + *bias;
-            dbg!(&verdi);
-            println!("&self.input_layer[i] addr {:p}",*node);
-            dbg!(&node);
+            let new_input_value = clamped_input_values[i];
+            // dbg!(&node);
+            // we intentionally keep the previous verdi. (it is calmed down after each use of the network
+            *verdi = *verdi + new_input_value + *bias;
+            // dbg!(&verdi);
+            // println!("&self.input_layer[i] addr {:p}",*node);
+            // dbg!(&node);
             // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
         }
+        // dbg!(&self.input_layer);
+
         // update all values
         // for i in (self.ant_layers..0) {
         // dbg!( &self.layers_ordered_output_to_input);
@@ -854,7 +1098,6 @@ impl PhenotypeNeuralNetwork {
                 // dbg!(destination_node);
             }
         }
-
         // Read of output neurons  (always last layer)
 
         let mut output_values = Vec::new();
@@ -871,7 +1114,7 @@ impl PhenotypeNeuralNetwork {
     fn absorber_inkommende_verdier_og_set_ny_verdi(&self, mut destination_node: &Arc<NodeGene>) {
         let relevant_weights = match self.weights_per_destination_node.get(destination_node) {
             Some(weights) => weights,
-            None => &Vec::new()
+            None => &Vec::new(),
         };
         // dbg!(&destination_node);
         // dbg!(&relevant_weights);
@@ -890,7 +1133,7 @@ impl PhenotypeNeuralNetwork {
         {
             let mut verdi = destination_node.value.write().unwrap();
             // println!("verdi før halvering {}", verdi);
-            *verdi = *verdi * 0.5;  // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
+            *verdi = *verdi * 0.5; // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
             *verdi = *verdi + total_påvirking;
         }
     }
@@ -905,8 +1148,11 @@ impl PhenotypeNeuralNetwork {
 
         let weights_per_desination_node = genome.få_vekter_per_destinasjonskode();
 
-
-        let (node_to_layer, layers_ordered_output_to_input) = PhenotypeNeuralNetwork::lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
+        let (node_to_layer, layers_ordered_output_to_input) =
+            PhenotypeNeuralNetwork::lag_lag_av_nevroner_sortert_fra_output(
+                genome,
+                &weights_per_desination_node,
+            );
 
         // WE DONT flip it around to be sorted so that output nodes are last . No need. just fill in input node values and iterate         for i in (ant_layers..0){
 
@@ -917,7 +1163,9 @@ impl PhenotypeNeuralNetwork {
             // let  nodeArc = Arc::new(node);
             if nodeArc.inputnode {
                 input_layer.push(Arc::clone(nodeArc))
-            } else if nodeArc.outputnode { output_layer.push(Arc::clone(nodeArc)); }
+            } else if nodeArc.outputnode {
+                output_layer.push(Arc::clone(nodeArc));
+            }
         }
 
         /* `PhenotypeNeuralNetwork` value */
@@ -939,14 +1187,22 @@ impl PhenotypeNeuralNetwork {
     pub(crate) fn lag_lag_av_nevroner_sortert_fra_output(
         genome: &Genome,
         // weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<&WeightGene>>)
-        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>)
-        -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
-        let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();
+        weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
+    ) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
+        let output_nodes: Vec<Arc<NodeGene>> = genome
+            .node_genes
+            .clone()
+            .iter()
+            .filter(|node| node.outputnode)
+            .map(|node| Arc::clone(node))
+            .collect();
 
         // Start on input, and look at what connects.  STARTER PÅ OUTPUT OG BEVEGEWR OSS MOT INPUT
         // Starter på output for å bare inkludere noder og vekter som faktisk påvirker utfallet
         let mut node_to_layer = HashMap::new();
-        output_nodes.iter().for_each(|node| { node_to_layer.insert(node.clone(), 0); });
+        output_nodes.iter().for_each(|node| {
+            node_to_layer.insert(node.clone(), 0);
+        });
         let mut layers_ordered_output_to_input: Vec<Vec<Arc<NodeGene>>> = vec![output_nodes];
 
         // dbg!(&node_to_layer);
@@ -954,7 +1210,8 @@ impl PhenotypeNeuralNetwork {
         // I tilfeller vi har sykler, så vil vi hindre å evig flytte ting bakover i nettet. På et punkt så må vi bare godta en node kan få input som ikke er fra "venstre side". Bygger opp fra høyre side med outputs og jobber oss mot venstre.
         // Dette er løst ved å kun flytte en node en gang per vekt. (dette vil gjøre at sykluser kan gi hidden noder som er til venstre for input noder).
         // Merk at syklus noder vil gjøre litt ekstra forsterkning av sine verdier i forhold til andre vanlige hidden noder om de er til venstre for input noder.  Disse vil "ta inn nåtid data + sin fortid data og gi ut begge"
-        let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
+        let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
+            HashMap::new();
         // let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
         // let next_layer = få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, 1);
         // layers_ordered_output_to_input.push(next_layer);
@@ -962,11 +1219,19 @@ impl PhenotypeNeuralNetwork {
         let mut layer_index = 1;
         loop {
             // dbg!(&layer_index);
-            let next_layer = PhenotypeNeuralNetwork::få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, layer_index);
+            let next_layer = PhenotypeNeuralNetwork::få_neste_lag(
+                &weights_per_desination_node,
+                &mut node_to_layer,
+                &mut layers_ordered_output_to_input,
+                &mut node_to_vekt_som_flyttet_på_noden,
+                layer_index,
+            );
             layer_index += 1;
             // dbg!(&next_layer);
             // dbg!(&next_layer.len());
-            if next_layer.len() == 0 { break; }
+            if next_layer.len() == 0 {
+                break;
+            }
             layers_ordered_output_to_input.push(next_layer);
             // break;
         }
@@ -997,10 +1262,11 @@ impl PhenotypeNeuralNetwork {
             // for node in layers_output_to_input.iter().last().iter() {
             //     let node2 : &Arc<NodeGene> = *node;
             //     for weight in weights_per_desination_node.get(&Arc::clone(node)).expect("burde eksistere") {
-            let mut vekter_allerede_brukt = match node_to_vekt_som_flyttet_på_noden.get_mut(&Arc::clone(node)) {
-                None => { Vec::new() }
-                Some(liste) => { liste.clone() }
-            };
+            let mut vekter_allerede_brukt =
+                match node_to_vekt_som_flyttet_på_noden.get_mut(&Arc::clone(node)) {
+                    None => Vec::new(),
+                    Some(liste) => liste.clone(),
+                };
             // dbg!(&node);
             match weights_per_desination_node.get(node) {
                 Some(weights) => {
@@ -1011,7 +1277,7 @@ impl PhenotypeNeuralNetwork {
                                 next_layer.push(Arc::clone(&weight.kildenode));
                             }
                             layer_per_node.insert(Arc::clone(&weight.kildenode), lag_index);
-                            vekter_allerede_brukt.push(Arc::clone(weight) );
+                            vekter_allerede_brukt.push(Arc::clone(weight));
                         }
                     }
                 }
@@ -1025,7 +1291,8 @@ impl PhenotypeNeuralNetwork {
 
 // todo bytte ut med PhenotypeNeuralNetwork
 
-pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // todo kanksje bare bytt ut med det jeg gjør for tengning
+pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) {
+    // todo kanksje bare bytt ut med det jeg gjør for tengning
 
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
 
@@ -1041,7 +1308,11 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // 
 
     for nodeArc in genome.node_genes {
         // let  nodeArc = Arc::new(node);
-        if nodeArc.inputnode { input_layer2.push(Arc::clone(&nodeArc)) } else if nodeArc.outputnode { output_layer2.push(Arc::clone(&nodeArc)); }
+        if nodeArc.inputnode {
+            input_layer2.push(Arc::clone(&nodeArc))
+        } else if nodeArc.outputnode {
+            output_layer2.push(Arc::clone(&nodeArc));
+        }
         alleNoderArc.push(nodeArc);
     }
 
@@ -1051,13 +1322,19 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // 
     //     let list = weights_per_desination_node.entry(weight.destinationsnode).or_insert_with(|| Vec::new());
     //     list.push(weight);
     // }
-    let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
-    let weightRcs = genome.weight_genes.into_iter().map(|weight| Arc::new(weight));
+    let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
+        HashMap::new();
+    let weightRcs = genome
+        .weight_genes
+        .into_iter()
+        .map(|weight| Arc::new(weight));
 
     // for weight in genome.weight_genes.iter() {
     for weight in weightRcs {
         // let list = weights_per_desination_node.entry(&*weight.destination_node).or_insert_with(|| Vec::new());
-        let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
+        let list = weights_per_desination_node
+            .entry(Arc::clone(&weight.destinasjonsnode))
+            .or_insert_with(|| Vec::new());
         // list.push(Rc::clone(weight));
         list.push(Arc::clone(&weight));
         // list.push(Rc::new(*weight));
@@ -1086,7 +1363,6 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) { // 
 }
 
 // not used abstraction ideas for/from ai gym
-
 
 /////////////////////////////////
 //
@@ -1133,7 +1409,6 @@ pub enum RenderMode {
     /// Indicates that renderer should be skipped.
     None,
 }
-
 
 /// The return type of [`Env::step()`].
 pub struct StepFeedback<E: Env> {
