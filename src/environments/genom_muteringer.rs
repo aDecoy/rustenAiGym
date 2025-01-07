@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use bevy::prelude::{Changed, Query};
 use rand::random;
-use crate::environments::GenomeStuff::{Genome, NodeGene, WeightGene};
+use crate::environments::genome_stuff::{Genome, NodeGene, WeightGene};
 use crate::PlankPhenotype;
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
@@ -21,7 +21,7 @@ pub fn mutate_genomes(mut genes: Query<&mut Genome>) {
     for mut gene in genes.iter_mut() {
         // println!("mutating genome with original ancestor {}, if allowed: {} ", gene.original_ancestor_id, gene.allowed_to_change);
         if gene.allowed_to_change {
-            mutate_existing_nodesArc(&mut gene.node_genes);
+            mutate_existing_nodes_arc(&mut gene.node_genes);
             mutate_existing_weights(&mut gene.weight_genes);
         }
     }
@@ -46,7 +46,7 @@ pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
         }
     }
 }
-pub fn mutate_existing_nodesArc(mut node_genes: &mut Vec<Arc<NodeGene>>) {
+pub fn mutate_existing_nodes_arc(mut node_genes: &mut Vec<Arc<NodeGene>>) {
     // println!("mutating {} nodes ", node_genes.iter().count());
     let mutation_strength = 2.0;
     for mut node_gene in node_genes.iter_mut() {

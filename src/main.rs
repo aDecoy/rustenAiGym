@@ -5,23 +5,24 @@ use crate::environments::moving_plank::{
 use crate::environments::simulation_teller::{
     SimulationGenerationTimer, SimulationRunningTellerPlugin,
 };
-use crate::environments::GenomeStuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::environments::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use avian2d::math::{AdjustPrecision, Vector};
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
-use crate::environments::drawNetwork::{
+use crate::environments::draw_network::{
     draw_network_in_genome, draw_network_in_genome2, oppdater_node_tegninger,
     remove_drawing_of_network_for_best_individ,
 };
-use crate::environments::genomMuteringer::lock_mutation_stability;
-use crate::environments::GenomeStuff::{NodeGene, WeightGene};
-use crate::environments::LunarLanderEnvironment::{
+use crate::environments::genom_muteringer::lock_mutation_stability;
+use crate::environments::genome_stuff::{NodeGene, WeightGene};
+use crate::environments::lunar_lander_environment::{
     spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE,
 };
-use bevy::color::palettes::basic::PURPLE;
+use bevy::color::palettes::basic::{PURPLE, RED};
+use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
@@ -72,6 +73,8 @@ fn main() {
             setup_camera,
             (
                 spawn_start_population,
+                add_elite_component_tag_to_best_individ,
+                color_elite_red,
                 spawn_drawing_of_network_for_best_individ,
             )
                 .chain(),
@@ -103,6 +106,8 @@ fn main() {
                 print_pop_conditions,
                 increase_generation_counter,
                 lock_mutation_stability,
+                add_elite_component_tag_to_best_individ,
+                color_elite_red,
                 save_best_to_history,
                 kill_worst_individuals,
                 remove_drawing_of_network_for_best_individ,
@@ -221,6 +226,7 @@ fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(
             phenotype: plank,
             genome: genome,
             entity_index: entity.index(),
+            entity: entity,
             entity_bevy_generation: entity.generation(),
         });
     }
@@ -271,8 +277,8 @@ fn print_pop_conditions(
 
 static START_POPULATION_SIZE: i32 = 100;
 
-asdfasdf // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
- // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
+// todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
+// todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
 // todo endre farge på individ som er Elite, slik at den er lett å følge.
 
 fn spawn_start_population(
@@ -412,11 +418,41 @@ fn extinction_on_t(
     }
 }
 
+fn add_elite_component_tag_to_best_individ(
+    mut commands: Commands,
+    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
+    old_elite_query: Query<(Entity), With<EliteTag>>,
+) {
+    // remove old one
+    if let Ok(old_elite_entity) = old_elite_query.get_single() {
+        commands.entity(old_elite_entity).remove::<EliteTag>();
+    }
+    // find new elite
+    let elite = get_best_elite(query.iter());
+    commands.entity(elite.entity).insert((EliteTag));
+}
+
+fn color_elite_red(
+    mut commands: Commands,
+    mut elite_query: Query<Entity, With<EliteTag>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    if let Ok(elite_entity) = elite_query.get_single() {
+        let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
+        commands
+            .entity(elite_entity)
+            .insert(MeshMaterial2d(elite_material_handle));
+    }
+}
+
+#[derive(Debug, Component)]
+struct EliteTag;
+
 fn spawn_drawing_of_network_for_best_individ<'a>(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+     meshes: ResMut<Assets<Mesh>>,
+     materials: ResMut<Assets<ColorMaterial>>,
 
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
 ) {
@@ -444,6 +480,7 @@ fn sort_best_to_worst<'a>(
             phenotype: plank,
             genome: genome,
             entity_index: entity.index(),
+            entity: entity,
             entity_bevy_generation: entity.generation(),
         })
     }
@@ -470,6 +507,7 @@ fn get_best_elite<'a>(
             phenotype: plank,
             genome: genome,
             entity_index: entity.index(),
+            entity: entity,
             entity_bevy_generation: entity.generation(),
         })
     }
@@ -485,9 +523,11 @@ fn get_best_elite<'a>(
     });
     // println!("parents after sort:  {:?}", population);
     let elite = population.get(0).unwrap();
+    return elite.clone();
     return PhentypeAndGenome {
         genome: elite.genome,
         entity_index: elite.entity_index,
+        entity: elite.entity,
         phenotype: elite.phenotype,
         entity_bevy_generation: elite.entity_bevy_generation,
     };
@@ -549,6 +589,7 @@ struct PhentypeAndGenome<'lifetime_a> {
     genome: &'lifetime_a Genome,
     entity_index: u32,
     entity_bevy_generation: u32,
+    entity: Entity,
 }
 
 fn create_new_children(
@@ -564,6 +605,7 @@ fn create_new_children(
             phenotype: plank,
             genome: genome,
             entity_index: entity.index(),
+            entity: entity,
             entity_bevy_generation: entity.generation(),
         })
     }
@@ -1144,7 +1186,7 @@ impl PhenotypeNeuralNetwork {
         // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
 
         let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
-        let mut alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
+        let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
 
         let weights_per_desination_node = genome.få_vekter_per_destinasjonskode();
 
@@ -1297,23 +1339,22 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) {
     // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
 
     // Holder på objektene
-    let mut alleNoder: Vec<NodeGene> = Vec::new();
     let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
-    let mut alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
+    let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
 
     // let mut input_layer2: Vec<&NodeGene> = Vec::new();
     // let mut output_layer2: Vec<&NodeGene> = Vec::new();
     let mut input_layer2: Vec<Arc<NodeGene>> = Vec::new();
     let mut output_layer2: Vec<Arc<NodeGene>> = Vec::new();
 
-    for nodeArc in genome.node_genes {
-        // let  nodeArc = Arc::new(node);
-        if nodeArc.inputnode {
-            input_layer2.push(Arc::clone(&nodeArc))
-        } else if nodeArc.outputnode {
-            output_layer2.push(Arc::clone(&nodeArc));
+    for node_arc in genome.node_genes {
+        // let  node_arc = Arc::new(node);
+        if node_arc.inputnode {
+            input_layer2.push(Arc::clone(&node_arc))
+        } else if node_arc.outputnode {
+            output_layer2.push(Arc::clone(&node_arc));
         }
-        alleNoderArc.push(nodeArc);
+        alleNoderArc.push(node_arc);
     }
 
     // let mut weights_per_desination_node: HashMap<&NodeGene, Vec<&WeightGene>> = HashMap::new();
@@ -1324,13 +1365,13 @@ pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) {
     // }
     let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
         HashMap::new();
-    let weightRcs = genome
+    let weight_rcs = genome
         .weight_genes
         .into_iter()
         .map(|weight| Arc::new(weight));
 
     // for weight in genome.weight_genes.iter() {
-    for weight in weightRcs {
+    for weight in weight_rcs {
         // let list = weights_per_desination_node.entry(&*weight.destination_node).or_insert_with(|| Vec::new());
         let list = weights_per_desination_node
             .entry(Arc::clone(&weight.destinasjonsnode))

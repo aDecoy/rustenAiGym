@@ -5,7 +5,7 @@ use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
-use crate::environments::GenomeStuff::Genome;
+use crate::environments::genome_stuff::Genome;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 

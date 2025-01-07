@@ -137,7 +137,7 @@ impl Clone for Genome {
     }
 }
 
-pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>) -> Genome {
+pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>) -> Genome {
     let mut node_genes = Vec::new();
     let mut thread_random = thread_rng();
     let uniform_dist = Uniform::new(-1.0, 1.0);
@@ -146,7 +146,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
     for n in 0..ant_inputs {
         node_genes.push(NodeGene {
             // innovation_number: n as i32,
-            innovation_number: innovationNumberGlobalCounter.get_number(),
+            innovation_number: innovation_number_global_counter.get_number(),
             bias: RwLock::new(thread_random.sample(uniform_dist)),
             enabled: true,
             inputnode: true,
@@ -159,7 +159,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
 
     for n in 0..ant_outputs {
         node_genes.push(NodeGene {
-            innovation_number: innovationNumberGlobalCounter.get_number(),
+            innovation_number: innovation_number_global_counter.get_number(),
             // bias: thread_random.sample(uniform_dist),
             bias: RwLock::new(thread_random.sample(uniform_dist)),
             enabled: true,
@@ -173,10 +173,10 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
 
     // Arc slik at jeg kan reffere til nodene inne i bevy sin asynkrone stuff, og slik at jeg kan ha flere blorrows
 
-    let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
+    let mut alle_noder_arc: Vec<Arc<NodeGene>> = Vec::new();
     for node in node_genes {
-        let nodeArc = Arc::new(node);
-        alleNoderArc.push(nodeArc);
+        let node_arc = Arc::new(node);
+        alle_noder_arc.push(node_arc);
     }
 
 
@@ -184,17 +184,17 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
 
     // fully connected input output
     let mut weight_genes = Vec::new();
-    for n in alleNoderArc.iter().filter(|node_gene| node_gene.inputnode) {
+    for n in alle_noder_arc.iter().filter(|node_gene| node_gene.inputnode) {
         // for n in 0..ant_inputs {
         //     for m in 0..ant_outputs {
-        for m in alleNoderArc.iter().filter(|node_gene| node_gene.outputnode) {
+        for m in alle_noder_arc.iter().filter(|node_gene| node_gene.outputnode) {
             weight_genes.push(WeightGene {
                 kildenode: Arc::clone(n),
                 destinasjonsnode: Arc::clone(m),
                 // kildenode: n as i32,
                 // kildenode: n.innovation_number,
                 // destinationsnode: m.innovation_number,
-                // innovation_number: innovationNumberGlobalCounter.get_number(),
+                // innovation_number: innovation_number_global_counter.get_number(),
 
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
@@ -202,7 +202,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovationNumber
             })
         }
     }
-    return Genome { node_genes: alleNoderArc, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
+    return Genome { node_genes: alle_noder_arc, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
 }
 
 
