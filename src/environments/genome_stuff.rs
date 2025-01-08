@@ -24,6 +24,8 @@ pub struct NodeGene {
     //  Rwlock, slik at denne kan endres selv om den er inne i en Arc, som den må være om flere WeightGene skal kunne ha en peker på den,
     // og samtidig at jeg kan oppdatere verdien
     pub(crate) value: RwLock<f32>,
+
+    pub(crate) label: String, // Only relevant for I/O nodes. To describe what input is what node and what node is what output
 }
 
 impl PartialEq for NodeGene {
@@ -109,7 +111,9 @@ impl Clone for Genome {
                     mutation_stability: node.mutation_stability,
                     enabled_mutation_stability: node.enabled_mutation_stability,
                     layer: 0,
-                    value: RwLock::new(0.0),
+                    // value: RwLock::new(0.0),
+                    value : RwLock::new(node.value.read().unwrap().clone()),
+                    label : node.label.clone(),
                 }
                 );
             }
@@ -148,6 +152,8 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
     // let mut input_layer2: Vec<NodeGene> = Vec::new();
     // let mut output_layer2: Vec<NodeGene> = Vec::new();
     for n in 0..ant_inputs {
+        let label = format!("input {}", n);
+
         node_genes.push(NodeGene {
             // innovation_number: n as i32,
             innovation_number: innovation_number_global_counter.get_number(),
@@ -156,13 +162,16 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             inputnode: true,
             outputnode: false,
             mutation_stability: 0.2,
-            enabled_mutation_stability: 0.9,
+            enabled_mutation_stability: 0.4,
             layer: 0,
             value: RwLock::new(0.0),
+            label,
         });
     }
 
     for n in 0..ant_outputs {
+        let label = format!("output {}", n);
+
         node_genes.push(NodeGene {
             innovation_number: innovation_number_global_counter.get_number(),
             // bias: thread_random.sample(uniform_dist),
@@ -174,6 +183,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             enabled_mutation_stability: 0.9,
             layer: 0,
             value: RwLock::new(0.0),
+            label : label,
         });
     }
 
@@ -236,6 +246,10 @@ impl Genome {
 
                 // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
             {
+                if weight.destinasjonsnode.enabled.read().unwrap().clone() == false {
+                    // dont bother to add mapping for inaktive nodes
+                    continue;
+                }
                 let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
                 list.push(Arc::new(weight.clone()));
                 // list.push(weight);

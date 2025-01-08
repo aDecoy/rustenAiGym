@@ -1,5 +1,5 @@
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{create_phenotype_layers, EttHakkState, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
+use crate::{EttHakkState, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};

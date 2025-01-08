@@ -107,7 +107,7 @@ fn main() {
                 lock_mutation_stability,
                 add_elite_component_tag_to_best_individ,
                 color_elite_red,
-                save_best_to_history,
+                // save_best_to_history,
                 kill_worst_individuals,
                 remove_drawing_of_network_for_best_individ,
                 spawn_drawing_of_network_for_best_individ,
@@ -390,8 +390,8 @@ fn spawn_a_random_new_individual(
             material_handle,
             rectangle_mesh_handle.into(),
             Vec3 {
-                x: 0.0,
-                y: -150.0 + 3.3 * 50.0,
+                x: 30.0,
+                y: 100.0,
                 z: 1.0,
             },
             genome,
@@ -630,7 +630,6 @@ fn create_new_children(
     });
     // println!("parents after sort:  {:?}", population);
 
-    // create 3 children for each top 3
     let mut parents = Vec::new();
 
     // Parent selection is set to top 3
@@ -813,6 +812,7 @@ fn reset_to_star_pos_on_event(
         &mut Transform,
         &mut crate::PlankPhenotype,
         &mut LinearVelocity,
+        &mut AngularVelocity,
         Option<&mut ExternalForce>,
     )>,
 ) {
@@ -871,10 +871,11 @@ fn reset_to_star_pos(
         &mut Transform,
         &mut PlankPhenotype,
         &mut LinearVelocity,
+        &mut AngularVelocity,
         Option<&mut ExternalForce>,
     )>,
 ) {
-    for (mut transform, mut plank, mut linvel, option_force) in query.iter_mut() {
+    for (mut transform, mut plank, mut linvel, mut angular_velocity,  option_force) in query.iter_mut() {
         transform.translation.x = 0.0;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             transform.translation.y = 0.0;
@@ -887,6 +888,8 @@ fn reset_to_star_pos(
         // velocity.angvel = 0.0;
         linvel.x = 0.0;
         linvel.y = 0.0;
+
+        angular_velocity.0 = 0.0;
 
         if let Some(mut force) = option_force {
             force.apply_force(Vector::ZERO);
@@ -1024,7 +1027,6 @@ struct PhenotypeNeuralNetwork {
     ant_layers: usize,
     // Holder på objektene
     // alleNoder: Vec<NodeGene>,
-    alleNoderArc: Vec<Arc<NodeGene>>,
     alleVekter: Vec<WeightGene>,
     // hidden_layers: Vec<Vec<&'a NodeGene>>,
     hidden_nodes: Vec<Vec<Arc<NodeGene>>>,
@@ -1039,81 +1041,6 @@ struct PhenotypeNeuralNetwork {
 }
 
 impl PhenotypeNeuralNetwork {
-    pub fn decide_on_action(&mut self, input_values: Vec<f32>) -> Vec<f32> {
-        let mut clamped_input_values = Vec::new();
-        clamped_input_values.reserve(input_values.len());
-        for value in input_values {
-            //     println!("raw input values {:?}", node);
-            clamped_input_values.push(value / PIXELS_PER_METER);
-            // println!("new clamped input value {:?}", node);
-        }
-        // todo clamp x = x / max X = x -  (window_with/2)   ...... not very scalable....
-
-        // how to use
-        for i in 0..clamped_input_values.len() {
-            let mut verdi = self.input_layer[i].value.write().unwrap();
-            let bias = self.input_layer[i].bias.read().unwrap();
-            *verdi = *verdi + *bias;
-            // self.input_layer[i].value = clamped_input_values[i] + self.input_layer[i].bias;
-        }
-
-        // for mut destination_node in self.output_layer.iter_mut() {
-        for mut destination_node in self.alleNoderArc.iter_mut() {
-            // let relevant_weigh_nodes : Vec<&WeightGene> =  self.genome.weight_genes.iter().filter(  | weight_gene: &&WeightGene | weight_gene.destinationsnode == node.innovation_number  ).collect::<Vec<&WeightGene>>();   // bruk nodene istedenfor en vektor, slik at jeg vet hvilke vekter jeg skal bruke. Alt 2, sett opp nettet som bare vek først. Men det virker litt værre.
-            // let relevant_weigh_nodes : Vec<WeightGene> =  self.weights_per_destination_node.get(node); // todo, jeg må bruke key ref som jeg orginalt brukte. Altså node. Men om jeg borrower node inn i phenotypelayer
-            // let relevant_weigh_nodes = self.weights_per_destination_node.get(destination_node);
-            let relevant_weigh_nodes = match self.weights_per_destination_node.get(destination_node)
-            {
-                Some(weights) => weights,
-                None => &Vec::new(),
-            };
-
-            let mut alle_inputs_til_destination_node: Vec<f32> = Vec::new();
-            for weight_node in relevant_weigh_nodes.iter() {
-                {
-                    let kildenode = &weight_node.kildenode;
-                    let kildenode_verdi = kildenode.value.read().unwrap();
-                    let kildenode_påvirkning = *kildenode_verdi * weight_node.value;
-                    alle_inputs_til_destination_node.push(kildenode_påvirkning);
-                }
-                // for x in self.input_layer.iter() {
-                //     // if x.innovation_number == weight_node.kildenode {
-                //     if *x == weight_node.kildenode {  // todo ikke sikekrt
-                //         acc_value += x.value * weight_node.value;
-                //         break;
-                //     }
-                // };
-            }
-            // let kildenode : &NodeGene =  self.input_layer.iter().filter( | node_gene: &&NodeGene | weight_node.kildenode ==  node_gene.innovation_number ).collect();
-            //  acc_value += kildenode.value * weight_node.value;
-            // }
-            // destination_node.value = acc_value + destination_node.bias;
-            let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
-            {
-                let mut verdi = destination_node.value.write().unwrap();
-                // println!("verdi før halvering {}", verdi);
-                *verdi = *verdi * 0.5; // Hvis ikke resetter alt til 0 hver hver gang, men istedenfor er akkumulativ, så kreves det en demper også for å ikke gå til uendelig.
-                *verdi = *verdi + total_påvirking; // ,
-            }
-        }
-        // for node in self.output_layer.iter() {
-        // println!("output nodes {:?}", node);
-        // }
-        // todo, not sure if this is good or not
-        let mut expanded_output_values = Vec::new();
-        clamped_input_values.reserve(self.output_layer.len());
-        for node in self.output_layer.iter() {
-            let verdi = node.value.read().unwrap();
-            expanded_output_values.push(verdi.clone());
-            // expanded_output_values.push(node.value * PIXELS_PER_METER);
-            // println!("new expianded output value {:?}", node);
-        }
-        // return expanded_output_values[0];
-        // println!("expanded_output_values {:?} " ,expanded_output_values);
-        return expanded_output_values;
-        // return self.output_layer[0].value;
-        // return random::<f32>();
-    }
 
     pub(crate) fn decide_on_action2(&self, input_values: Vec<f32>) -> Vec<f32> {
         // Normalisering
@@ -1132,6 +1059,9 @@ impl PhenotypeNeuralNetwork {
         // dbg!(&self.input_layer);
         for i in 0..clamped_input_values.len() {
             let node = &self.input_layer[i];
+            if node.enabled.read().unwrap().clone() == false {
+                continue;
+            }
             let mut verdi = node.value.write().unwrap();
             let bias = node.bias.read().unwrap();
             let new_input_value = clamped_input_values[i];
@@ -1202,8 +1132,7 @@ impl PhenotypeNeuralNetwork {
         // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
         // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
 
-        let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
-        let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
+        // let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
 
         let weights_per_desination_node = genome.få_vekter_per_destinasjonskode();
 
@@ -1226,13 +1155,14 @@ impl PhenotypeNeuralNetwork {
                 output_layer.push(Arc::clone(nodeArc));
             }
         }
+        let alle_enabled_vekter: Vec<WeightGene> = genome.weight_genes.clone().into_iter().filter(|weight_gene| weight_gene.enabled).collect();;
 
         /* `PhenotypeNeuralNetwork` value */
         PhenotypeNeuralNetwork {
             ant_layers: layers_ordered_output_to_input.len(),
             // alleNoder: alleNoder,
-            alleNoderArc: alleNoderArc,
-            alleVekter: alleVekter,
+            // alleNoderArc: alleNoderArc,  // remove!! ikke i bruk !!!
+            alleVekter: alle_enabled_vekter,
             hidden_nodes: vec![],
             input_layer: input_layer,
             output_layer: output_layer,
@@ -1294,7 +1224,7 @@ impl PhenotypeNeuralNetwork {
             layers_ordered_output_to_input.push(next_layer);
             // break;
         }
-        // dbg!(&layers_ordered_output_to_input);
+        dbg!(&layers_ordered_output_to_input);
 
         (node_to_layer, layers_ordered_output_to_input)
     }
@@ -1346,78 +1276,6 @@ impl PhenotypeNeuralNetwork {
         }
         next_layer
     }
-}
-
-// todo bytte ut med PhenotypeNeuralNetwork
-
-pub fn create_phenotype_layers(genome: Genome) -> (PhenotypeNeuralNetwork) {
-    // todo kanksje bare bytt ut med det jeg gjør for tengning
-
-    // PhenotypeLayers holder på en kopi av nodene og vekter i genomet, og
-
-    // Holder på objektene
-    let mut alleNoderArc: Vec<Arc<NodeGene>> = Vec::new();
-    let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
-
-    // let mut input_layer2: Vec<&NodeGene> = Vec::new();
-    // let mut output_layer2: Vec<&NodeGene> = Vec::new();
-    let mut input_layer2: Vec<Arc<NodeGene>> = Vec::new();
-    let mut output_layer2: Vec<Arc<NodeGene>> = Vec::new();
-
-    for node_arc in genome.node_genes {
-        // let  node_arc = Arc::new(node);
-        if node_arc.inputnode {
-            input_layer2.push(Arc::clone(&node_arc))
-        } else if node_arc.outputnode {
-            output_layer2.push(Arc::clone(&node_arc));
-        }
-        alleNoderArc.push(node_arc);
-    }
-
-    // let mut weights_per_desination_node: HashMap<&NodeGene, Vec<&WeightGene>> = HashMap::new();
-    // // weights_per_desination_node.reserve(alleNoder.clone().len());
-    // for weight in alleVekter.iter() {
-    //     let list = weights_per_desination_node.entry(weight.destinationsnode).or_insert_with(|| Vec::new());
-    //     list.push(weight);
-    // }
-    let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
-        HashMap::new();
-    let weight_rcs = genome
-        .weight_genes
-        .into_iter()
-        .map(|weight| Arc::new(weight));
-
-    // for weight in genome.weight_genes.iter() {
-    for weight in weight_rcs {
-        // let list = weights_per_desination_node.entry(&*weight.destination_node).or_insert_with(|| Vec::new());
-        let list = weights_per_desination_node
-            .entry(Arc::clone(&weight.destinasjonsnode))
-            .or_insert_with(|| Vec::new());
-        // list.push(Rc::clone(weight));
-        list.push(Arc::clone(&weight));
-        // list.push(Rc::new(*weight));
-        // list.push(&weight);
-    }
-    // println!("vekter_gruppert {:?}", weights_per_desination_node);
-    // for node in uplassertHidden.iter() {
-
-    // println!("weights_per_destination_node {:#?}", weights_per_desination_node.clone());
-    let layers = PhenotypeNeuralNetwork {
-        ant_layers: 2,
-        // alleNoder: alleNoder,
-        alleNoderArc: alleNoderArc,
-        alleVekter: alleVekter,
-        input_layer: input_layer2,
-        output_layer: output_layer2,
-        weights_per_destination_node: weights_per_desination_node,
-        node_to_layer: Default::default(),
-        hidden_nodes: vec![],
-
-        layers_ordered_output_to_input: vec![],
-    };
-    // println!("output nodes {:?}", layers.output_layer.iter().map( | node_gene: NodeGene | node_gene ));
-    // return (layers , genome);
-    return layers;
 }
 
 // not used abstraction ideas for/from ai gym

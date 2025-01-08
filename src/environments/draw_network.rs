@@ -52,7 +52,7 @@ pub(crate) struct NodeRefForDrawing {
 pub(crate) struct DrawingTag;
 
 #[derive(Component, Debug)]
-pub(crate) struct NodeLabelTag;
+pub(crate) struct NodeValueLabelTag;
 
 pub(crate) fn oppdater_node_tegninger(
     mut query: Query<(
@@ -61,7 +61,7 @@ pub(crate) fn oppdater_node_tegninger(
         &Children,
     )>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut text_query: Query<&mut Text2d, With<NodeLabelTag>>,
+    mut text_query: Query<&mut Text2d, With<NodeValueLabelTag>>,
 ) {
     // println!("oppdater_node_tegninger");
     for (mut nodeforbindelse, noderef, mut children) in query.iter_mut() {
@@ -122,7 +122,7 @@ fn tegn_og_spawn_noder(
             return;
         };
 
-        let point = point_per_node[&Arc::clone(node)];
+        // let point = point_per_node[&Arc::clone(node)];
         let node_value = { node.value.read().unwrap().clone() };
         let a_color = match node.enabled.read().unwrap().clone() {
             true => get_color_for_node_value(node_value),
@@ -156,9 +156,14 @@ fn tegn_og_spawn_noder(
                     TextLayout::new_with_justify(JustifyText::Center),
                     // , text_style.clone())                        .with_justify(text_justification),
                     Transform::from_xyz(0.0, 0.0, 2.0),
-                    NodeLabelTag,
+                    NodeValueLabelTag,
                 ));
                 // IndividLabelText,
+                builder.spawn((
+                    Text2d::new(node.label.clone()),
+                    TextLayout::new_with_justify( if node.inputnode { JustifyText::Left } else {JustifyText::Right}),
+                    Transform::from_xyz(0.0, 30.0, 3.0),
+                ));
             });
     }
 }
