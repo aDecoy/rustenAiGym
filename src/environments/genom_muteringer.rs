@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use bevy::prelude::{Changed, Query};
-use rand::random;
 use crate::environments::genome_stuff::{Genome, NodeGene, WeightGene};
 use crate::PlankPhenotype;
+use bevy::prelude::{Changed, Query};
+use rand::random;
+use std::sync::Arc;
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
 pub(crate) fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
@@ -60,12 +60,16 @@ pub fn mutate_existing_nodes_arc(mut node_genes: &mut Vec<Arc<NodeGene>>) {
             // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
         }
+        if random::<f32>() > node_gene.enabled_mutation_stability {
+            let mut enabled = node_gene.enabled.write().unwrap();
+            *enabled = !*enabled;
+        }
     }
 }
 
 pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
     // println!("mutating {} weights ", weight_genes.iter().count());
-    let mutation_strength = 2.0;
+    let mutation_strength = 1.0;
 
     for mut weight_gene in weight_genes.iter_mut() {
         // println!("weight gene mutation_stability : {}", weight_gene.mutation_stability);
@@ -75,12 +79,7 @@ pub fn mutate_existing_weights(mut weight_genes: &mut Vec<WeightGene>) {
             // println!("weight gene value after mutation: {}", weight_gene.value);
             // weight_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
         }
-        if random::<f32>() > weight_gene.mutation_stability {
-            weight_gene.enabled = !weight_gene.enabled;
-        }
-
-        // evo devo eller hardkoded layer?
-        if random::<f32>() > weight_gene.mutation_stability {
+        if random::<f32>() > weight_gene.enabled_mutation_stability {
             weight_gene.enabled = !weight_gene.enabled;
         }
     }

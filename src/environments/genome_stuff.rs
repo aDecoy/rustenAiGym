@@ -12,11 +12,12 @@ pub struct NodeGene {
     // bias: f32,
     pub(crate) bias: RwLock<f32>, // fordi at andre ting (vekter) har refferanser til NodeGene, så er NodeGene pakket inn i en Arc (bevy kan ha flere systemer kjøre på entity med komponent samtidig, så asyncaronus).
     // For å få lov til å mutere bias, så må den være inne i en rwlock, siden hele klassen er inne i en Arc, som ikke gir skrivetilgang til vanlig
-    enabled: bool,
+    pub(crate) enabled: RwLock<bool>,
 
     pub(crate) inputnode: bool,
     pub(crate) outputnode: bool,
     pub(crate) mutation_stability: f32, // 1 is compleat lock/static genome. 0 is a mutation for all genes
+    pub(crate) enabled_mutation_stability: f32, // drastic mutations such as disabling the entire neuron has a different parameter than just small changes
     layer: usize,
     // value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
 
@@ -35,7 +36,7 @@ impl Eq for NodeGene {}
 impl Hash for NodeGene {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.innovation_number.hash(state);
-        self.enabled.hash(state);
+        // self.enabled.hash(state);
         self.inputnode.hash(state);
         self.outputnode.hash(state);
         self.layer.hash(state);
@@ -54,6 +55,7 @@ pub struct WeightGene {
     // destinationsnode: i32,
     pub(crate) destinasjonsnode: Arc<NodeGene>,
     pub(crate) mutation_stability: f32,
+    pub(crate) enabled_mutation_stability: f32, // drastic mutations such as disabling the entire neuron has a different parameter than just small changes
 }
 impl PartialEq for WeightGene {
     fn eq(&self, other: &Self) -> bool {
@@ -101,10 +103,11 @@ impl Clone for Genome {
                 ny_node = Arc::new(NodeGene {
                     innovation_number: node.innovation_number.clone(),
                     bias: RwLock::new(bias.clone()),
-                    enabled: node.enabled,
+                    enabled: RwLock::new(node.enabled.read().unwrap().clone()),
                     inputnode: node.inputnode,
                     outputnode: node.outputnode,
                     mutation_stability: node.mutation_stability,
+                    enabled_mutation_stability: node.enabled_mutation_stability,
                     layer: 0,
                     value: RwLock::new(0.0),
                 }
@@ -121,6 +124,7 @@ impl Clone for Genome {
             let ny_vekt = WeightGene {
                 enabled: vekt.enabled,
                 mutation_stability: vekt.mutation_stability,
+                enabled_mutation_stability: vekt.enabled_mutation_stability,
                 value: vekt.value,
                 kildenode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).next().expect("fant ikke kildenode til vekten")),
                 destinasjonsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinasjonsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
@@ -148,10 +152,11 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             // innovation_number: n as i32,
             innovation_number: innovation_number_global_counter.get_number(),
             bias: RwLock::new(thread_random.sample(uniform_dist)),
-            enabled: true,
+            enabled: RwLock::new(true),
             inputnode: true,
             outputnode: false,
-            mutation_stability: 0.0,
+            mutation_stability: 0.2,
+            enabled_mutation_stability: 0.9,
             layer: 0,
             value: RwLock::new(0.0),
         });
@@ -162,10 +167,11 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             innovation_number: innovation_number_global_counter.get_number(),
             // bias: thread_random.sample(uniform_dist),
             bias: RwLock::new(thread_random.sample(uniform_dist)),
-            enabled: true,
+            enabled: RwLock::new(true),
             inputnode: false,
             outputnode: true,
             mutation_stability: 0.0,
+            enabled_mutation_stability: 0.9,
             layer: 0,
             value: RwLock::new(0.0),
         });
@@ -199,6 +205,7 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
                 mutation_stability: 0.0,
+                enabled_mutation_stability: 0.9,
             })
         }
     }
@@ -223,11 +230,14 @@ impl Genome {
     pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> {
         let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
 
-        for weight in self.weight_genes.clone() {
-            // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
+        let aktive_vekter = self.weight_genes.iter().filter( |vekt| vekt.enabled).collect::<Vec<&WeightGene>>();
+        // for weight in self.weight_genes.clone() {
+            for weight in aktive_vekter {
+
+                // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
             {
                 let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
-                list.push(Arc::new(weight));
+                list.push(Arc::new(weight.clone()));
                 // list.push(weight);
             }
             // for weight in genome.weight_genes.iter() {

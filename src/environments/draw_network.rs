@@ -7,9 +7,9 @@ use std::f32::consts::PI;
 use std::sync::Arc;
 
 pub fn draw_network_in_genome(
-     commands: Commands,
-     meshes: ResMut<Assets<Mesh>>,
-     materials: ResMut<Assets<ColorMaterial>>,
+    commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
     query: Query<&Genome>,
 ) {
     let genome = query.single();
@@ -124,7 +124,10 @@ fn tegn_og_spawn_noder(
 
         let point = point_per_node[&Arc::clone(node)];
         let node_value = { node.value.read().unwrap().clone() };
-        let a_color = get_color_for_node_value(node_value);
+        let a_color = match node.enabled.read().unwrap().clone() {
+            true => get_color_for_node_value(node_value),
+            false => Color::rgb(0.0, 0.0, 0.0),
+        };
 
         commands
             .spawn((
@@ -205,7 +208,7 @@ fn tegn_forbindelser(
 
             let vekt_value = genome.weight_genes[0].value.clone();
 
-            let vekt_color = Color::linear_rgb(
+            let mut vekt_color = Color::linear_rgb(
                 if vekt_value > 0.0 { vekt_value } else { 0. },
                 0.1,
                 if vekt_value < 0.0 {
@@ -213,8 +216,12 @@ fn tegn_forbindelser(
                 } else {
                     0.
                 },
-            )
-            .with_alpha(1.);
+            );
+
+            match weight.enabled.clone() {
+                true => vekt_color.set_alpha(1.0),
+                false => vekt_color.set_alpha(0.1),
+            };
 
             commands
                 .spawn((

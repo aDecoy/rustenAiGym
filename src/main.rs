@@ -1,3 +1,5 @@
+use crate::environments::genom_muteringer::mutate_genomes;
+use crate::environments::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::environments::moving_plank::{
     create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
     MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
@@ -5,7 +7,6 @@ use crate::environments::moving_plank::{
 use crate::environments::simulation_teller::{
     SimulationGenerationTimer, SimulationRunningTellerPlugin,
 };
-use crate::environments::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use avian2d::math::{AdjustPrecision, Vector};
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
@@ -95,8 +96,6 @@ fn main() {
                 agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
                 label_plank_with_current_score,
                 oppdater_node_tegninger,
-                // remove_drawing_of_network_for_best_individ,
-                // spawn_drawing_of_network_for_best_individ,
             )
                 .chain()
                 .run_if(in_state(Kjøretilstand::Kjørende)),
@@ -115,8 +114,9 @@ fn main() {
                 create_new_children,
                 // spawn_a_random_new_individual2,
                 // mutate_planks,
-                // mutate_genomes,
+                mutate_genomes,
                 reset_to_star_pos,
+                nullstill_nettverk_verdier_til_0,
                 set_to_kjørende_state,
             )
                 .chain()
@@ -171,16 +171,20 @@ fn increase_generation_counter(mut generation_counter: ResMut<GenerationCounter>
 
 /////////////////// Metadata obvservation
 
-fn save_best_to_history(query: Query<&PlankPhenotype>, generation_counter: Res<GenerationCounter>) {
+fn save_best_to_history(
+    query: Query<&PlankPhenotype, With<EliteTag>>,
+    generation_counter: Res<GenerationCounter>,
+) {
     // let mut file = File::create("history.txt").expect("kunne ikke finne filen");
     let mut f = File::options()
         .append(true)
         .open("history.txt")
         .expect("kunne ikke åpne filen");
 
-    let population = get_population_sorted_from_best_to_worst(query.iter());
+    // let population = get_population_sorted_from_best_to_worst(query.iter());
+    // let best = population[0];
+    let best = query.get_single().unwrap();
 
-    let best = population[0];
     let best_score = best.score;
     // let best_id = best;
     let generation = generation_counter.count;
@@ -276,6 +280,7 @@ fn print_pop_conditions(
 /////////////////// create/kill/develop  new individuals
 
 static START_POPULATION_SIZE: i32 = 100;
+static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON  : i32 = 3;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
@@ -451,8 +456,8 @@ struct EliteTag;
 fn spawn_drawing_of_network_for_best_individ<'a>(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
     mut commands: Commands,
-     meshes: ResMut<Assets<Mesh>>,
-     materials: ResMut<Assets<ColorMaterial>>,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
 
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
 ) {
@@ -559,18 +564,17 @@ fn kill_worst_individuals(
     });
     // println!("population after sort:  {:?}", population);
     // let number_of_individuals_to_kill = min(4, population.len() - 1);
-    let number_of_individuals_to_leave_alive = 3;
 
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0", population.len(), population.len()  as i32- number_of_individuals_to_leave_alive);
     // println!("pop size {}, want to kill pop size - 3 = {}. Max killing 0, ressulting in {}", population.len(), population.len() - number_of_individuals_to_leave_alive, max(0, population.len() - number_of_individuals_to_leave_alive));
 
     let number_of_individuals_to_kill: usize = max(
         0,
-        population.len() as i32 - number_of_individuals_to_leave_alive,
+        population.len() as i32 - ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON,
     ) as usize;
     println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
-        println!("despawning entity {} ", entity.index());
+        // println!("despawning entity {} ", entity.index());
         commands.entity(*entity).despawn_recursive();
     }
 }
@@ -861,6 +865,7 @@ fn print_pois_velocity_and_force(
     }
 }
 
+// NB : Dette resetter ikke node verdiene i nettverket til phenotypen
 fn reset_to_star_pos(
     mut query: Query<(
         &mut Transform,
@@ -869,15 +874,15 @@ fn reset_to_star_pos(
         Option<&mut ExternalForce>,
     )>,
 ) {
-    for (mut individual, mut plank, mut linvel, option_force) in query.iter_mut() {
-        individual.translation.x = 0.0;
+    for (mut transform, mut plank, mut linvel, option_force) in query.iter_mut() {
+        transform.translation.x = 0.0;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
-            individual.translation.y = 0.0;
+            transform.translation.y = 0.0;
         }
-        plank.score = individual.translation.x.clone();
+        plank.score = transform.translation.x.clone();
         plank.obseravations = vec![
-            individual.translation.x.clone(),
-            individual.translation.y.clone(),
+            transform.translation.x.clone(),
+            transform.translation.y.clone(),
         ];
         // velocity.angvel = 0.0;
         linvel.x = 0.0;
@@ -885,6 +890,18 @@ fn reset_to_star_pos(
 
         if let Some(mut force) = option_force {
             force.apply_force(Vector::ZERO);
+        }
+    }
+}
+
+// NB : Dette fjerner potensielt opplærte feedbackloops i nettverket i tilfeller det eksisterer en "barndom" for individet.
+// Men denne er nyttig for å se om resten er deterministisk
+// En annen ting som kan tenkes å være nyttig er å gi random verdier, slik at vi trener at individer kan hente seg inn fra dårlig init inputs
+fn nullstill_nettverk_verdier_til_0(mut query: Query<&mut Genome>) {
+    for mut genome in query.iter_mut() {
+        for node_gen in genome.node_genes.iter_mut() {
+            let mut verdi = node_gen.value.write().unwrap();
+            *verdi = 0.0;
         }
     }
 }
