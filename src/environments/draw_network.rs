@@ -22,7 +22,8 @@ pub fn draw_network_in_genome2(
     mut materials: ResMut<Assets<ColorMaterial>>,
     genome: &Genome,
 ) {
-    let weights_per_desination_node = Genome::få_aktive_vekter_per_aktive_destinasjonsnode(&genome);
+    let weights_per_desination_node =
+        Genome::få_aktive_vekter_per_aktive_destinasjonsnode(&genome);
     // let weights_per_kildenode = få_vekter_per_kildenode(genome);
     /////////////////////////////// få_vekter_per_kildenode
     let (node_to_layer, layers_ordered_output_to_input) =
@@ -70,7 +71,10 @@ pub(crate) fn oppdater_node_tegninger(
         // println!(" en ");
         let node_value = { noderef.node.value.read().unwrap().clone() };
         // dbg!(node_value);
-        let a_color = get_color_for_node_value(node_value);
+        let a_color = match noderef.node.enabled.read().unwrap().clone() {
+            true => get_color_for_node_value(node_value),
+            false => Color::rgb(0.0, 0.0, 0.0)
+        };
         let new_handle: Handle<ColorMaterial> = materials.add(a_color);
         nodeforbindelse.0 = new_handle;
 
@@ -134,6 +138,8 @@ fn tegn_og_spawn_noder(
         if !node.enabled.read().unwrap().clone() {
             println!("tegner en inaktiv SVART! node 1234");
             dbg!(a_color);
+            dbg!(materials.add(a_color));
+            dbg!(MeshMaterial2d(materials.add(a_color)));
         }
 
         commands
@@ -168,7 +174,11 @@ fn tegn_og_spawn_noder(
                 // IndividLabelText,
                 builder.spawn((
                     Text2d::new(node.label.clone()),
-                    TextLayout::new_with_justify( if node.inputnode { JustifyText::Left } else {JustifyText::Right}),
+                    TextLayout::new_with_justify(if node.inputnode {
+                        JustifyText::Left
+                    } else {
+                        JustifyText::Right
+                    }),
                     Transform::from_xyz(0.0, 30.0, 3.0),
                 ));
             });
