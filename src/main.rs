@@ -30,6 +30,7 @@ use bevy::prelude::*;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::RenderPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::distributions::Uniform;
 use rand::seq::SliceRandom;
@@ -62,7 +63,7 @@ fn main() {
     }))
     // .add_plugins(DefaultPlugins)
     .insert_state(Kjøretilstand::Kjørende)
-    // .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(WorldInspectorPlugin::new())
     .insert_state(EttHakkState::DISABLED)
     .init_resource::<GenerationCounter>()
     .insert_resource(InnovationNumberGlobalCounter { count: 0 })
@@ -74,6 +75,7 @@ fn main() {
             setup_camera,
             (
                 spawn_start_population,
+                reset_to_star_pos,
                 add_elite_component_tag_to_best_individ,
                 color_elite_red,
                 spawn_drawing_of_network_for_best_individ,
@@ -279,8 +281,8 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 100;
-static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON  : i32 = 3;
+static START_POPULATION_SIZE: i32 = 10;
+static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 3;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
@@ -865,6 +867,18 @@ fn print_pois_velocity_and_force(
     }
 }
 
+lazy_static! {
+     static ref START_POSITION_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
+ HashMap::from([
+    ( EnvValg::Høyre, Vec2 { x: 0.0, y: 0.0 }), // y is determined by index in population
+    ( EnvValg::Homing, Vec2 { x: 0.0, y: -0.0 }),
+    ( EnvValg::HomingGroud, Vec2 { x: 100.0, y: 30.0 }),
+    ( EnvValg::HomingGroudY, Vec2 { x: 100.0, y: 30.0 }),
+    ])
+    };
+    pub static ref START_POSITION: Vec2 = START_POSITION_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];
+}
+
 // NB : Dette resetter ikke node verdiene i nettverket til phenotypen
 fn reset_to_star_pos(
     mut query: Query<(
@@ -875,10 +889,12 @@ fn reset_to_star_pos(
         Option<&mut ExternalForce>,
     )>,
 ) {
-    for (mut transform, mut plank, mut linvel, mut angular_velocity,  option_force) in query.iter_mut() {
-        transform.translation.x = 0.0;
+    for (mut transform, mut plank, mut linvel, mut angular_velocity, option_force) in
+        query.iter_mut()
+    {
+        transform.translation.x = START_POSITION.x;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
-            transform.translation.y = 0.0;
+            transform.translation.y = START_POSITION.y;
         }
         plank.score = transform.translation.x.clone();
         plank.obseravations = vec![
@@ -1029,7 +1045,7 @@ struct PhenotypeNeuralNetwork {
     // alleNoder: Vec<NodeGene>,
     alleVekter: Vec<WeightGene>,
     // hidden_layers: Vec<Vec<&'a NodeGene>>,
-    hidden_nodes: Vec<Vec<Arc<NodeGene>>>,
+    // hidden_nodes: Vec<Vec<Arc<NodeGene>>>,
     input_layer: Vec<Arc<NodeGene>>,
     output_layer: Vec<Arc<NodeGene>>,
     // &'a to promise compiler that it lives the same length
@@ -1041,7 +1057,6 @@ struct PhenotypeNeuralNetwork {
 }
 
 impl PhenotypeNeuralNetwork {
-
     pub(crate) fn decide_on_action2(&self, input_values: Vec<f32>) -> Vec<f32> {
         // Normalisering
         // ikke helt sikker på hvordan jeg skal normalisere input verdier enda.
@@ -1117,7 +1132,12 @@ impl PhenotypeNeuralNetwork {
                 alle_inputs_til_destination_node.push(kildenode_påvirkning);
             }
         }
-        let total_påvirking: f32 = alle_inputs_til_destination_node.iter().sum();
+        // output noder blir lagt til i et layer selv om de er inaktive, vi gir de derfor 0.0 i verdi om de er inaktive, istedenfor å alltid fyre av bias verdien
+        let total_påvirking: f32 = if destination_node.outputnode && !destination_node.enabled.read().unwrap().clone() {
+            0.0
+        } else {
+            alle_inputs_til_destination_node.iter().sum()
+        };
         // dbg!(&total_påvirking);
         {
             let mut verdi = destination_node.value.write().unwrap();
@@ -1128,14 +1148,10 @@ impl PhenotypeNeuralNetwork {
     }
 
     pub(crate) fn new(genome: &Genome) -> Self {
-        // Kunne vært refferanse, men det ville introdusert mange lifetime annontasjoner.
-        // Kan være vært å endre netverk til å være reffs senere, men ikke nå. Med et evo-devo arkitektur-netverk så er hovednettverket direkte koblet til genene uansett.
-        // Med evo-devo påvirking fra mijøet i løpet av levetiden til individet, så kan det være at jeg kommer tilbake til dette
-
         // let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
 
-        let weights_per_desination_node = genome.få_vekter_per_destinasjonskode();
-
+        let weights_per_desination_node = genome.få_aktive_vekter_per_aktive_destinasjonsnode();
+        // dbg!(&weights_per_desination_node);
         let (node_to_layer, layers_ordered_output_to_input) =
             PhenotypeNeuralNetwork::lag_lag_av_nevroner_sortert_fra_output(
                 genome,
@@ -1155,7 +1171,12 @@ impl PhenotypeNeuralNetwork {
                 output_layer.push(Arc::clone(nodeArc));
             }
         }
-        let alle_enabled_vekter: Vec<WeightGene> = genome.weight_genes.clone().into_iter().filter(|weight_gene| weight_gene.enabled).collect();;
+        let alle_enabled_vekter: Vec<WeightGene> = genome
+            .weight_genes
+            .clone()
+            .into_iter()
+            .filter(|weight_gene| weight_gene.enabled)
+            .collect();
 
         /* `PhenotypeNeuralNetwork` value */
         PhenotypeNeuralNetwork {
@@ -1163,7 +1184,7 @@ impl PhenotypeNeuralNetwork {
             // alleNoder: alleNoder,
             // alleNoderArc: alleNoderArc,  // remove!! ikke i bruk !!!
             alleVekter: alle_enabled_vekter,
-            hidden_nodes: vec![],
+            // hidden_nodes: vec![],
             input_layer: input_layer,
             output_layer: output_layer,
             // weights_per_destination_node: weights_per_desination_node,
@@ -1224,7 +1245,7 @@ impl PhenotypeNeuralNetwork {
             layers_ordered_output_to_input.push(next_layer);
             // break;
         }
-        dbg!(&layers_ordered_output_to_input);
+        // dbg!(&layers_ordered_output_to_input);
 
         (node_to_layer, layers_ordered_output_to_input)
     }

@@ -60,7 +60,7 @@ pub fn mutate_existing_nodes_arc(mut node_genes: &mut Vec<Arc<NodeGene>>) {
             // node_gene.mutation_stability += random::<f32>() * 2.0 - 1.0;
             // enabling
         }
-        if random::<f32>() > node_gene.enabled_mutation_stability {
+        if random::<f32>() > node_gene.enabled_mutation_stability && !node_gene.outputnode {
             let mut enabled = node_gene.enabled.write().unwrap();
             *enabled = !*enabled;
         }

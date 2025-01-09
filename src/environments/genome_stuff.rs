@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::sync::{Arc, RwLock};
 use bevy::prelude::{Component, ResMut, Resource};
 use rand::distributions::Uniform;
 use rand::{random, thread_rng, Rng};
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, RwLock};
 
 // #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
 #[derive(Debug)] // todo spesifisker eq uten f32 verdiene
@@ -45,7 +45,6 @@ impl Hash for NodeGene {
     }
 }
 
-
 // #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Debug, Clone)]
 pub struct WeightGene {
@@ -61,13 +60,12 @@ pub struct WeightGene {
 }
 impl PartialEq for WeightGene {
     fn eq(&self, other: &Self) -> bool {
-        self.kildenode == other.kildenode &&
-            self.destinasjonsnode == other.destinasjonsnode &&
-            self.value == other.value
+        self.kildenode == other.kildenode
+            && self.destinasjonsnode == other.destinasjonsnode
+            && self.value == other.value
     }
 }
 impl Eq for WeightGene {}
-
 
 #[derive(Debug, Clone, Resource)]
 pub struct InnovationNumberGlobalCounter {
@@ -112,26 +110,44 @@ impl Clone for Genome {
                     enabled_mutation_stability: node.enabled_mutation_stability,
                     layer: 0,
                     // value: RwLock::new(0.0),
-                    value : RwLock::new(node.value.read().unwrap().clone()),
-                    label : node.label.clone(),
-                }
-                );
+                    value: RwLock::new(node.value.read().unwrap().clone()),
+                    label: node.label.clone(),
+                });
             }
             nye_noder.push(ny_node);
         }
         let mut nye_vekter = Vec::new();
         for vekt in self.weight_genes.iter() {
-            assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).count(), 1);
+            assert_eq!(
+                nye_noder
+                    .iter()
+                    .filter(|node| node.innovation_number == vekt.kildenode.innovation_number)
+                    .count(),
+                1
+            );
             assert_eq!(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinasjonsnode.innovation_number).count(), 1);
-
 
             let ny_vekt = WeightGene {
                 enabled: vekt.enabled,
                 mutation_stability: vekt.mutation_stability,
                 enabled_mutation_stability: vekt.enabled_mutation_stability,
                 value: vekt.value,
-                kildenode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.kildenode.innovation_number).next().expect("fant ikke kildenode til vekten")),
-                destinasjonsnode: Arc::clone(nye_noder.iter().filter(|node| node.innovation_number == vekt.destinasjonsnode.innovation_number).next().expect("fant ikke destinasjonsnoden til vekten")),
+                kildenode: Arc::clone(
+                    nye_noder
+                        .iter()
+                        .filter(|node| node.innovation_number == vekt.kildenode.innovation_number)
+                        .next()
+                        .expect("fant ikke kildenode til vekten"),
+                ),
+                destinasjonsnode: Arc::clone(
+                    nye_noder
+                        .iter()
+                        .filter(|node| {
+                            node.innovation_number == vekt.destinasjonsnode.innovation_number
+                        })
+                        .next()
+                        .expect("fant ikke destinasjonsnoden til vekten"),
+                ),
             };
             nye_vekter.push(ny_vekt);
         }
@@ -145,7 +161,11 @@ impl Clone for Genome {
     }
 }
 
-pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>) -> Genome {
+pub fn new_random_genome(
+    ant_inputs: usize,
+    ant_outputs: usize,
+    innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
+) -> Genome {
     let mut node_genes = Vec::new();
     let mut thread_random = thread_rng();
     let uniform_dist = Uniform::new(-1.0, 1.0);
@@ -161,8 +181,8 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             enabled: RwLock::new(true),
             inputnode: true,
             outputnode: false,
-            mutation_stability: 0.2,
-            enabled_mutation_stability: 0.4,
+            mutation_stability: 0.5,
+            enabled_mutation_stability: 0.1,
             layer: 0,
             value: RwLock::new(0.0),
             label,
@@ -179,11 +199,11 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             enabled: RwLock::new(true),
             inputnode: false,
             outputnode: true,
-            mutation_stability: 0.0,
-            enabled_mutation_stability: 0.9,
+            mutation_stability: 0.5,
+            enabled_mutation_stability: 0.1,
             layer: 0,
             value: RwLock::new(0.0),
-            label : label,
+            label: label,
         });
     }
 
@@ -195,15 +215,20 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
         alle_noder_arc.push(node_arc);
     }
 
-
     // start with no connections, start with fully connected, or random
 
     // fully connected input output
     let mut weight_genes = Vec::new();
-    for n in alle_noder_arc.iter().filter(|node_gene| node_gene.inputnode) {
+    for n in alle_noder_arc
+        .iter()
+        .filter(|node_gene| node_gene.inputnode)
+    {
         // for n in 0..ant_inputs {
         //     for m in 0..ant_outputs {
-        for m in alle_noder_arc.iter().filter(|node_gene| node_gene.outputnode) {
+        for m in alle_noder_arc
+            .iter()
+            .filter(|node_gene| node_gene.outputnode)
+        {
             weight_genes.push(WeightGene {
                 kildenode: Arc::clone(n),
                 destinasjonsnode: Arc::clone(m),
@@ -211,7 +236,6 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
                 // kildenode: n.innovation_number,
                 // destinationsnode: m.innovation_number,
                 // innovation_number: innovation_number_global_counter.get_number(),
-
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
                 mutation_stability: 0.0,
@@ -219,9 +243,13 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
             })
         }
     }
-    return Genome { node_genes: alle_noder_arc, weight_genes: weight_genes, original_ancestor_id: random(), allowed_to_change: true };
+    return Genome {
+        node_genes: alle_noder_arc,
+        weight_genes: weight_genes,
+        original_ancestor_id: random(),
+        allowed_to_change: true,
+    };
 }
-
 
 // pub(crate)  fn få_vekter_per_destinasjonskode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
 //     let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
@@ -235,28 +263,34 @@ pub fn new_random_genome(ant_inputs: usize, ant_outputs: usize, innovation_numbe
 // }
 
 impl Genome {
-
     // pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
-    pub(crate) fn få_vekter_per_destinasjonskode(self: &Self) -> HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> {
-        let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
+    pub(crate) fn få_aktive_vekter_per_aktive_destinasjonsnode(
+        self: &Self,
+    ) -> HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> {
+        let mut weights_per_desination_node: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
+            HashMap::new();
 
-        let aktive_vekter = self.weight_genes.iter().filter( |vekt| vekt.enabled).collect::<Vec<&WeightGene>>();
+        let aktive_vekter = self
+            .weight_genes
+            .iter()
+            .filter(|vekt| vekt.enabled)
+            .collect::<Vec<&WeightGene>>();
         // for weight in self.weight_genes.clone() {
-            for weight in aktive_vekter {
-
-                // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
+        for weight in aktive_vekter {
+            // for weight in self.weight_genes.clone().map(|weight| Arc::new(weight)) {
             {
                 if weight.destinasjonsnode.enabled.read().unwrap().clone() == false {
                     // dont bother to add mapping for inaktive nodes
                     continue;
                 }
-                let list = weights_per_desination_node.entry(Arc::clone(&weight.destinasjonsnode)).or_insert_with(|| Vec::new());
+                let list = weights_per_desination_node
+                    .entry(Arc::clone(&weight.destinasjonsnode))
+                    .or_insert_with(|| Vec::new());
                 list.push(Arc::new(weight.clone()));
                 // list.push(weight);
             }
             // for weight in genome.weight_genes.iter() {
         }
         weights_per_desination_node
-
     }
-    }
+}

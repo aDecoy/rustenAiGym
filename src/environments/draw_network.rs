@@ -22,7 +22,7 @@ pub fn draw_network_in_genome2(
     mut materials: ResMut<Assets<ColorMaterial>>,
     genome: &Genome,
 ) {
-    let weights_per_desination_node = Genome::få_vekter_per_destinasjonskode(&genome);
+    let weights_per_desination_node = Genome::få_aktive_vekter_per_aktive_destinasjonsnode(&genome);
     // let weights_per_kildenode = få_vekter_per_kildenode(genome);
     /////////////////////////////// få_vekter_per_kildenode
     let (node_to_layer, layers_ordered_output_to_input) =
@@ -126,8 +126,15 @@ fn tegn_og_spawn_noder(
         let node_value = { node.value.read().unwrap().clone() };
         let a_color = match node.enabled.read().unwrap().clone() {
             true => get_color_for_node_value(node_value),
-            false => Color::rgb(0.0, 0.0, 0.0),
+            false => {
+                println!("tegner en inaktiv SVART! node");
+                Color::rgb(0.0, 0.0, 0.0)
+            }
         };
+        if !node.enabled.read().unwrap().clone() {
+            println!("tegner en inaktiv SVART! node 1234");
+            dbg!(a_color);
+        }
 
         commands
             .spawn((
