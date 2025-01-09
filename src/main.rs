@@ -63,6 +63,7 @@ fn main() {
     }))
     // .add_plugins(DefaultPlugins)
     .insert_state(Kjøretilstand::Kjørende)
+    .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
     .add_plugins(WorldInspectorPlugin::new())
     .insert_state(EttHakkState::DISABLED)
     .init_resource::<GenerationCounter>()
@@ -281,7 +282,7 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 10;
+static START_POPULATION_SIZE: i32 = 1000;
 static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 3;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
