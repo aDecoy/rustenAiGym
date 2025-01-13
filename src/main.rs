@@ -25,7 +25,7 @@ use crate::environments::lunar_lander_environment::{
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
-use bevy::prelude::KeyCode::{KeyE, KeyK, KeyP, KeyR, KeyT};
+use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::RenderPlugin;
@@ -93,6 +93,7 @@ fn main() {
             endre_kjøretilstand_ved_input,
             reset_event_ved_input,
             reset_to_star_pos_on_event,
+            endre_om_mutasjoner_er_aktive_ved_input,
             extinction_on_t,
             (
                 // print_pois_velocity_and_force,
@@ -117,7 +118,8 @@ fn main() {
                 create_new_children,
                 // spawn_a_random_new_individual2,
                 // mutate_planks,
-                mutate_genomes,
+                mutate_genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
                 reset_to_star_pos,
                 nullstill_nettverk_verdier_til_0,
                 set_to_kjørende_state,
@@ -282,8 +284,9 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 1000;
-static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 3;
+static START_POPULATION_SIZE: i32 = 100;
+static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 1;
+static ANT_PARENTS_HVER_GENERASJON: usize = 1;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
@@ -635,8 +638,8 @@ fn create_new_children(
 
     let mut parents = Vec::new();
 
-    // Parent selection is set to top 3
-    for n in 0..min(1, population.len()) {
+    // Select potential Parent
+    for n in 0..min(ANT_PARENTS_HVER_GENERASJON, population.len()) {
         let parent = population[n].clone();
         println!("the lucky winner was parent with entity index {}, with entity generation {} that had score: {} ", parent.entity_index, parent.entity_bevy_generation, parent.phenotype.score);
         parents.push(parent);
@@ -802,6 +805,18 @@ fn endre_kjøretilstand_ved_input(
     }
 }
 
+fn endre_om_mutasjoner_er_aktive_ved_input(
+    mut next_state: ResMut<NextState<MutasjonerErAktive>>,
+    user_input: Res<ButtonInput<KeyCode>>,
+) {
+    if user_input.pressed(KeyM) {
+        next_state.set(MutasjonerErAktive::Ja);
+    }
+    if user_input.pressed(KeyN) {
+        next_state.set(MutasjonerErAktive::Nei);
+    }
+}
+
 // fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>) {
 
 #[derive(Event, Debug, Default)]
@@ -844,6 +859,13 @@ enum Kjøretilstand {
     // Mutation,
     // ParentSelection,
     // SurvivorSelection,
+}
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+enum MutasjonerErAktive {
+    #[default]
+    Ja,
+    Nei,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
