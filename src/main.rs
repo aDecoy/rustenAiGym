@@ -106,7 +106,7 @@ fn main() {
             check_if_done,
             // check_if_done.run_if(every_time_if_stop_on_right_window()),
             (
-                print_pop_conditions,
+                // print_pop_conditions,
                 increase_generation_counter,
                 lock_mutation_stability,
                 add_elite_component_tag_to_best_individ,
@@ -119,7 +119,8 @@ fn main() {
                 // spawn_a_random_new_individual2,
                 // mutate_planks,
                 mutate_genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
                 reset_to_star_pos,
                 nullstill_nettverk_verdier_til_0,
                 set_to_kjørende_state,
@@ -135,12 +136,22 @@ fn main() {
     app.run();
 }
 
-fn every_time() -> impl Condition<()> {
-    IntoSystem::into_system(|mut flag: Local<bool>| {
-        *flag = true;
-        *flag
-    })
+// fn every_time() -> impl Condition<()> {
+//     IntoSystem::into_system(|mut flag: Local<bool>| {
+//         *flag = true;
+//         *flag
+//     })
+// }
+
+// Denne kan potensielt heller gjørs med event
+fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &mut PlankPhenotype)>){ // genom verdier endrer seg ved tenking også, kan derfor ikke bruke  Changed<Genome>>, siden det tar alle
+    for (genome, mut plankPhenotype) in query.iter_mut(){
+        if genome.allowed_to_change {
+            plankPhenotype.phenotype_layers = PhenotypeNeuralNetwork::new(genome)
+        }
+    }
 }
+
 fn every_time_if_stop_on_right_window() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
         *flag = match ACTIVE_ENVIROMENT {
@@ -919,6 +930,8 @@ fn reset_to_star_pos(
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             transform.translation.y = START_POSITION.y;
         }
+        transform.rotation = Quat::default();
+
         plank.score = transform.translation.x.clone();
         plank.obseravations = vec![
             transform.translation.x.clone(),
