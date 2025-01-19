@@ -43,6 +43,8 @@ use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
 use bevy::color::palettes::tailwind::CYAN_300;
+use bevy::render::camera::Viewport;
+use bevy::window::WindowResized;
 
 mod environments;
 
@@ -92,6 +94,7 @@ fn main() {
     .add_systems(
         Update,
         (
+            set_camera_viewports,
             endre_kjøretilstand_ved_input,
             reset_event_ved_input,
             reset_to_star_pos_on_event,
@@ -828,9 +831,73 @@ fn check_if_done(
     }
 }
 
-fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+
+#[derive(Component)]
+struct CameraPosition {
+    pos: UVec2,
 }
+fn setup_camera(mut commands: Commands) {
+    // commands.spawn(Camera2d::default());
+
+    let camera_pos_1 = Vec3::new(0.0, 200.0, 150.0);
+    let camera_pos_2 =  Vec3::new(150.0, 150., 50.0);
+    let camera = commands
+        .spawn((
+            Camera2d::default(),
+            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 0 as isize,
+                ..default()
+            },
+            CameraPosition {
+                pos: UVec2::new((0 % 2) as u32, (0 / 2) as u32),
+                // pos: UVec2::new((0 % 2) as u32, (0) as u32),
+            },
+        ))
+        .id();
+    let camera = commands
+        .spawn((
+            Camera2d::default(),
+            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 1 as isize,
+                ..default()
+            },
+            CameraPosition {
+                pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
+                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+            },
+        ))
+        .id();
+
+
+}
+
+fn set_camera_viewports(
+    windows: Query<&Window>,
+    mut resize_events: EventReader<WindowResized>,
+    mut query: Query<(&CameraPosition, &mut Camera)>,
+) {
+    // We need to dynamically resize the camera's viewports whenever the window size changes
+    // so then each camera always takes up half the screen.
+    // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
+    for resize_event in resize_events.read() {
+        let window = windows.get(resize_event.window).unwrap();
+        // let size = window.physical_size() / 2;
+        let size = UVec2::new(window.physical_size().x / 2 , window.physical_size().y);
+
+        for (camera_position, mut camera) in &mut query {
+            camera.viewport = Some(Viewport {
+                physical_position: camera_position.pos * size,
+                physical_size: size,
+                ..default()
+            });
+        }
+    }
+}
+
 
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
