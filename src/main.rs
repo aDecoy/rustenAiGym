@@ -42,6 +42,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
+use bevy::color::palettes::tailwind::CYAN_300;
 
 mod environments;
 
@@ -65,6 +66,7 @@ fn main() {
     .insert_state(Kjøretilstand::Kjørende)
     .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
     .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(MeshPickingPlugin)
     .insert_state(EttHakkState::DISABLED)
     .init_resource::<GenerationCounter>()
     .insert_resource(InnovationNumberGlobalCounter { count: 0 })
@@ -368,6 +370,8 @@ fn spawn_a_random_new_individual(
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+
+    let hover_matl = materials.add(Color::from(CYAN_300));
     // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
     // let text_style = TextStyle {
     //     font_size: 20.0,
@@ -381,7 +385,7 @@ fn spawn_a_random_new_individual(
 
     match ACTIVE_ENVIROMENT {
         EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
-            material_handle,
+            material_handle.clone(),
             rectangle_mesh_handle.into(),
             Vec3 {
                 x: 0.0,
@@ -391,7 +395,7 @@ fn spawn_a_random_new_individual(
             genome,
         )),
         EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
-            material_handle,
+            material_handle.clone(),
             rectangle_mesh_handle.into(),
             Vec3 {
                 x: 0.0,
@@ -404,7 +408,7 @@ fn spawn_a_random_new_individual(
         | EnvValg::Homing
         | EnvValg::HomingGroud
         | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
-            material_handle,
+            material_handle.clone(),
             rectangle_mesh_handle.into(),
             Vec3 {
                 x: 30.0,
@@ -421,8 +425,35 @@ fn spawn_a_random_new_individual(
             Transform::from_xyz(0.0, 0.0, 2.0),
             IndividLabelText,
         ));
-    });
+    })
+        .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+        .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+        .observe(rotate_on_drag);
 }
+
+/// Returns an observer that updates the entity's material to the one specified.
+fn update_material_on<E>(
+    new_material: Handle<ColorMaterial>,
+) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
+    // An observer closure that captures `new_material`. We do this to avoid needing to write four
+    // versions of this observer, each triggered by a different event and with a different hardcoded
+    // material. Instead, the event type is a generic, and the material is passed in.
+    move |trigger, mut query| {
+        if let Ok(mut material) = query.get_mut(trigger.entity()) {
+            material.0 = new_material.clone();
+        }
+    }
+}
+
+
+/// An observer to rotate an entity when it is dragged
+// fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut angular_velocities: Query<&mut AngularVelocity>) {
+    println!("dragging");
+    let mut angular_velocitiy = angular_velocities.get_mut(drag.entity()).unwrap();
+    angular_velocitiy.0 += 0.1;
+}
+
 
 fn extinction_on_t(
     mut commands: Commands,
@@ -678,6 +709,7 @@ fn create_new_children(
             meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
         let material_handle: Handle<ColorMaterial> =
             materials.add(Color::from(PURPLE).with_alpha(0.5));
+        let hover_matl = materials.add(Color::from(CYAN_300));
 
         // let text_style = TextStyle {
         //     font_size: 20.0,
@@ -687,7 +719,7 @@ fn create_new_children(
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => {
                 commands.spawn(create_plank_env_falling(
-                    material_handle,
+                    material_handle.clone(),
                     rectangle_mesh_handle.into(),
                     Vec3 {
                         x: 0.0,
@@ -698,7 +730,7 @@ fn create_new_children(
                 ))
             }
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
-                material_handle,
+                material_handle.clone(),
                 rectangle_mesh_handle.into(),
                 Vec3 {
                     x: 0.0,
@@ -711,7 +743,7 @@ fn create_new_children(
             | EnvValg::Homing
             | EnvValg::HomingGroud
             | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
-                material_handle,
+                material_handle.clone(),
                 rectangle_mesh_handle.into(),
                 Vec3 {
                     x: 0.0,
@@ -728,7 +760,10 @@ fn create_new_children(
                 Transform::from_xyz(0.0, 0.0, 2.0),
                 IndividLabelText,
             ));
-        });
+        })
+            .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+            .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+            .observe(rotate_on_drag);
     }
 }
 
