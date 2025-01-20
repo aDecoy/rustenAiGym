@@ -44,6 +44,7 @@ use std::sync::{Arc, RwLock};
 use std::vec::Vec;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::render::camera::Viewport;
+use bevy::render::view::RenderLayers;
 use bevy::window::WindowResized;
 
 mod environments;
@@ -77,8 +78,8 @@ fn main() {
     .add_systems(
         Startup,
         (
-            setup_camera,
             (
+                setup_camera,
                 spawn_start_population,
                 reset_to_star_pos,
                 add_elite_component_tag_to_best_individ,
@@ -313,6 +314,7 @@ fn spawn_start_population(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    camera : Query<Entity, With<AllIndividerCamera>>
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
@@ -323,6 +325,7 @@ fn spawn_start_population(
             &mut materials,
             &mut innovationNumberGlobalCounter,
             n,
+            camera.get_single().unwrap()
         );
     }
 }
@@ -353,6 +356,7 @@ fn spawn_a_random_new_individual2(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    camera : Query<Entity, With<AllIndividerCamera>>
 ) {
     let n: i32 = 1;
     spawn_a_random_new_individual(
@@ -361,6 +365,7 @@ fn spawn_a_random_new_individual2(
         &mut materials,
         &mut innovationNumberGlobalCounter,
         n,
+        camera.get_single().unwrap()
     )
 }
 
@@ -370,6 +375,7 @@ fn spawn_a_random_new_individual(
     materials: &mut ResMut<Assets<ColorMaterial>>,
     innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
     n: i32,
+    camera_entity :Entity,
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -419,6 +425,7 @@ fn spawn_a_random_new_individual(
                 z: 1.0,
             },
             genome,
+            camera_entity,
         )),
     }
     .with_children(|builder| {
@@ -427,6 +434,7 @@ fn spawn_a_random_new_individual(
             TextLayout::new_with_justify(JustifyText::Center),
             Transform::from_xyz(0.0, 0.0, 2.0),
             IndividLabelText,
+            RenderLayers::layer(1),
         ));
     })
         .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
@@ -465,12 +473,14 @@ fn extinction_on_t(
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
     innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    camera : Query<Entity, With<AllIndividerCamera>>
+
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter)
+        spawn_start_population(commands, meshes, materials, innovationNumberGlobalCounter, camera)
     }
 }
 
@@ -652,6 +662,7 @@ fn create_new_children(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
+    camera : Query<Entity, With<AllIndividerCamera>>
 ) {
     let mut population = Vec::new();
     //sort_individuals
@@ -754,6 +765,7 @@ fn create_new_children(
                     z: 0.0,
                 },
                 new_genome,
+                camera.get_single().unwrap(),
             )),
         }
         .with_children(|builder| {
@@ -762,6 +774,7 @@ fn create_new_children(
                 TextLayout::new_with_justify(JustifyText::Center),
                 Transform::from_xyz(0.0, 0.0, 2.0),
                 IndividLabelText,
+                RenderLayers::layer(1),
             ));
         })
             .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
@@ -836,6 +849,10 @@ fn check_if_done(
 struct CameraPosition {
     pos: UVec2,
 }
+
+#[derive(Component)]
+struct AllIndividerCamera;
+
 fn setup_camera(mut commands: Commands) {
     // commands.spawn(Camera2d::default());
 
@@ -854,6 +871,7 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((0 % 2) as u32, (0 / 2) as u32),
                 // pos: UVec2::new((0 % 2) as u32, (0) as u32),
             },
+            RenderLayers::from_layers(&[0])
         ))
         .id();
     let camera = commands
@@ -869,10 +887,10 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
+            AllIndividerCamera,
+            RenderLayers::from_layers(&[1])
         ))
         .id();
-
-
 }
 
 fn set_camera_viewports(

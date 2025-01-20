@@ -4,6 +4,7 @@ use avian2d::prelude::{Friction, Restitution, RigidBody};
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::{Assets, Circle, ColorMaterial, Commands, Mesh, Mesh2d, MeshMaterial2d, Rectangle, ResMut, Transform, Vec2};
+use bevy::render::view::RenderLayers;
 use lazy_static::lazy_static;
 use crate::{EnvValg, ACTIVE_ENVIROMENT};
 
@@ -45,6 +46,7 @@ pub(crate) fn spawn_ground(mut commands: Commands,
         Restitution::new(0.0),
         Friction::new(0.5),
         CollisionLayers::new(0b0010, LayerMask::ALL),
+        RenderLayers::layer(1),
     )
     );
 }
@@ -62,6 +64,7 @@ pub(crate) fn spawn_landing_target(mut commands: Commands,
                                x: 10.0,
                                y: 10.0,
                            }.extend(1.)),
+                       RenderLayers::layer(1),
                        // Sleeping::disabled(),
                    ), );
 }
@@ -84,5 +87,6 @@ pub(crate) fn spawn_roof(mut commands: Commands,
                        Restitution::new(0.0),
                        Friction::new(0.5),
                        CollisionLayers::new(0b0010, LayerMask::ALL),
+                       RenderLayers::layer(1),
                    ), );
 }

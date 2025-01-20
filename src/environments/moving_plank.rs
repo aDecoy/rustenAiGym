@@ -5,6 +5,7 @@ use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
+use bevy::render::view::RenderLayers;
 use crate::environments::genome_stuff::Genome;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
@@ -152,7 +153,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome) -> (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, TextLayout) {
+pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome, camera_entity : Entity) -> (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, TextLayout, RenderLayers) {
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
@@ -180,6 +181,8 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
         TextLayout::new_with_justify(JustifyText::Center),
+        RenderLayers::layer(1),
+        // RenderLayers::from_layers(&[1]),
     )
 }
 
