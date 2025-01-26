@@ -882,9 +882,10 @@ fn setup_population_meny(mut commands: Commands,
             parent
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    width: Val::Px(100.),
+                    flex_wrap : FlexWrap::Wrap,
+                    justify_content: JustifyContent::SpaceEvenly,
+                    // align_items: AlignItems::Center,
+                    width: Val::Px(700.),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -905,16 +906,16 @@ fn setup_population_meny(mut commands: Commands,
 
             // en annen kolonne
 
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Px(20.),
-                        border: UiRect::all(Val::Px(2.)),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                    RenderLayers::layer(RENDER_LAYER_POPULASJON),
-                ));
+            // parent
+            //     .spawn((
+            //         Node {
+            //             width: Val::Px(20.),
+            //             border: UiRect::all(Val::Px(2.)),
+            //             ..default()
+            //         },
+            //         BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+            //         RenderLayers::layer(RENDER_LAYER_POPULASJON),
+            //     ));
         }
         );
 }
