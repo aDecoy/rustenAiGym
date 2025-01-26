@@ -302,7 +302,7 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 100;
+static START_POPULATION_SIZE: i32 = 10;
 static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 1;
 static ANT_PARENTS_HVER_GENERASJON: usize = 1;
 
@@ -868,25 +868,42 @@ fn setup_population_meny(mut commands: Commands,
             // justify_content: JustifyContent::SpaceBetween,
             // justify_content: JustifyContent::Stretch,
             justify_content: JustifyContent::SpaceEvenly,
+            // justify_content: JustifyContent::Center,
             ..default()
         },
                 Outline::new(Val::Px(10.), Val::ZERO, RED.into()),),
         )
         .with_children(|parent| {
+            // kolonner som fyller hele veien ned
 
-            for phenotype_and_genome in population {
-                parent
-                    .spawn((
-                        Node {
-                            width: Val::Px(20.),
-                            border: UiRect::all(Val::Px(2.)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                        RenderLayers::layer(RENDER_LAYER_POPULASJON),
-                    ));
-            }
-            // left vertical fill (border)
+            // starter med bare en, men legger kanskje til en knapp meny kolonne senere
+
+            // populasjon grid
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    width: Val::Px(100.),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    for phenotype_and_genome in population {
+                        parent
+                            .spawn((
+                                Text::new("Scrolling list"),
+                                Node {
+                                    width: Val::Px(20.),
+                                    border: UiRect::all(Val::Px(2.)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                                RenderLayers::layer(RENDER_LAYER_POPULASJON),
+                            ));
+                    }
+                });
+
+            // en annen kolonne
 
             parent
                 .spawn((
@@ -914,7 +931,6 @@ struct AllIndividerCamera;
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON: usize = 2;
-
 
 fn setup_camera(mut commands: Commands) {
     // commands.spawn(Camera2d::default());
@@ -1003,7 +1019,6 @@ fn set_camera_viewports(
         }
     }
 }
-
 
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
