@@ -883,7 +883,8 @@ fn setup_population_meny(mut commands: Commands,
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
                     flex_wrap : FlexWrap::Wrap,
-                    justify_content: JustifyContent::SpaceEvenly,
+                    // justify_content: JustifyContent::SpaceEvenly,
+                    justify_content: JustifyContent::SpaceBetween,
                     // align_items: AlignItems::Center,
                     width: Val::Px(700.),
                     ..default()
@@ -892,10 +893,12 @@ fn setup_population_meny(mut commands: Commands,
                     for phenotype_and_genome in population {
                         parent
                             .spawn((
-                                Text::new("Scrolling list"),
+                                Text::new("ID"),
                                 Node {
-                                    width: Val::Px(20.),
-                                    border: UiRect::all(Val::Px(2.)),
+                                    width: Val::Px(100.),
+                                    height: Val::Px(100.),
+                                    // border: UiRect::all(Val::Px(100.)),
+                                    margin : UiRect::all(Val::Px(10.)),
                                     ..default()
                                 },
                                 BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
