@@ -65,79 +65,80 @@ fn main() {
         }),
         synchronous_pipeline_compilation: false,
     }))
-    // .add_plugins(DefaultPlugins)
-    .insert_state(Kjøretilstand::Kjørende)
-    .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-    .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins(MeshPickingPlugin)
-    .insert_state(EttHakkState::DISABLED)
-    .init_resource::<GenerationCounter>()
-    .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-    // .init_resource(     EnvValg { Homing} )
-    .add_event::<ResetToStartPositionsEvent>()
-    .add_systems(
-        Startup,
-        (
+        // .add_plugins(DefaultPlugins)
+        .insert_state(Kjøretilstand::Kjørende)
+        .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(MeshPickingPlugin)
+        .insert_state(EttHakkState::DISABLED)
+        .init_resource::<GenerationCounter>()
+        .insert_resource(InnovationNumberGlobalCounter { count: 0 })
+        // .init_resource(     EnvValg { Homing} )
+        .add_event::<ResetToStartPositionsEvent>()
+        .add_systems(
+            Startup,
             (
-                setup_camera,
-                spawn_start_population,
-                reset_to_star_pos,
-                add_elite_component_tag_to_best_individ,
-                color_elite_red,
-                spawn_drawing_of_network_for_best_individ,
-            )
-                .chain(),
-            spawn_ground,
-            spawn_roof,
-            spawn_landing_target,
-        ),
-    )
-    .add_systems(
-        Update,
-        (
-            set_camera_viewports,
-            endre_kjøretilstand_ved_input,
-            reset_event_ved_input,
-            reset_to_star_pos_on_event,
-            endre_om_mutasjoner_er_aktive_ved_input,
-            extinction_on_t,
+                (
+                    setup_camera,
+                    spawn_start_population,
+                    setup_population_meny,
+                    reset_to_star_pos,
+                    add_elite_component_tag_to_best_individ,
+                    color_elite_red,
+                    spawn_drawing_of_network_for_best_individ,
+                )
+                    .chain(),
+                spawn_ground,
+                spawn_roof,
+                spawn_landing_target,
+            ),
+        )
+        .add_systems(
+            Update,
             (
-                // print_pois_velocity_and_force,
-                agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-                label_plank_with_current_score,
-                oppdater_node_tegninger,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::Kjørende)),
-            check_if_done,
-            // check_if_done.run_if(every_time_if_stop_on_right_window()),
-            (
-                // print_pop_conditions,
-                increase_generation_counter,
-                lock_mutation_stability,
-                add_elite_component_tag_to_best_individ,
-                color_elite_red,
-                // save_best_to_history,
-                kill_worst_individuals,
-                remove_drawing_of_network_for_best_individ,
-                spawn_drawing_of_network_for_best_individ,
-                create_new_children,
-                // spawn_a_random_new_individual2,
-                // mutate_planks,
-                mutate_genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                reset_to_star_pos,
-                nullstill_nettverk_verdier_til_0,
-                set_to_kjørende_state,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-        ),
-    )
-    // Environment spesific : Later changed
-    .add_plugins(MovingPlankPlugin)
-    .add_plugins(SimulationRunningTellerPlugin);
+                set_camera_viewports,
+                endre_kjøretilstand_ved_input,
+                reset_event_ved_input,
+                reset_to_star_pos_on_event,
+                endre_om_mutasjoner_er_aktive_ved_input,
+                extinction_on_t,
+                (
+                    // print_pois_velocity_and_force,
+                    agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
+                    label_plank_with_current_score,
+                    oppdater_node_tegninger,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::Kjørende)),
+                check_if_done,
+                // check_if_done.run_if(every_time_if_stop_on_right_window()),
+                (
+                    // print_pop_conditions,
+                    increase_generation_counter,
+                    lock_mutation_stability,
+                    add_elite_component_tag_to_best_individ,
+                    color_elite_red,
+                    // save_best_to_history,
+                    kill_worst_individuals,
+                    remove_drawing_of_network_for_best_individ,
+                    spawn_drawing_of_network_for_best_individ,
+                    create_new_children,
+                    // spawn_a_random_new_individual2,
+                    // mutate_planks,
+                    mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                    update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    reset_to_star_pos,
+                    nullstill_nettverk_verdier_til_0,
+                    set_to_kjørende_state,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+            ),
+        )
+        // Environment spesific : Later changed
+        .add_plugins(MovingPlankPlugin)
+        .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
 }
@@ -150,8 +151,8 @@ fn main() {
 // }
 
 // Denne kan potensielt heller gjørs med event
-fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &mut PlankPhenotype)>){ // genom verdier endrer seg ved tenking også, kan derfor ikke bruke  Changed<Genome>>, siden det tar alle
-    for (genome, mut plankPhenotype) in query.iter_mut(){
+fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &mut PlankPhenotype)>) { // genom verdier endrer seg ved tenking også, kan derfor ikke bruke  Changed<Genome>>, siden det tar alle
+    for (genome, mut plankPhenotype) in query.iter_mut() {
         if genome.allowed_to_change {
             plankPhenotype.phenotype_layers = PhenotypeNeuralNetwork::new(genome)
         }
@@ -314,7 +315,7 @@ fn spawn_start_population(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera : Query<Entity, With<AllIndividerCamera>>
+    camera: Query<Entity, With<AllIndividerCamera>>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
@@ -325,7 +326,7 @@ fn spawn_start_population(
             &mut materials,
             &mut innovationNumberGlobalCounter,
             n,
-            camera.get_single().unwrap()
+            camera.get_single().unwrap(),
         );
     }
 }
@@ -356,7 +357,7 @@ fn spawn_a_random_new_individual2(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera : Query<Entity, With<AllIndividerCamera>>
+    camera: Query<Entity, With<AllIndividerCamera>>,
 ) {
     let n: i32 = 1;
     spawn_a_random_new_individual(
@@ -365,7 +366,7 @@ fn spawn_a_random_new_individual2(
         &mut materials,
         &mut innovationNumberGlobalCounter,
         n,
-        camera.get_single().unwrap()
+        camera.get_single().unwrap(),
     )
 }
 
@@ -375,7 +376,7 @@ fn spawn_a_random_new_individual(
     materials: &mut ResMut<Assets<ColorMaterial>>,
     innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
     n: i32,
-    camera_entity :Entity,
+    camera_entity: Entity,
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -428,15 +429,15 @@ fn spawn_a_random_new_individual(
             camera_entity,
         )),
     }
-    .with_children(|builder| {
-        builder.spawn((
-            Text2d::new("translation"),
-            TextLayout::new_with_justify(JustifyText::Center),
-            Transform::from_xyz(0.0, 0.0, 2.0),
-            IndividLabelText,
-            RenderLayers::layer(1),
-        ));
-    })
+        .with_children(|builder| {
+            builder.spawn((
+                Text2d::new("translation"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+                IndividLabelText,
+                RenderLayers::layer(1),
+            ));
+        })
         .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
         .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
         .observe(rotate_on_drag);
@@ -473,8 +474,7 @@ fn extinction_on_t(
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
     innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera : Query<Entity, With<AllIndividerCamera>>
-
+    camera: Query<Entity, With<AllIndividerCamera>>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
@@ -662,7 +662,7 @@ fn create_new_children(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
-    camera : Query<Entity, With<AllIndividerCamera>>
+    camera: Query<Entity, With<AllIndividerCamera>>,
 ) {
     let mut population = Vec::new();
     //sort_individuals
@@ -768,15 +768,15 @@ fn create_new_children(
                 camera.get_single().unwrap(),
             )),
         }
-        .with_children(|builder| {
-            builder.spawn((
-                Text2d::new("Fitness label"),
-                TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-                IndividLabelText,
-                RenderLayers::layer(1),
-            ));
-        })
+            .with_children(|builder| {
+                builder.spawn((
+                    Text2d::new("Fitness label"),
+                    TextLayout::new_with_justify(JustifyText::Center),
+                    Transform::from_xyz(0.0, 0.0, 2.0),
+                    IndividLabelText,
+                    RenderLayers::layer(1),
+                ));
+            })
             .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
             .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
             .observe(rotate_on_drag);
@@ -844,6 +844,64 @@ fn check_if_done(
     }
 }
 
+fn setup_population_meny(mut commands: Commands,
+                         mut meshes: ResMut<Assets<Mesh>>,
+                         mut materials: ResMut<Assets<ColorMaterial>>,
+                         query: Query<(Entity, &PlankPhenotype, &Genome)>,
+) {
+    let population = get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
+    let best = population[0].clone();
+
+    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
+    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+    // commands.spawn((
+    //     Mesh2d(rectangle_mesh_handle),
+    //     MeshMaterial2d(material_handle),
+    //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
+    // ));
+
+    // root node
+    commands
+        .spawn((Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            // justify_content: JustifyContent::SpaceBetween,
+            // justify_content: JustifyContent::Stretch,
+            justify_content: JustifyContent::SpaceEvenly,
+            ..default()
+        },
+                Outline::new(Val::Px(10.), Val::ZERO, RED.into()),),
+        )
+        .with_children(|parent| {
+
+            for phenotype_and_genome in population {
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(20.),
+                            border: UiRect::all(Val::Px(2.)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                        RenderLayers::layer(RENDER_LAYER_POPULASJON),
+                    ));
+            }
+            // left vertical fill (border)
+
+            parent
+                .spawn((
+                    Node {
+                        width: Val::Px(20.),
+                        border: UiRect::all(Val::Px(2.)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                    RenderLayers::layer(RENDER_LAYER_POPULASJON),
+                ));
+        }
+        );
+}
+
 
 #[derive(Component)]
 struct CameraPosition {
@@ -853,11 +911,16 @@ struct CameraPosition {
 #[derive(Component)]
 struct AllIndividerCamera;
 
+const RENDER_LAYER_NETTVERK: usize = 0;
+const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
+const RENDER_LAYER_POPULASJON: usize = 2;
+
+
 fn setup_camera(mut commands: Commands) {
     // commands.spawn(Camera2d::default());
 
     let camera_pos_1 = Vec3::new(0.0, 200.0, 150.0);
-    let camera_pos_2 =  Vec3::new(150.0, 150., 50.0);
+    let camera_pos_2 = Vec3::new(150.0, 150., 50.0);
     let camera = commands
         .spawn((
             Camera2d::default(),
@@ -871,7 +934,7 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((0 % 2) as u32, (0 / 2) as u32),
                 // pos: UVec2::new((0 % 2) as u32, (0) as u32),
             },
-            RenderLayers::from_layers(&[0])
+            RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK])
         ))
         .id();
     let camera = commands
@@ -888,7 +951,23 @@ fn setup_camera(mut commands: Commands) {
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
             AllIndividerCamera,
-            RenderLayers::from_layers(&[1])
+            RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER])
+        ))
+        .id();
+    let camera = commands
+        .spawn((
+            Camera2d::default(),
+            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 2 as isize,
+                ..default()
+            },
+            CameraPosition {
+                pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
+                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+            },
+            RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON])
         ))
         .id();
 }
@@ -896,20 +975,29 @@ fn setup_camera(mut commands: Commands) {
 fn set_camera_viewports(
     windows: Query<&Window>,
     mut resize_events: EventReader<WindowResized>,
-    mut query: Query<(&CameraPosition, &mut Camera)>,
+    mut kvart_kamera_query: Query<(&CameraPosition, &mut Camera), Without<AllIndividerCamera>>,
+    mut halv_kamera_query: Query<(&CameraPosition, &mut Camera), With<AllIndividerCamera>>,
 ) {
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
+
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();
-        // let size = window.physical_size() / 2;
-        let size = UVec2::new(window.physical_size().x / 2 , window.physical_size().y);
+        let kvart_skjerm_størrelse = window.physical_size() / 2;
+        let halv_skjerm_størrelse = UVec2::new(window.physical_size().x / 2, window.physical_size().y);
 
-        for (camera_position, mut camera) in &mut query {
+        for (camera_position, mut camera) in &mut kvart_kamera_query {
             camera.viewport = Some(Viewport {
-                physical_position: camera_position.pos * size,
-                physical_size: size,
+                physical_position: camera_position.pos * kvart_skjerm_størrelse,
+                physical_size: kvart_skjerm_størrelse,
+                ..default()
+            });
+        }
+        for (camera_position, mut camera) in &mut halv_kamera_query {
+            camera.viewport = Some(Viewport {
+                physical_position: camera_position.pos * halv_skjerm_størrelse,
+                physical_size: halv_skjerm_størrelse,
                 ..default()
             });
         }
@@ -1112,9 +1200,9 @@ fn agent_action_and_fitness_evaluation(
         let input_values = plank.obseravations.clone();
         // dbg!(&input_values);
         let action = plank.phenotype_layers.decide_on_action2(input_values); // fungerer
-                                                                             // dbg!(&action);
-                                                                             // individual.translation.x += random::<f32>() * action * 5.0;
-                                                                             // println!("action : {action}");
+        // dbg!(&action);
+        // individual.translation.x += random::<f32>() * action * 5.0;
+        // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
@@ -1185,9 +1273,9 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
-                                                  // pub genotype: Genome,
-                                                  // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
-                                                  // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+    // pub genotype: Genome,
+    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 #[derive(Component, Debug)]

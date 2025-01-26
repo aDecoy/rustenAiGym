@@ -1,5 +1,5 @@
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{EttHakkState, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
+use crate::{EttHakkState, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype, RENDER_LAYER_ALLE_INDIVIDER};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
@@ -181,7 +181,7 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
         TextLayout::new_with_justify(JustifyText::Center),
-        RenderLayers::layer(1),
+        RenderLayers::layer( RENDER_LAYER_ALLE_INDIVIDER),
         // RenderLayers::from_layers(&[1]),
     )
 }
