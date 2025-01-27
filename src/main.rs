@@ -536,6 +536,7 @@ fn spawn_drawing_of_network_for_best_individ<'a>(
 //     Genome
 // }
 
+
 fn sort_best_to_worst<'a>(
     iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
 ) -> Vec<PhentypeAndGenome<'a>> {
@@ -849,7 +850,7 @@ fn setup_population_meny(mut commands: Commands,
                          mut materials: ResMut<Assets<ColorMaterial>>,
                          query: Query<(Entity, &PlankPhenotype, &Genome)>,
 ) {
-    let population = get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
+    let population: Vec<PhentypeAndGenome> = get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
     let best = population[0].clone();
 
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
@@ -882,7 +883,7 @@ fn setup_population_meny(mut commands: Commands,
             parent
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
-                    flex_wrap : FlexWrap::Wrap,
+                    flex_wrap: FlexWrap::Wrap,
                     // justify_content: JustifyContent::SpaceEvenly,
                     justify_content: JustifyContent::SpaceBetween,
                     // align_items: AlignItems::Center,
@@ -891,19 +892,30 @@ fn setup_population_meny(mut commands: Commands,
                 })
                 .with_children(|parent| {
                     for phenotype_and_genome in population {
+                        let ancestor_id = phenotype_and_genome.genome.original_ancestor_id;
+                        let fitness_score = phenotype_and_genome.phenotype.score;
                         parent
                             .spawn((
-                                Text::new("ID"),
                                 Node {
                                     width: Val::Px(100.),
                                     height: Val::Px(100.),
                                     // border: UiRect::all(Val::Px(100.)),
-                                    margin : UiRect::all(Val::Px(10.)),
+                                    margin: UiRect::all(Val::Px(10.)),
+                                    overflow: Overflow::scroll_y(),
                                     ..default()
                                 },
                                 BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
                                 RenderLayers::layer(RENDER_LAYER_POPULASJON),
-                            ));
+                            ))
+
+                            // det som er inne i den grå bokksen
+                            .with_children(|parent| {
+                                parent
+                                    .spawn((
+                                        Text::new(format!("Ancestor_id {ancestor_id}, score {fitness_score} ")),
+                                        TextFont::from_font_size(10.0),
+                                    ));
+                            });
                     }
                 });
 

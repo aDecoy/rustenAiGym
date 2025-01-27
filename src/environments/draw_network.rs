@@ -415,7 +415,7 @@ fn kordinater_per_node(
 ) -> HashMap<Arc<NodeGene>, Vec2> {
     let mut point_per_node = HashMap::new();
 
-    let mut x_output_layer = -150.0;
+    let mut x_output_layer = 0.0;
     let distanc_x = -200.0;
     for node in genome.node_genes.iter() {
         match (layer_per_node.get(node)) {

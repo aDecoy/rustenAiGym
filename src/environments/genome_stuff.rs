@@ -87,7 +87,7 @@ pub(crate) struct Genome {
     // pub node_genes: Vec<NodeGene>,
     pub node_genes: Vec<Arc<NodeGene>>,
     pub weight_genes: Vec<WeightGene>,
-    pub original_ancestor_id: usize,
+    pub original_ancestor_id: i32,
     pub allowed_to_change: bool, // Useful to not mutate best solution found/Elite
 }
 
