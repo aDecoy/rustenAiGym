@@ -14,8 +14,8 @@ use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 // use bevy::asset::io::memory::Value::Vec;
 use crate::environments::draw_network::{
-    draw_network_in_genome, draw_network_in_genome2, oppdater_node_tegninger,
-    remove_drawing_of_network_for_best_individ,
+    draw_network_in_genome2, oppdater_node_tegninger,
+    remove_drawing_of_network,
 };
 use crate::environments::genom_muteringer::lock_mutation_stability;
 use crate::environments::genome_stuff::{NodeGene, WeightGene};
@@ -84,8 +84,9 @@ fn main() {
                     setup_population_meny,
                     reset_to_star_pos,
                     add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
                     color_elite_red,
-                    spawn_drawing_of_network_for_best_individ,
+                    spawn_drawing_of_network_for_individ_in_focus,
                 )
                     .chain(),
                 spawn_ground,
@@ -117,11 +118,12 @@ fn main() {
                     increase_generation_counter,
                     lock_mutation_stability,
                     add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
                     color_elite_red,
                     // save_best_to_history,
                     kill_worst_individuals,
-                    remove_drawing_of_network_for_best_individ,
-                    spawn_drawing_of_network_for_best_individ,
+                    remove_drawing_of_network,
+                    spawn_drawing_of_network_for_individ_in_focus,
                     create_new_children,
                     // spawn_a_random_new_individual2,
                     // mutate_planks,
@@ -440,7 +442,9 @@ fn spawn_a_random_new_individual(
         })
         .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
         .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-        .observe(rotate_on_drag);
+        .observe(rotate_on_drag)
+        .observe(place_in_focus)
+    ;
 }
 
 /// Returns an observer that updates the entity's material to the one specified.
@@ -514,28 +518,33 @@ fn color_elite_red(
 #[derive(Debug, Component)]
 struct EliteTag;
 
-fn spawn_drawing_of_network_for_best_individ<'a>(
+#[derive(Debug, Component)]
+struct IndividInFocus;
+
+fn set_best_individ_in_focus<'a>(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
     mut commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
 ) {
     // query: Query<'a, 'a, (Entity, &'a PlankPhenotype, &'a Genome), With<PlankPhenotype>>) {
     // let population = get_population_sorted_from_best_to_worst(query.iter());
-
     let elite = get_best_elite(query.iter());
-    // dbg!(&elite);
-    // todo kanskje heller lage en elite Resource som kan hentes inn direkte, istedenfor å sortere her og så kalle tegne funksjonen
-    draw_network_in_genome2(commands, meshes, materials, elite.genome);
+    commands.get_entity(elite.entity).unwrap().insert(IndividInFocus);
 }
-//
-// #[derive(Debug,Resource)]
-// struct EliteGenome {
-//     Genome
-// }
 
+fn spawn_drawing_of_network_for_individ_in_focus(
+    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
+    mut commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(&Genome), With<IndividInFocus>>,
+) {
+    let genome = query.get_single();
+
+    if genome.is_ok() {
+        draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
+    }
+}
 
 fn sort_best_to_worst<'a>(
     iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,

@@ -86,7 +86,7 @@ pub(crate) fn oppdater_node_tegninger(
     // println!("oppdater_node_tegninger ferdig");
 }
 
-pub(crate) fn remove_drawing_of_network_for_best_individ(
+pub(crate) fn remove_drawing_of_network(
     mut commands: Commands,
     mut query: Query<Entity, With<DrawingTag>>,
 ) {
