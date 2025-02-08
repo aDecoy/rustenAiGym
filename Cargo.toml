@@ -16,7 +16,7 @@ log = "0.4.22"
 #bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier.git" }
 
 # For 2D applications:
-avian2d = { version = "0.2.0", features = ["2d"] }
+avian2d = { version = "0.2.1", features = ["2d"] }
 #avian2d = { git = "https://github.com/Jondolf/avian.git", features = ["2d"] }
 
 
