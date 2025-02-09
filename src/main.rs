@@ -45,6 +45,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
+use bevy::color::palettes::css::GREEN;
 use bevy_inspector_egui::egui::debug_text::print;
 
 mod environments;
@@ -578,6 +579,19 @@ fn color_elite_red(
     }
 }
 
+fn color_focus_green(
+    mut commands: Commands,
+    mut elite_query: Query<Entity, With<IndividInFocus>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    if let Ok(elite_entity) = elite_query.get_single() {
+        let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(GREEN));
+        commands
+            .entity(elite_entity)
+            .insert(MeshMaterial2d(elite_material_handle));
+    }
+}
+
 #[derive(Debug, Component)]
 struct EliteTag;
 
@@ -894,7 +908,8 @@ fn create_new_children(
             ));
         })
         .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-        .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+        // .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+        .observe(rotate_on_drag)asdfasdfasdf 
         .observe(rotate_on_drag)
         .observe(place_in_focus);
     }
