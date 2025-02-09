@@ -23,7 +23,7 @@ use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::css::GREEN;
-use bevy::color::palettes::tailwind::CYAN_300;
+use bevy::color::palettes::tailwind::{CYAN_300, RED_300};
 use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::{QueryIter, QuerySingleError};
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
@@ -1047,6 +1047,7 @@ fn setup_population_meny(
                 // justify_content: JustifyContent::SpaceBetween,
                 // justify_content: JustifyContent::Stretch,
                 justify_content: JustifyContent::SpaceEvenly,
+                flex_direction: FlexDirection::Column,
                 // justify_content: JustifyContent::Center,
                 ..default()
             },
@@ -1055,8 +1056,53 @@ fn setup_population_meny(
         .with_children(|parent| {
             // kolonner som fyller hele veien ned
 
-            // starter med bare en, men legger kanskje til en knapp meny kolonne senere
-
+    // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
+            
+            // meny knapper div
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    flex_wrap: FlexWrap::Wrap,
+                    // justify_content: JustifyContent::SpaceEvenly,
+                    justify_content: JustifyContent::SpaceBetween,
+                    // align_items: AlignItems::Center,
+                    // width: Val::Px(700.),
+                    ..default()
+                }).with_children(|parent| {
+                // knapp 1
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(100.),
+                            height: Val::Px(50.),
+                            // border: UiRect::all(Val::Px(100.)),
+                            // margin: UiRect::all(Val::Px(10.)),
+                            overflow: Overflow::scroll_y(),
+                            ..default()
+                        },
+                        TextFont::default(),
+                        Text::new("en knapp"),
+                        BackgroundColor(Color::from(RED_300)),
+                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                    ));              
+                // knapp 2
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(100.),
+                            height: Val::Px(50.),
+                            // border: UiRect::all(Val::Px(100.)),
+                            // margin: UiRect::all(Val::Px(10.)),
+                            overflow: Overflow::scroll_y(),
+                            ..default()
+                        },
+                        TextFont::default(),
+                        Text::new("en knapp til"),
+                        BackgroundColor(Color::from(RED_300)),
+                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                    ));
+            });
+            
             // populasjon grid
             parent
                 .spawn(Node {
@@ -1065,7 +1111,7 @@ fn setup_population_meny(
                     // justify_content: JustifyContent::SpaceEvenly,
                     justify_content: JustifyContent::SpaceBetween,
                     // align_items: AlignItems::Center,
-                    width: Val::Px(700.),
+                    // width: Val::Px(700.),
                     ..default()
                 })
                 .with_children(|parent| {
