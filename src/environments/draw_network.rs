@@ -131,16 +131,16 @@ fn tegn_og_spawn_noder(
         let a_color = match node.enabled.read().unwrap().clone() {
             true => get_color_for_node_value(node_value),
             false => {
-                println!("tegner en inaktiv SVART! node");
+                // println!("tegner en inaktiv SVART! node");
                 Color::rgb(0.0, 0.0, 0.0)
             }
         };
-        if !node.enabled.read().unwrap().clone() {
-            println!("tegner en inaktiv SVART! node 1234");
-            dbg!(a_color);
-            dbg!(materials.add(a_color));
-            dbg!(MeshMaterial2d(materials.add(a_color)));
-        }
+        // if !node.enabled.read().unwrap().clone() {
+        //     println!("tegner en inaktiv SVART! node 1234");
+        //     dbg!(a_color);
+        //     dbg!(materials.add(a_color));
+        //     dbg!(MeshMaterial2d(materials.add(a_color)));
+        // }
 
         commands
             .spawn((
