@@ -22,6 +22,7 @@ use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 use bevy::color::palettes::basic::{PURPLE, RED};
+use bevy::color::palettes::css::GREEN;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::{QueryIter, QuerySingleError};
@@ -32,6 +33,7 @@ use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
 use bevy::render::RenderPlugin;
 use bevy::window::WindowResized;
+use bevy_inspector_egui::egui::debug_text::print;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
@@ -45,8 +47,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
-use bevy::color::palettes::css::GREEN;
-use bevy_inspector_egui::egui::debug_text::print;
 
 mod environments;
 
@@ -449,7 +449,8 @@ fn spawn_a_random_new_individual(
         ));
     })
     .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-    .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+    // .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+    .observe(pointer_out_of_individ)
     .observe(rotate_on_drag)
     .observe(place_in_focus);
 }
@@ -518,9 +519,11 @@ fn place_in_focus_from_meny(
     // });
     // println!("focus_trigger_click target {:?} ",  focus_trigger_click.target);
 
-    let meny_bokks_for_individ_entity = meny_individ_box_query.get(focus_trigger_click.target).unwrap();
+    let meny_bokks_for_individ_entity = meny_individ_box_query
+        .get(focus_trigger_click.target)
+        .unwrap();
     let individ_entity = meny_bokks_for_individ_entity.1.individEntity;
-    
+
     if let Some(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {
         invidiv_entity_commandering.insert(IndividInFocus);
         commands.send_event(IndividInFocusСhangedEvent {
@@ -909,9 +912,40 @@ fn create_new_children(
         })
         .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
         // .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-        .observe(rotate_on_drag)asdfasdfasdf 
+        .observe(pointer_out_of_individ)
         .observe(rotate_on_drag)
         .observe(place_in_focus);
+    }
+}
+
+fn pointer_out_of_individ(
+    entity_som_forlates: Trigger<Pointer<Out>>,
+    mut query: Query<
+        (
+            Entity,
+            &mut MeshMaterial2d<ColorMaterial>,
+            Option<&EliteTag>,
+            Option<&IndividInFocus>,
+        ),
+        With<Individ>,
+    >,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let material_default: Handle<ColorMaterial> =
+        materials.add(Color::from(PURPLE).with_alpha(0.5));
+    let material_elite = materials.add(Color::from(RED));
+    let material_in_focus = materials.add(Color::from(GREEN));
+
+    if let Ok((entity, mut material_handle, elite, in_focus)) =
+        query.get_mut(entity_som_forlates.target)
+    {
+        if elite.is_some() {
+            material_handle.0 = material_elite.clone();
+        } else if in_focus.is_some() {
+            material_handle.0 = material_in_focus.clone();
+        } else {
+            material_handle.0 = material_default.clone();
+        }
     }
 }
 
