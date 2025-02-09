@@ -64,87 +64,88 @@ fn main() {
         }),
         synchronous_pipeline_compilation: false,
     }))
-    // .add_plugins(DefaultPlugins)
-    .insert_state(Kjøretilstand::Kjørende)
-    .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-    .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins(MeshPickingPlugin)
-    .insert_state(EttHakkState::DISABLED)
-    .add_event::<IndividInFocusСhangedEvent>()
-    .init_resource::<GenerationCounter>()
-    .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-    // .init_resource(     EnvValg { Homing} )
-    .add_event::<ResetToStartPositionsEvent>()
-    .add_systems(
-        Startup,
-        (
+        // .add_plugins(DefaultPlugins)
+        .insert_state(Kjøretilstand::Kjørende)
+        .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(MeshPickingPlugin)
+        .insert_state(EttHakkState::DISABLED)
+        .add_event::<IndividInFocusСhangedEvent>()
+        .init_resource::<GenerationCounter>()
+        .insert_resource(InnovationNumberGlobalCounter { count: 0 })
+        // .init_resource(     EnvValg { Homing} )
+        .add_event::<ResetToStartPositionsEvent>()
+        .add_systems(
+            Startup,
             (
-                setup_camera,
-                spawn_start_population,
-                setup_population_meny,
-                reset_to_star_pos,
-                add_elite_component_tag_to_best_individ,
-                set_best_individ_in_focus,
-                color_elite_red,
-                spawn_drawing_of_network_for_individ_in_focus,
-            )
-                .chain(),
-            spawn_ground,
-            spawn_roof,
-            spawn_landing_target,
-        ),
-    )
-    .add_systems(
-        Update,
-        (
-            set_camera_viewports,
-            endre_kjøretilstand_ved_input,
-            reset_event_ved_input,
-            reset_to_star_pos_on_event,
-            endre_om_mutasjoner_er_aktive_ved_input,
-            extinction_on_t,
+                (
+                    setup_camera,
+                    spawn_start_population,
+                    setup_population_meny,
+                    reset_to_star_pos,
+                    add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
+                    color_elite_red,
+                    spawn_drawing_of_network_for_individ_in_focus,
+                )
+                    .chain(),
+                spawn_ground,
+                spawn_roof,
+                spawn_landing_target,
+            ),
+        )
+        .add_systems(
+            Update,
             (
-                // print_pois_velocity_and_force,
-                agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-                label_plank_with_current_score,
-                oppdater_node_tegninger,
-                // eventer hvis individ i fokus skifter
-                remove_drawing_of_network_for_individ_in_focus,
-                spawn_drawing_of_network_for_changed_individ_in_focus,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::Kjørende)),
-            check_if_done,
-            // check_if_done.run_if(every_time_if_stop_on_right_window()),
-            (
-                // print_pop_conditions,
-                increase_generation_counter,
-                lock_mutation_stability,
-                add_elite_component_tag_to_best_individ,
-                set_best_individ_in_focus,
-                color_elite_red,
-                // save_best_to_history,
-                kill_worst_individuals,
-                remove_drawing_of_network,
-                spawn_drawing_of_network_for_individ_in_focus,
-                create_new_children,
-                // spawn_a_random_new_individual2,
-                // mutate_planks,
-                mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                update_phenotype_network_for_changed_genomes
-                    .run_if(in_state(MutasjonerErAktive::Ja)),
-                reset_to_star_pos,
-                nullstill_nettverk_verdier_til_0,
-                set_to_kjørende_state,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-        ),
-    )
-    // Environment spesific : Later changed
-    .add_plugins(MovingPlankPlugin)
-    .add_plugins(SimulationRunningTellerPlugin);
+                set_camera_viewports,
+                endre_kjøretilstand_ved_input,
+                reset_event_ved_input,
+                reset_to_star_pos_on_event,
+                endre_om_mutasjoner_er_aktive_ved_input,
+                extinction_on_t,
+                (
+                    // print_pois_velocity_and_force,
+                    agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
+                    label_plank_with_current_score,
+                    label_plank_with_current_score_in_meny,
+                    oppdater_node_tegninger,
+                    // eventer hvis individ i fokus skifter
+                    remove_drawing_of_network_for_individ_in_focus,
+                    spawn_drawing_of_network_for_changed_individ_in_focus,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::Kjørende)),
+                check_if_done,
+                // check_if_done.run_if(every_time_if_stop_on_right_window()),
+                (
+                    // print_pop_conditions,
+                    increase_generation_counter,
+                    lock_mutation_stability,
+                    add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
+                    color_elite_red,
+                    // save_best_to_history,
+                    kill_worst_individuals,
+                    remove_drawing_of_network,
+                    spawn_drawing_of_network_for_individ_in_focus,
+                    create_new_children,
+                    // spawn_a_random_new_individual2,
+                    // mutate_planks,
+                    mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                    update_phenotype_network_for_changed_genomes
+                        .run_if(in_state(MutasjonerErAktive::Ja)),
+                    reset_to_star_pos,
+                    nullstill_nettverk_verdier_til_0,
+                    set_to_kjørende_state,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+            ),
+        )
+        // Environment spesific : Later changed
+        .add_plugins(MovingPlankPlugin)
+        .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
 }
@@ -309,7 +310,7 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 10;
+static START_POPULATION_SIZE: i32 = 3;
 static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 1;
 static ANT_PARENTS_HVER_GENERASJON: usize = 1;
 
@@ -436,19 +437,19 @@ fn spawn_a_random_new_individual(
             camera_entity,
         )),
     }
-    .with_children(|builder| {
-        builder.spawn((
-            Text2d::new("translation"),
-            TextLayout::new_with_justify(JustifyText::Center),
-            Transform::from_xyz(0.0, 0.0, 2.0),
-            IndividLabelText,
-            RenderLayers::layer(1),
-        ));
-    })
-    .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-    .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-    .observe(rotate_on_drag)
-    .observe(place_in_focus);
+        .with_children(|builder| {
+            builder.spawn((
+                Text2d::new("translation"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+                IndividFitnessLabelTextTag,
+                RenderLayers::layer(1),
+            ));
+        })
+        .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+        .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+        .observe(rotate_on_drag)
+        .observe(place_in_focus);
 }
 
 /// Returns an observer that updates the entity's material to the one specified.
@@ -851,24 +852,27 @@ fn create_new_children(
                 camera.get_single().unwrap(),
             )),
         }
-        .with_children(|builder| {
-            builder.spawn((
-                Text2d::new("Fitness label"),
-                TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-                IndividLabelText,
-                RenderLayers::layer(1),
-            ));
-        })
-        .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-        .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-        .observe(rotate_on_drag)
-        .observe(place_in_focus);
+            .with_children(|builder| {
+                builder.spawn((
+                    Text2d::new("Fitness label"),
+                    TextLayout::new_with_justify(JustifyText::Center),
+                    Transform::from_xyz(0.0, 0.0, 2.0),
+                    IndividFitnessLabelTextTag,
+                    RenderLayers::layer(1),
+                ));
+            })
+            .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+            .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
+            .observe(rotate_on_drag)
+            .observe(place_in_focus);
     }
 }
 
 #[derive(Component)]
-struct IndividLabelText;
+struct IndividFitnessLabelTextTag;
+
+#[derive(Component)]
+struct IndividFitnessLabelText{ entity: Entity}
 
 #[derive(PartialEq, Resource, Eq, Hash)]
 enum EnvValg {
@@ -977,6 +981,7 @@ fn setup_population_meny(
                     ..default()
                 })
                 .with_children(|parent| {
+                    // EN BOKS PER INDIVID
                     for phenotype_and_genome in population {
                         let ancestor_id = phenotype_and_genome.genome.original_ancestor_id;
                         let fitness_score = phenotype_and_genome.phenotype.score;
@@ -990,17 +995,30 @@ fn setup_population_meny(
                                     overflow: Overflow::scroll_y(),
                                     ..default()
                                 },
+                                TextFont::default(),
                                 BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                                RenderLayers::layer(RENDER_LAYER_POPULASJON),
+                                RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
                             ))
-                            // det som er inne i den grå bokksen
+                            // Tekst som er inne i den grå bokksen
                             .with_children(|parent| {
                                 parent.spawn((
+                                    // NB: Tekst inside of NODE can not be text2d. Text2d does not care about UI grid stuff
                                     Text::new(format!(
-                                        "Ancestor_id {ancestor_id}, score {fitness_score} "
+                                        "Ancestor_id {ancestor_id}, score:  "
                                     )),
                                     TextFont::from_font_size(10.0),
-                                ));
+                                    RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                                ))
+                                    .with_child((
+                                                    // TextSpan::default(),
+                                                    // Text::new(format!("{}", fitness_score)),
+                                                    TextFont::from_font_size(15.0),
+                                                    TextSpan::default(), // tekst er inne i textSpan når den er en child, og ting blir tullete om det er inne i en text
+                                                    IndividFitnessLabelTextTag,
+                                                    IndividFitnessLabelText { entity : phenotype_and_genome.entity},
+                                                    RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                                                ),
+                                    );
                             });
                     }
                 });
@@ -1020,6 +1038,8 @@ fn setup_population_meny(
         });
 }
 
+
+
 #[derive(Component)]
 struct CameraPosition {
     pos: UVec2,
@@ -1030,7 +1050,7 @@ struct AllIndividerCamera;
 
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
-const RENDER_LAYER_POPULASJON: usize = 2;
+const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 
 fn setup_camera(mut commands: Commands) {
     // commands.spawn(Camera2d::default());
@@ -1083,7 +1103,7 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
-            RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON]),
+            RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
         ))
         .id();
 }
@@ -1316,9 +1336,9 @@ fn agent_action_and_fitness_evaluation(
         let input_values = plank.obseravations.clone();
         // dbg!(&input_values);
         let action = plank.phenotype_layers.decide_on_action2(input_values); // fungerer
-                                                                             // dbg!(&action);
-                                                                             // individual.translation.x += random::<f32>() * action * 5.0;
-                                                                             // println!("action : {action}");
+        // dbg!(&action);
+        // individual.translation.x += random::<f32>() * action * 5.0;
+        // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
@@ -1372,12 +1392,23 @@ fn agent_action_and_fitness_evaluation(
 }
 
 fn label_plank_with_current_score(
-    mut query: Query<(&mut Text2d, &Parent), With<IndividLabelText>>,
+    mut query: Query<(&mut Text2d, &Parent), With<IndividFitnessLabelTextTag>>,
     parent_query: Query<&PlankPhenotype>,
 ) {
     for (mut tekst, parent_entity) in query.iter_mut() {
         if let Ok(plank_phenotype) = parent_query.get(**parent_entity) {
             tekst.0 = plank_phenotype.score.to_string();
+        }
+    }
+}
+
+fn label_plank_with_current_score_in_meny(
+    mut query: Query<(&mut TextSpan, &IndividFitnessLabelText)>,
+    phenotype_query: Query<&PlankPhenotype>,
+) {
+    for (mut span, individFitnessLabelText) in query.iter_mut() {
+        if let Ok(pheontype) = phenotype_query .get(individFitnessLabelText.entity ) {
+            **span = format!("{:.5}", pheontype.score);
         }
     }
 }
@@ -1389,9 +1420,9 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
-                                                  // pub genotype: Genome,
-                                                  // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
-                                                  // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+    // pub genotype: Genome,
+    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 #[derive(Component, Debug)]
