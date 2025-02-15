@@ -86,6 +86,7 @@ fn main() {
                 setup_camera,
                 spawn_start_population,
                 setup_population_meny,
+                setup_top_knapp_meny,
                 reset_to_star_pos,
                 add_elite_component_tag_to_best_individ,
                 set_best_individ_in_focus,
@@ -973,6 +974,65 @@ struct MenyTagForIndivid {
     individEntity: Entity,
 }
 
+fn setup_top_knapp_meny(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    camera_query: Query<(Entity, &Camera), With<TopKnapperMenyCameraTag>>,
+) {
+    let (camera_entity, camera) = camera_query.single();
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                // justify_content: JustifyContent::SpaceBetween,
+                // justify_content: JustifyContent::Stretch,
+                justify_content: JustifyContent::SpaceEvenly,
+                flex_direction: FlexDirection::Row,
+                // justify_content: JustifyContent::Center,
+                ..default()
+            },
+            Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
+            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+            TargetCamera(camera_entity), // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Px(100.),
+                    height: Val::Px(50.),
+                    // border: UiRect::all(Val::Px(100.)),
+                    // margin: UiRect::all(Val::Px(10.)),
+                    overflow: Overflow::scroll_y(),
+                    ..default()
+                },
+                TextFont::default(),
+                Text::new("en knapp"),
+                BackgroundColor(Color::from(RED_300)),
+                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                // TargetCamera(camera_entity),  // Target camera brukes for UI ting
+            ));
+            // knapp 2
+            parent.spawn((
+                Node {
+                    width: Val::Px(100.),
+                    height: Val::Px(50.),
+                    // border: UiRect::all(Val::Px(100.)),
+                    // margin: UiRect::all(Val::Px(10.)),
+                    overflow: Overflow::scroll_y(),
+                    ..default()
+                },
+                TextFont::default(),
+                Text::new("en knapp til"),
+                BackgroundColor(Color::from(RED_300)),
+                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                // TargetCamera(camera_entity),
+            ));
+        });
+}
+
 fn setup_population_meny(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -991,7 +1051,7 @@ fn setup_population_meny(
     //     MeshMaterial2d(material_handle),
     //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
     // ));
-    let (camera_entity, camera)  = camera_query.single();
+    let (camera_entity, camera) = camera_query.single();
     // root node
     commands
         .spawn((
@@ -1006,14 +1066,12 @@ fn setup_population_meny(
                 ..default()
             },
             Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-            TargetCamera(camera_entity) // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+            TargetCamera(camera_entity), // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
         ))
         .with_children(|parent| {
             // kolonner som fyller hele veien ned
-
             // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
-
             // meny knapper div
             parent
                 .spawn(Node {
@@ -1023,10 +1081,9 @@ fn setup_population_meny(
                     justify_content: JustifyContent::SpaceBetween,
                     // align_items: AlignItems::Center,
                     // width: Val::Px(700.),
-
                     ..default()
                 })
-            .with_children(|parent| {
+                .with_children(|parent| {
                     // knapp 1
                     parent.spawn((
                         Node {
@@ -1140,7 +1197,7 @@ struct CameraPosition {
 }
 #[derive(Component)]
 struct CameraAbsolutePosition {
-    pos: UVec2,
+    y_høyde: u32,
 }
 
 #[derive(Component)]
@@ -1148,6 +1205,9 @@ struct AllIndividerCamera;
 
 #[derive(Component)]
 struct PopulasjonMenyCameraTag;
+
+#[derive(Component)]
+struct TopKnapperMenyCameraTag;
 
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
@@ -1210,26 +1270,33 @@ fn setup_camera(mut commands: Commands) {
         ))
         .id();
 
-    commands
-        .spawn((
-            Camera2d::default(),
-            Camera {
-                // Renders cameras with different priorities to prevent ambiguities
-                order: 3 as isize,
-                ..default()
-            },
-            CameraAbsolutePosition {
-                pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
-                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
-            },
-            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
-        ));
+    commands.spawn((
+        Camera2d::default(),
+        Camera {
+            // Renders cameras with different priorities to prevent ambiguities
+            order: 3 as isize,
+            ..default()
+        },
+        CameraAbsolutePosition {
+            y_høyde: 50,
+            // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+        },
+        TopKnapperMenyCameraTag,
+        RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
+    ));
 }
 
 fn set_camera_viewports(
     windows: Query<&Window>,
     mut resize_events: EventReader<WindowResized>,
-    // mut absolutt_kamera_query: Query<(&CameraAbsolutePosition, &mut Camera), (Without<CameraPosition>,Without<AllIndividerCamera> )>,
+    mut absolutt_kamera_query: Query<
+        (&CameraAbsolutePosition, &mut Camera),
+        (
+            With<TopKnapperMenyCameraTag>,
+            Without<CameraPosition>,
+            Without<AllIndividerCamera>,
+        ),
+    >,
     mut kvart_kamera_query: Query<
         (&CameraPosition, &mut Camera),
         (Without<AllIndividerCamera>, Without<CameraAbsolutePosition>),
@@ -1246,9 +1313,14 @@ fn set_camera_viewports(
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();
         println!("resize_event");
-        // let window_without_meny_size = window.physical_size()- absolutt_kamera_query.single().0.pos ;
+        let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut();
+        let window_without_meny_size = window.physical_size()
+            - UVec2 {
+                x: 0,
+                y: knapp_meny_position.y_høyde,
+            };
         // let window_without_meny_size = window.physical_size()- UVec2::new(10 as u32, 10 as u32) ;
-        let window_without_meny_size = window.physical_size();
+        // let window_without_meny_size = window.physical_size();
 
         let kvart_skjerm_størrelse = window_without_meny_size / 2;
         dbg!(&window_without_meny_size);
@@ -1278,6 +1350,18 @@ fn set_camera_viewports(
                 ..default()
             });
         }
+
+        knapp_meny_camera.viewport = Some(Viewport {
+            physical_position: UVec2 {
+                x: 0,
+                y: window_without_meny_size.y,
+            },
+            physical_size: UVec2 {
+                x: window_without_meny_size.x,
+                y: knapp_meny_position.y_høyde,
+            },
+            ..default()
+        });
     }
 }
 
