@@ -1,6 +1,9 @@
 // use bevy::asset::io::memory::Value::Vec;
 use crate::environments::draw_network::{
-    draw_network_in_genome2, oppdater_node_tegninger, remove_drawing_of_network, DrawingTag,
+    oppdater_node_tegninger, remove_drawing_of_network,
+    remove_drawing_of_network_for_individ_in_focus,
+    spawn_drawing_of_network_for_changed_individ_in_focus,
+    spawn_drawing_of_network_for_individ_in_focus,
 };
 use crate::environments::genom_muteringer::lock_mutation_stability;
 use crate::environments::genom_muteringer::mutate_genomes;
@@ -25,7 +28,7 @@ use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::css::GREEN;
 use bevy::color::palettes::tailwind::{CYAN_300, RED_300};
 use bevy::ecs::observer::TriggerTargets;
-use bevy::ecs::query::{QueryIter, QuerySingleError};
+use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
 use bevy::render::camera::Viewport;
@@ -33,19 +36,18 @@ use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
 use bevy::render::RenderPlugin;
 use bevy::window::WindowResized;
-use bevy_inspector_egui::egui::debug_text::print;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
-use rand::distributions::Uniform;
+use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{random, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use std::cmp::{max, min, Ordering, PartialEq};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::vec::Vec;
 
 mod environments;
@@ -620,55 +622,6 @@ fn set_best_individ_in_focus<'a>(
         .insert(IndividInFocus);
 }
 
-fn spawn_drawing_of_network_for_individ_in_focus(
-    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
-    mut commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<(&Genome), With<IndividInFocus>>,
-) {
-    let genome = query.get_single();
-
-    if genome.is_ok() {
-        draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
-    }
-}
-
-fn remove_drawing_of_network_for_individ_in_focus(
-    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
-    mut query: Query<Entity, With<DrawingTag>>,
-    mut commands: Commands,
-) {
-    let individInFocusChangedEvent = event_reader.read().next();
-    if individInFocusChangedEvent.is_some() {
-        println!("indovid endret fokus");
-
-        for (entity) in query.iter_mut() {
-            // dbg!(entity);
-            commands.entity(entity).despawn_recursive();
-        }
-    }
-}
-
-fn spawn_drawing_of_network_for_changed_individ_in_focus(
-    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
-    commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
-    // mut query_new_in_foscus: Query<&Genome, With<IndividInFocus>, Added<IndividInFocus>>,
-    mut query_new_in_foscus: Query<&Genome, Added<IndividInFocus>>,
-) {
-    let individInFocusChangedEvent = event_reader.read().next();
-    if individInFocusChangedEvent.is_some() {
-        assert!(!query_new_in_foscus.is_empty());
-        let genome = query_new_in_foscus
-            .get(individInFocusChangedEvent.unwrap().entity)
-            .unwrap();
-        draw_network_in_genome2(commands, meshes, materials, genome);
-    }
-}
-
 fn sort_best_to_worst<'a>(
     iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
 ) -> Vec<PhentypeAndGenome<'a>> {
@@ -1025,6 +978,7 @@ fn setup_population_meny(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity, &PlankPhenotype, &Genome)>,
+    camera_query: Query<(Entity, &Camera), With<PopulasjonMenyCameraTag>>,
 ) {
     let population: Vec<PhentypeAndGenome> =
         get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
@@ -1037,7 +991,7 @@ fn setup_population_meny(
     //     MeshMaterial2d(material_handle),
     //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
     // ));
-
+    let (camera_entity, camera)  = camera_query.single();
     // root node
     commands
         .spawn((
@@ -1052,12 +1006,14 @@ fn setup_population_meny(
                 ..default()
             },
             Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
+            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+            TargetCamera(camera_entity) // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
         ))
         .with_children(|parent| {
             // kolonner som fyller hele veien ned
 
-    // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
-            
+            // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
+
             // meny knapper div
             parent
                 .spawn(Node {
@@ -1067,11 +1023,12 @@ fn setup_population_meny(
                     justify_content: JustifyContent::SpaceBetween,
                     // align_items: AlignItems::Center,
                     // width: Val::Px(700.),
+
                     ..default()
-                }).with_children(|parent| {
-                // knapp 1
-                parent
-                    .spawn((
+                })
+            .with_children(|parent| {
+                    // knapp 1
+                    parent.spawn((
                         Node {
                             width: Val::Px(100.),
                             height: Val::Px(50.),
@@ -1083,11 +1040,11 @@ fn setup_population_meny(
                         TextFont::default(),
                         Text::new("en knapp"),
                         BackgroundColor(Color::from(RED_300)),
-                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                    ));              
-                // knapp 2
-                parent
-                    .spawn((
+                        // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                        // TargetCamera(camera_entity),  // Target camera brukes for UI ting
+                    ));
+                    // knapp 2
+                    parent.spawn((
                         Node {
                             width: Val::Px(100.),
                             height: Val::Px(50.),
@@ -1099,10 +1056,11 @@ fn setup_population_meny(
                         TextFont::default(),
                         Text::new("en knapp til"),
                         BackgroundColor(Color::from(RED_300)),
-                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                        // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                        // TargetCamera(camera_entity),
                     ));
-            });
-            
+                });
+
             // populasjon grid
             parent
                 .spawn(Node {
@@ -1180,13 +1138,21 @@ fn setup_population_meny(
 struct CameraPosition {
     pos: UVec2,
 }
+#[derive(Component)]
+struct CameraAbsolutePosition {
+    pos: UVec2,
+}
 
 #[derive(Component)]
 struct AllIndividerCamera;
 
+#[derive(Component)]
+struct PopulasjonMenyCameraTag;
+
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON_MENY: usize = 2;
+const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
 
 fn setup_camera(mut commands: Commands) {
     // commands.spawn(Camera2d::default());
@@ -1239,16 +1205,39 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
+            PopulasjonMenyCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
         ))
         .id();
+
+    commands
+        .spawn((
+            Camera2d::default(),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 3 as isize,
+                ..default()
+            },
+            CameraAbsolutePosition {
+                pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
+                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+            },
+            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
+        ));
 }
 
 fn set_camera_viewports(
     windows: Query<&Window>,
     mut resize_events: EventReader<WindowResized>,
-    mut kvart_kamera_query: Query<(&CameraPosition, &mut Camera), Without<AllIndividerCamera>>,
-    mut halv_kamera_query: Query<(&CameraPosition, &mut Camera), With<AllIndividerCamera>>,
+    // mut absolutt_kamera_query: Query<(&CameraAbsolutePosition, &mut Camera), (Without<CameraPosition>,Without<AllIndividerCamera> )>,
+    mut kvart_kamera_query: Query<
+        (&CameraPosition, &mut Camera),
+        (Without<AllIndividerCamera>, Without<CameraAbsolutePosition>),
+    >,
+    mut halv_kamera_query: Query<
+        (&CameraPosition, &mut Camera),
+        (With<AllIndividerCamera>, Without<CameraAbsolutePosition>),
+    >,
 ) {
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
@@ -1256,18 +1245,33 @@ fn set_camera_viewports(
 
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();
-        let kvart_skjerm_størrelse = window.physical_size() / 2;
+        println!("resize_event");
+        // let window_without_meny_size = window.physical_size()- absolutt_kamera_query.single().0.pos ;
+        // let window_without_meny_size = window.physical_size()- UVec2::new(10 as u32, 10 as u32) ;
+        let window_without_meny_size = window.physical_size();
+
+        let kvart_skjerm_størrelse = window_without_meny_size / 2;
+        dbg!(&window_without_meny_size);
+        dbg!(&kvart_skjerm_størrelse);
+        println!("------------");
+
         let halv_skjerm_størrelse =
-            UVec2::new(window.physical_size().x / 2, window.physical_size().y);
+            UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
 
         for (camera_position, mut camera) in &mut kvart_kamera_query {
+            println!("Kvart-kamera justeres");
+            dbg!(&kvart_skjerm_størrelse);
+            dbg!(&camera_position.pos);
             camera.viewport = Some(Viewport {
                 physical_position: camera_position.pos * kvart_skjerm_størrelse,
                 physical_size: kvart_skjerm_størrelse,
                 ..default()
             });
+            dbg!(&camera.viewport);
+            println!("------------");
         }
         for (camera_position, mut camera) in &mut halv_kamera_query {
+            println!("Halv-kamera justeres");
             camera.viewport = Some(Viewport {
                 physical_position: camera_position.pos * halv_skjerm_størrelse,
                 physical_size: halv_skjerm_størrelse,

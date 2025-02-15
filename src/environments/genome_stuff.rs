@@ -1,9 +1,9 @@
 use bevy::prelude::{Component, ResMut, Resource};
-use rand::distributions::Uniform;
-use rand::{random, thread_rng, Rng};
+use rand::{random, rng, thread_rng, Rng};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};
+use rand::distr::Uniform;
 
 // #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
 #[derive(Debug)] // todo spesifisker eq uten f32 verdiene
@@ -167,8 +167,8 @@ pub fn new_random_genome(
     innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
 ) -> Genome {
     let mut node_genes = Vec::new();
-    let mut thread_random = thread_rng();
-    let uniform_dist = Uniform::new(-1.0, 1.0);
+    let mut thread_random = rng();
+    let uniform_dist = Uniform::new(-1.0, 1.0).unwrap();
     // let mut input_layer2: Vec<NodeGene> = Vec::new();
     // let mut output_layer2: Vec<NodeGene> = Vec::new();
     for n in 0..ant_inputs {

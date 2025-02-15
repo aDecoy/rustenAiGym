@@ -1,4 +1,4 @@
-use crate::{Genome, NodeGene, WeightGene};
+use crate::{Genome, IndividInFocus, IndividInFocusСhangedEvent, NodeGene, WeightGene};
 use bevy::color::palettes::basic::{BLUE, GREEN, RED};
 use bevy::color::ColorCurve;
 use bevy::prelude::*;
@@ -433,4 +433,54 @@ fn kordinater_per_node(
         }
     }
     point_per_node
+}
+
+
+pub fn spawn_drawing_of_network_for_individ_in_focus(
+    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
+    mut commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(&Genome), With<IndividInFocus>>,
+) {
+    let genome = query.get_single();
+
+    if genome.is_ok() {
+        draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
+    }
+}
+
+pub fn remove_drawing_of_network_for_individ_in_focus(
+    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
+    mut query: Query<Entity, With<DrawingTag>>,
+    mut commands: Commands,
+) {
+    let individInFocusChangedEvent = event_reader.read().next();
+    if individInFocusChangedEvent.is_some() {
+        println!("indovid endret fokus");
+
+        for (entity) in query.iter_mut() {
+            // dbg!(entity);
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
+    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
+    commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
+    // mut query_new_in_foscus: Query<&Genome, With<IndividInFocus>, Added<IndividInFocus>>,
+    mut query_new_in_foscus: Query<&Genome, Added<IndividInFocus>>,
+) {
+    let individ_in_focus_changed_event = event_reader.read().next();
+    if individ_in_focus_changed_event.is_some() {
+        assert!(!query_new_in_foscus.is_empty());
+        let genome = query_new_in_foscus
+            .get(individ_in_focus_changed_event.unwrap().entity)
+            .unwrap();
+        draw_network_in_genome2(commands, meshes, materials, genome);
+    }
 }
