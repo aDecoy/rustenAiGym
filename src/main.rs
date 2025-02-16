@@ -22,11 +22,12 @@ use crate::environments::simulation_teller::{
 use avian2d::math::{AdjustPrecision, Vector};
 // use bevy_rapier2d::na::DimAdd;
 // use bevy_rapier2d::prelude::*;
+use avian2d::parry::na::Point;
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::css::GREEN;
-use bevy::color::palettes::tailwind::{CYAN_300, RED_300};
+use bevy::color::palettes::tailwind::{CYAN_300, RED_300, RED_800};
 use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
@@ -86,7 +87,7 @@ fn main() {
                 setup_camera,
                 spawn_start_population,
                 setup_population_meny,
-                setup_top_knapp_meny,
+                setup_knapp_meny,
                 reset_to_star_pos,
                 add_elite_component_tag_to_best_individ,
                 set_best_individ_in_focus,
@@ -328,7 +329,7 @@ fn spawn_start_population(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera: Query<Entity, With<AllIndividerCamera>>,
+    camera: Query<Entity, With<AllIndividerCameraTag>>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
@@ -370,7 +371,7 @@ fn spawn_a_random_new_individual2(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera: Query<Entity, With<AllIndividerCamera>>,
+    camera: Query<Entity, With<AllIndividerCameraTag>>,
 ) {
     let n: i32 = 1;
     spawn_a_random_new_individual(
@@ -542,7 +543,7 @@ fn extinction_on_t(
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
     innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
-    camera: Query<Entity, With<AllIndividerCamera>>,
+    camera: Query<Entity, With<AllIndividerCameraTag>>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
@@ -749,7 +750,7 @@ fn create_new_children(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
-    camera: Query<Entity, With<AllIndividerCamera>>,
+    camera: Query<Entity, With<AllIndividerCameraTag>>,
 ) {
     let mut population = Vec::new();
     //sort_individuals
@@ -974,11 +975,11 @@ struct MenyTagForIndivid {
     individEntity: Entity,
 }
 
-fn setup_top_knapp_meny(
+fn setup_knapp_meny(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    camera_query: Query<(Entity, &Camera), With<TopKnapperMenyCameraTag>>,
+    mut camera_query: Query<(Entity, &Camera), With<KnapperMenyCameraTag>>,
 ) {
     let (camera_entity, camera) = camera_query.single();
 
@@ -987,37 +988,57 @@ fn setup_top_knapp_meny(
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                // justify_content: JustifyContent::SpaceBetween,
-                // justify_content: JustifyContent::Stretch,
-                justify_content: JustifyContent::SpaceEvenly,
+                justify_content: JustifyContent::SpaceAround,
                 flex_direction: FlexDirection::Row,
-                // justify_content: JustifyContent::Center,
                 ..default()
             },
             Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
             TargetCamera(camera_entity), // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Node {
-                    width: Val::Px(100.),
-                    height: Val::Px(50.),
-                    // border: UiRect::all(Val::Px(100.)),
-                    // margin: UiRect::all(Val::Px(10.)),
-                    overflow: Overflow::scroll_y(),
-                    ..default()
-                },
-                TextFont::default(),
-                Text::new("en knapp"),
-                BackgroundColor(Color::from(RED_300)),
-                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                // TargetCamera(camera_entity),  // Target camera brukes for UI ting
-            ));
+            parent
+                .spawn((
+                    Node {
+                        // width: Val::Px(100.),
+                        height: Val::Px(50.),
+                        // border: UiRect::all(Val::Px(100.)),
+                        // margin: UiRect::all(Val::Px(10.)),
+                        overflow: Overflow::scroll_y(),
+                        ..default()
+                    },
+                    TextFont::default(),
+                    Text::new("Environment camera on/off"),
+                    BackgroundColor(Color::from(RED_800)),
+                ))
+                .observe(
+                    |trigger: Trigger<Pointer<Click>>,
+                     // mut cameras: Query<&mut Camera &AllIndividerCamera, With<AllIndividerCamera>>,
+                     mut cameras: Query<
+                        (Entity, &mut Camera, &mut CameraViewportSetting),
+                        With<AllIndividerCameraTag>,
+                    >,
+                     // TENKE TENKE... KAN HA HVILKE KAMERAER SOM ER AKTIVE I EN RES. ELLER JEG KAN GI DE EN KOMPENENT MED BOLEAN AKTIVE INAKTIVE VERDI, OG LYTTE PÅ CHAGES
+                     //     // kANSKJE OGSÅ TRIGGRE WINDOW RESIZE EVENT, SLIK AT DE BLIR TILPASSET PÅ NYTT....
+                     //     // iSTEDENFOR ON OFF. Kvart skjer, halv skjerm, hel skjerm, av.
+                     mut resize_camera_windows: EventWriter<WindowResized>,
+                     mut commands: Commands,
+                     windows: Query<(Entity, &Window)>| {
+                        let (entity, camera, mut camera_viewport_settings) =
+                            cameras.get_single_mut().unwrap();
+                        camera_viewport_settings.next_camera_mode_index();
+                        // Trigger event to make system that handles viewport changes to run
+                        let (window_entity, window) = windows.get_single().unwrap();
+                        resize_camera_windows.send(WindowResized {
+                            window: window_entity,
+                            width: window.size().x,
+                            height: window.size().y,
+                        });
+                    },
+                );
+
             // knapp 2
             parent.spawn((
                 Node {
-                    width: Val::Px(100.),
                     height: Val::Px(50.),
                     // border: UiRect::all(Val::Px(100.)),
                     // margin: UiRect::all(Val::Px(10.)),
@@ -1025,10 +1046,8 @@ fn setup_top_knapp_meny(
                     ..default()
                 },
                 TextFont::default(),
-                Text::new("en knapp til"),
-                BackgroundColor(Color::from(RED_300)),
-                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                // TargetCamera(camera_entity),
+                Text::new("Node tegning på/av"),
+                BackgroundColor(Color::from(RED_800)),
             ));
         });
 }
@@ -1200,14 +1219,39 @@ struct CameraAbsolutePosition {
     y_høyde: u32,
 }
 
+#[derive(Clone, PartialEq)]
+#[derive(Debug)]
+enum CameraMode {
+    KVART,
+    HALV,
+    HEL,
+    AV,
+}
+
 #[derive(Component)]
-struct AllIndividerCamera;
+struct CameraViewportSetting {
+    camera_modes: Vec<CameraMode>,
+    active_camera_mode_index: usize,
+}
+
+impl CameraViewportSetting {
+    fn next_camera_mode_index(&mut self) {
+        self.active_camera_mode_index =
+            (self.active_camera_mode_index + 1) % self.camera_modes.len();
+    }
+    fn get_camera_mode(&self) -> CameraMode {
+        self.camera_modes[self.active_camera_mode_index].clone()
+    }
+}
+
+#[derive(Component)]
+struct AllIndividerCameraTag;
 
 #[derive(Component)]
 struct PopulasjonMenyCameraTag;
 
 #[derive(Component)]
-struct TopKnapperMenyCameraTag;
+struct KnapperMenyCameraTag;
 
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
@@ -1248,7 +1292,12 @@ fn setup_camera(mut commands: Commands) {
                 pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
-            AllIndividerCamera,
+            // AllIndividerCamera{ camera_mode: CameraMode::HALV },
+            AllIndividerCameraTag,
+            CameraViewportSetting {
+                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
+                active_camera_mode_index: 0,
+            },
             RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
         ))
         .id();
@@ -1281,7 +1330,7 @@ fn setup_camera(mut commands: Commands) {
             y_høyde: 50,
             // pos: UVec2::new((1 % 2) as u32, (1) as u32),
         },
-        TopKnapperMenyCameraTag,
+        KnapperMenyCameraTag,
         RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
     ));
 }
@@ -1292,18 +1341,21 @@ fn set_camera_viewports(
     mut absolutt_kamera_query: Query<
         (&CameraAbsolutePosition, &mut Camera),
         (
-            With<TopKnapperMenyCameraTag>,
+            With<KnapperMenyCameraTag>,
             Without<CameraPosition>,
-            Without<AllIndividerCamera>,
+            Without<AllIndividerCameraTag>,
         ),
     >,
     mut kvart_kamera_query: Query<
         (&CameraPosition, &mut Camera),
-        (Without<AllIndividerCamera>, Without<CameraAbsolutePosition>),
+        (
+            Without<AllIndividerCameraTag>,
+            Without<CameraAbsolutePosition>,
+        ),
     >,
-    mut halv_kamera_query: Query<
-        (&CameraPosition, &mut Camera),
-        (With<AllIndividerCamera>, Without<CameraAbsolutePosition>),
+    mut variabel_kamera_query: Query<
+        (&CameraPosition, &mut Camera, &CameraViewportSetting),
+        (With<AllIndividerCameraTag>, Without<CameraAbsolutePosition>),
     >,
 ) {
     // We need to dynamically resize the camera's viewports whenever the window size changes
@@ -1331,24 +1383,36 @@ fn set_camera_viewports(
             UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
 
         for (camera_position, mut camera) in &mut kvart_kamera_query {
-            println!("Kvart-kamera justeres");
-            dbg!(&kvart_skjerm_størrelse);
-            dbg!(&camera_position.pos);
+            // println!("Kvart-kamera justeres");
+            // dbg!(&kvart_skjerm_størrelse);
+            // dbg!(&camera_position.pos);
             camera.viewport = Some(Viewport {
                 physical_position: camera_position.pos * kvart_skjerm_størrelse,
                 physical_size: kvart_skjerm_størrelse,
                 ..default()
             });
             dbg!(&camera.viewport);
-            println!("------------");
         }
-        for (camera_position, mut camera) in &mut halv_kamera_query {
-            println!("Halv-kamera justeres");
+        println!("------------");
+        for (camera_position, mut camera, viewport_settings) in &mut variabel_kamera_query {
+            println!("variabel-kamera justeres");
+            let camera_viewport_size_setting = viewport_settings.get_camera_mode();
+            dbg!(&camera_viewport_size_setting);
             camera.viewport = Some(Viewport {
                 physical_position: camera_position.pos * halv_skjerm_størrelse,
-                physical_size: halv_skjerm_størrelse,
+                physical_size: match camera_viewport_size_setting {
+                    CameraMode::KVART => kvart_skjerm_størrelse,
+                    CameraMode::HALV => halv_skjerm_størrelse,
+                    CameraMode::HEL => window_without_meny_size,
+                    CameraMode::AV => UVec2::default(),
+                },
                 ..default()
             });
+            if camera_viewport_size_setting == CameraMode::AV {
+                camera.is_active = false;
+            } else if !camera.is_active {
+                camera.is_active = true;
+            }
         }
 
         knapp_meny_camera.viewport = Some(Viewport {
