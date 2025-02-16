@@ -1211,6 +1211,7 @@ fn setup_population_meny(
 }
 
 #[derive(Component)]
+#[derive(Debug)]
 struct CameraPosition {
     pos: UVec2,
 }
@@ -1398,16 +1399,26 @@ fn set_camera_viewports(
             println!("variabel-kamera justeres");
             let camera_viewport_size_setting = viewport_settings.get_camera_mode();
             dbg!(&camera_viewport_size_setting);
-            camera.viewport = Some(Viewport {
-                physical_position: camera_position.pos * halv_skjerm_størrelse,
-                physical_size: match camera_viewport_size_setting {
-                    CameraMode::KVART => kvart_skjerm_størrelse,
-                    CameraMode::HALV => halv_skjerm_størrelse,
-                    CameraMode::HEL => window_without_meny_size,
-                    CameraMode::AV => UVec2::default(),
-                },
-                ..default()
-            });
+            dbg!(&camera_position.pos);
+
+            if camera_viewport_size_setting != CameraMode::AV {
+                camera.viewport = Some(Viewport {
+                    physical_position: match camera_viewport_size_setting {
+                        CameraMode::HALV => camera_position.pos * halv_skjerm_størrelse,
+                        CameraMode::KVART => camera_position.pos * kvart_skjerm_størrelse,
+                        CameraMode::AV => UVec2::default(),
+                        CameraMode::HEL =>  UVec2::default(),
+                    },
+                    physical_size: match camera_viewport_size_setting {
+                        CameraMode::HALV => halv_skjerm_størrelse,
+                        CameraMode::KVART => kvart_skjerm_størrelse,
+                        CameraMode::AV => UVec2::default(),
+                        CameraMode::HEL => window_without_meny_size,
+                    },
+                    ..default()
+                });
+            }
+            
             if camera_viewport_size_setting == CameraMode::AV {
                 camera.is_active = false;
             } else if !camera.is_active {
