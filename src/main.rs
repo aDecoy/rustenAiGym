@@ -32,11 +32,11 @@ use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::render::camera::Viewport;
+use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
 use bevy::render::RenderPlugin;
-use bevy::window::WindowResized;
+use bevy::window::{WindowRef, WindowResized};
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
@@ -942,7 +942,7 @@ fn check_if_done(
     mut query: Query<(&mut Transform, &mut PlankPhenotype), (With<PlankPhenotype>)>,
     mut next_state: ResMut<NextState<Kjøretilstand>>,
     simulation_timer: Res<SimulationGenerationTimer>,
-    window: Query<&Window>,
+    window: Query<&Window, With<AllIndividerWindowTag>>,
 ) {
     let max_width = window.single().width() * 0.5;
 
@@ -1022,7 +1022,7 @@ fn setup_knapp_meny(
                      //     // iSTEDENFOR ON OFF. Kvart skjer, halv skjerm, hel skjerm, av.
                      mut resize_camera_windows: EventWriter<WindowResized>,
                      mut commands: Commands,
-                     windows: Query<(Entity, &Window)>| {
+                     windows: Query<(Entity, &Window), With<AllIndividerWindowTag>>,| {
                         let (entity, camera, mut camera_viewport_settings) =
                             cameras.get_single_mut().unwrap();
                         camera_viewport_settings.next_camera_mode_index();
@@ -1247,6 +1247,8 @@ impl CameraViewportSetting {
 
 #[derive(Component)]
 struct AllIndividerCameraTag;
+#[derive(Component)]
+struct AllIndividerWindowTag;
 
 #[derive(Component)]
 struct PopulasjonMenyCameraTag;
@@ -1259,8 +1261,20 @@ const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
 
-fn setup_camera(mut commands: Commands) {
+fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     // commands.spawn(Camera2d::default());
+    commands.entity(query.single()).insert( (AllIndividerWindowTag));
+
+    // Spawn a second window
+    let second_window = commands
+        .spawn((Window {
+            title: "Second window".to_owned(),
+            ..default()
+        },
+                // AllIndividerWindowTag
+        ))
+        .id();
+    
 
     let camera_pos_1 = Vec3::new(0.0, 200.0, 150.0);
     let camera_pos_2 = Vec3::new(150.0, 150., 50.0);
@@ -1271,6 +1285,7 @@ fn setup_camera(mut commands: Commands) {
             Camera {
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 0 as isize,
+                target: RenderTarget::Window(WindowRef::Entity(second_window)),
                 ..default()
             },
             CameraPosition {
@@ -1309,6 +1324,7 @@ fn setup_camera(mut commands: Commands) {
             Camera {
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 2 as isize,
+                target: RenderTarget::Window(WindowRef::Entity(second_window)),
                 ..default()
             },
             CameraPosition {
@@ -1320,11 +1336,12 @@ fn setup_camera(mut commands: Commands) {
         ))
         .id();
 
-    commands.spawn((
+    let camera =  commands.spawn((
         Camera2d::default(),
         Camera {
             // Renders cameras with different priorities to prevent ambiguities
             order: 3 as isize,
+            target: RenderTarget::Window(WindowRef::Entity(second_window)),
             ..default()
         },
         CameraAbsolutePosition {
@@ -1334,6 +1351,9 @@ fn setup_camera(mut commands: Commands) {
         KnapperMenyCameraTag,
         RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
     ));
+
+
+
 }
 
 fn set_camera_viewports(
