@@ -1357,7 +1357,7 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
 }
 
 fn set_camera_viewports(
-    windows: Query<&Window>,
+    windows: Query<&Window>, //     windows: Query<&Window, Without<AllIndividerWindowTag>>,
     mut resize_events: EventReader<WindowResized>,
     mut absolutt_kamera_query: Query<
         (&CameraAbsolutePosition, &mut Camera),
