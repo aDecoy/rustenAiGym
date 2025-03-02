@@ -1299,7 +1299,7 @@ const DIRECTIONS: [CompassOctant; 8] = [
 ];
 
 fn juster_camera_størrelse_dragning_retning (
-    mut action: ResMut<LeftClickAction>,
+    // mut action: ResMut<LeftClickAction>,
     mut dir: ResMut<ResizeDir>,
     input: Res<ButtonInput<KeyCode>>,
 ){
@@ -1316,6 +1316,7 @@ fn juster_camera_størrelse_dragning_retning (
 
 fn juster_camera_størrelse_med_dragning (
     mut windows: Query<&mut Window>,
+    mut cameras: Query<&mut Window>,
     action: Res<CameraDragningModus>,
     input: Res<ButtonInput<MouseButton>>,
     dir: Res<ResizeDir>,
