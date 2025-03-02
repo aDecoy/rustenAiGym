@@ -50,6 +50,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
+use bevy::math::CompassOctant;
 
 mod environments;
 
@@ -75,6 +76,8 @@ fn main() {
     .add_plugins(WorldInspectorPlugin::new())
     .add_plugins(MeshPickingPlugin)
     .insert_state(EttHakkState::DISABLED)
+    .insert_state(CameraDragningJustering::PÅ)
+        .insert_resource(ResizeDir(7))
     .add_event::<IndividInFocusСhangedEvent>()
     .init_resource::<GenerationCounter>()
     .insert_resource(InnovationNumberGlobalCounter { count: 0 })
@@ -1261,13 +1264,78 @@ const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
 
-
-
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum CameraDragningJustering {
     #[default]
     PÅ,
     AV,
+}
+
+/// Determine what do on left click.
+#[derive(Resource, Debug)]
+enum CameraDragningModus {
+    /// Do nothing.
+    Nothing,
+    /// Move the window on left click.
+    Move,
+    /// Resize the window on left click.
+    Resize,
+}
+
+/// What direction index should the window resize toward.
+#[derive(Resource)]
+struct ResizeDir(usize);
+
+/// Directions that the drag resizes the window toward.
+const DIRECTIONS: [CompassOctant; 8] = [
+    CompassOctant::North,
+    CompassOctant::NorthEast,
+    CompassOctant::East,
+    CompassOctant::SouthEast,
+    CompassOctant::South,
+    CompassOctant::SouthWest,
+    CompassOctant::West,
+    CompassOctant::NorthWest,
+];
+
+fn juster_camera_størrelse_dragning_retning (
+    mut action: ResMut<LeftClickAction>,
+    mut dir: ResMut<ResizeDir>,
+    input: Res<ButtonInput<KeyCode>>,
+){
+    if input.just_pressed(KeyCode::KeyS) {
+        dir.0 = dir
+            .0
+            .checked_sub(1)
+            .unwrap_or(DIRECTIONS.len().saturating_sub(1));
+    }
+    if input.just_pressed(KeyCode::KeyD) {
+        dir.0 = (dir.0 + 1) % DIRECTIONS.len();
+    }
+}
+
+fn juster_camera_størrelse_med_dragning (
+    mut windows: Query<&mut Window>,
+    action: Res<CameraDragningModus>,
+    input: Res<ButtonInput<MouseButton>>,
+    dir: Res<ResizeDir>,
+) {
+    // Both `start_drag_move()` and `start_drag_resize()` must be called after a
+    // left mouse button press as done here.
+    //
+    // winit 0.30.5 may panic when initiated without a left mouse button press.
+    if input.just_pressed(MouseButton::Left) {
+        for mut window in windows.iter_mut() {
+            match *action {
+                CameraDragningModus::Nothing => (),
+                CameraDragningModus::Move => window.start_drag_move(),
+                CameraDragningModus::Resize => {
+                    let d = DIRECTIONS[dir.0];
+                    window.start_drag_resize(d);
+                }
+            }
+        }
+    }
 }
 
 fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
