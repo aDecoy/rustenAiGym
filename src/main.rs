@@ -1261,6 +1261,15 @@ const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
 
+
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+enum CameraDragningJustering {
+    #[default]
+    PÅ,
+    AV,
+}
+
 fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     // commands.spawn(Camera2d::default());
     commands.entity(query.single()).insert( (AllIndividerWindowTag));
@@ -1274,7 +1283,8 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
                 // AllIndividerWindowTag
         ))
         .id();
-    
+
+    // todo. Window som brukes av et camera er en enum component
 
     let camera_pos_1 = Vec3::new(0.0, 200.0, 150.0);
     let camera_pos_2 = Vec3::new(150.0, 150., 50.0);
@@ -1382,6 +1392,8 @@ fn set_camera_viewports(
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
+
+    // todo bruke  window_drag_move.rs eksempel til å endre på camera viewport størrelser inne i windu.
 
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();
