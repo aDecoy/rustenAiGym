@@ -1,7 +1,6 @@
-// use bevy::asset::io::memory::Value::Vec;
 use crate::environments::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin};
 use crate::environments::camera_stuff::{
-    AllIndividerCameraTag, AllIndividerWindowTag, CameraDragningJustering, PopulasjonMenyCameraTag,
+    AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
     RENDER_LAYER_POPULASJON_MENY,
 };
 use crate::environments::draw_network::{
@@ -37,7 +36,6 @@ use bevy::prelude::*;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
 use bevy::render::RenderPlugin;
-use bevy::window::WindowResized;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
@@ -51,7 +49,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
-use bevy::utils::dbg;
 
 mod environments;
 

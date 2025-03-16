@@ -1,9 +1,7 @@
-use bevy::color::Color;
-use bevy::prelude::*;
-use bevy::utils::dbg;
-use bevy::window::WindowResized;
-use crate::environments::camera_stuff::{AllIndividerWindowTag, KnapperMenyCameraTag};
+use crate::environments::camera_stuff::AllIndividerWindowTag;
 use crate::Kjøretilstand;
+use bevy::prelude::*;
+use bevy::window::WindowResized;
 
 pub struct SimulationRunningTellerPlugin;
 

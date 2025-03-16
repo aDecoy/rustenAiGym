@@ -5,34 +5,17 @@ use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 
-
 pub struct MinCameraPlugin;
 
 impl Plugin for MinCameraPlugin {
     fn build(&self, app: &mut App) {
         // add things to your app here
-        app
-            .insert_state(CameraDragningJustering::PÅ)
+        app.insert_state(CameraDragningJustering::PÅ)
             .insert_resource(ResizeDir(7))
-            .add_systems(
-                PreStartup,
-                (
-                    (
-                        setup_camera,
-                    )
-                )
-            )
-            .add_systems(
-                Update,
-                (
-                    set_camera_viewports,
-                )
-            )
-        ;
-        
+            .add_systems(PreStartup, ((setup_camera,)))
+            .add_systems(Update, (set_camera_viewports,));
     }
 }
-
 
 #[derive(Component, Debug)]
 struct CameraPosition {
@@ -362,7 +345,9 @@ fn set_camera_viewports(
             let halv_skjerm_størrelse = UVec2::new(window_size.x / 2, window_size.y);
 
             println!("------------");
-            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
+            for (camera_position, mut camera, viewport_settings) in
+                &mut kamera_med_størrelse_og_posisjon_settings_query
+            {
                 if !camera.target.is_window_target_primary() {
                     println!("camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg");
                     continue;
@@ -391,9 +376,9 @@ fn set_camera_viewports(
             );
             let window_without_meny_size = window.physical_size()
                 - UVec2 {
-                x: 0,
-                y: knapp_meny_position.y_høyde,
-            };
+                    x: 0,
+                    y: knapp_meny_position.y_høyde,
+                };
             let kvart_skjerm_størrelse = window_without_meny_size / 2;
             let halv_skjerm_størrelse =
                 UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
@@ -401,7 +386,9 @@ fn set_camera_viewports(
             // TODO FINN HVILKE KAMERASER SOM ER I WINDOW
 
             println!("------------");
-            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
+            for (camera_position, mut camera, viewport_settings) in
+                &mut kamera_med_størrelse_og_posisjon_settings_query
+            {
                 if camera.target.is_window_target_primary() {
                     println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
                     continue;
@@ -500,7 +487,6 @@ fn adjust_camera_viewport_according_to_settings(
     }
 }
 
-
 pub fn resize_alle_individer_camera(
     trigger: Trigger<Pointer<Click>>,
     // mut cameras: Query<&mut Camera &AllIndividerCamera, With<AllIndividerCamera>>,
@@ -515,8 +501,7 @@ pub fn resize_alle_individer_camera(
     mut commands: Commands,
     windows: Query<(Entity, &Window), With<AllIndividerWindowTag>>,
 ) {
-    let (entity, camera, mut camera_viewport_settings) =
-        cameras.get_single_mut().unwrap();
+    let (entity, camera, mut camera_viewport_settings) = cameras.get_single_mut().unwrap();
     camera_viewport_settings.next_camera_mode_index();
     // Trigger event to make system that handles viewport changes to run
     let (window_entity, window) = windows.get_single().unwrap();
