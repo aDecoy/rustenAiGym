@@ -1,7 +1,8 @@
 use bevy::color::Color;
 use bevy::prelude::*;
+use bevy::utils::dbg;
 use bevy::window::WindowResized;
-
+use crate::environments::camera_stuff::{AllIndividerWindowTag, KnapperMenyCameraTag};
 use crate::Kjøretilstand;
 
 pub struct SimulationRunningTellerPlugin;
@@ -66,7 +67,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
     }
 }
 
-pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window>) {
+pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window.single();
 
     // let text_style = TextStyle {
@@ -85,8 +86,8 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
     ));
 }
 
-pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window: Query<&Window>) {
-    let window = window.single();
+pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window_query: Query<&Window, With<AllIndividerWindowTag>>) {
+    let window = window_query.single();
 
     // let text_style = TextStyle {
     //     font_size: 30.0,
@@ -145,12 +146,11 @@ pub struct SimulationGenerationTimer {
 #[derive(Component)]
 pub struct SimulationGenerationRunningTimerTekst;
 
-
 fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>) {
     countdown.main_timer.tick(time.delta());
 }
 
-pub(crate) fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Window>) {
+pub(crate) fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window.single();
 
     // let text_style = TextStyle {

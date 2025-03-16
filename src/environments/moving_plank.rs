@@ -1,5 +1,6 @@
+use crate::environments::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype, RENDER_LAYER_ALLE_INDIVIDER};
+use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
@@ -153,7 +154,7 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome, camera_entity : Entity) -> (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, TextLayout, RenderLayers, Individ) {
+pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome) -> (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, TextLayout, RenderLayers, Individ) {
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
