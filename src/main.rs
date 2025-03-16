@@ -320,7 +320,6 @@ static ANT_PARENTS_HVER_GENERASJON: usize = 1;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
-// todo endre farge på individ som er Elite, slik at den er lett å følge.
 
 fn spawn_start_population(
     mut commands: Commands,
