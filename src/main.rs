@@ -30,13 +30,14 @@ use bevy::color::palettes::css::GREEN;
 use bevy::color::palettes::tailwind::{CYAN_300, RED_300, RED_800};
 use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
+use bevy::math::CompassOctant;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::render::camera::{RenderTarget, Viewport};
+use bevy::render::camera::{RenderTarget, SubCameraView, Viewport};
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
 use bevy::render::RenderPlugin;
-use bevy::window::{WindowRef, WindowResized};
+use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
@@ -50,7 +51,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
-use bevy::math::CompassOctant;
 
 mod environments;
 
@@ -77,7 +77,7 @@ fn main() {
     .add_plugins(MeshPickingPlugin)
     .insert_state(EttHakkState::DISABLED)
     .insert_state(CameraDragningJustering::PÅ)
-        .insert_resource(ResizeDir(7))
+    .insert_resource(ResizeDir(7))
     .add_event::<IndividInFocusСhangedEvent>()
     .init_resource::<GenerationCounter>()
     .insert_resource(InnovationNumberGlobalCounter { count: 0 })
@@ -985,7 +985,6 @@ fn setup_knapp_meny(
     mut camera_query: Query<(Entity, &Camera), With<KnapperMenyCameraTag>>,
 ) {
     let (camera_entity, camera) = camera_query.single();
-
     commands
         .spawn((
             Node {
@@ -1213,8 +1212,7 @@ fn setup_population_meny(
         });
 }
 
-#[derive(Component)]
-#[derive(Debug)]
+#[derive(Component, Debug)]
 struct CameraPosition {
     pos: UVec2,
 }
@@ -1223,8 +1221,7 @@ struct CameraAbsolutePosition {
     y_høyde: u32,
 }
 
-#[derive(Clone, PartialEq)]
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum CameraMode {
     KVART,
     HALV,
@@ -1259,6 +1256,9 @@ struct PopulasjonMenyCameraTag;
 #[derive(Component)]
 struct KnapperMenyCameraTag;
 
+#[derive(Component)]
+struct SecondaryWindowTag;
+
 const RENDER_LAYER_NETTVERK: usize = 0;
 const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 const RENDER_LAYER_POPULASJON_MENY: usize = 2;
@@ -1286,6 +1286,16 @@ enum CameraDragningModus {
 #[derive(Resource)]
 struct ResizeDir(usize);
 
+/// Liste over hvilke
+// #[derive(Component)]
+// struct CameraContainerRegisterList{
+//     camera_entitis : Vec<Entity>
+// }
+#[derive(Component)]
+struct CameraContainerRegisterList {
+    camera_entitis: Vec<Entity>,
+}
+
 /// Directions that the drag resizes the window toward.
 const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::North,
@@ -1298,11 +1308,11 @@ const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::NorthWest,
 ];
 
-fn juster_camera_størrelse_dragning_retning (
+fn juster_camera_størrelse_dragning_retning(
     // mut action: ResMut<LeftClickAction>,
     mut dir: ResMut<ResizeDir>,
     input: Res<ButtonInput<KeyCode>>,
-){
+) {
     if input.just_pressed(KeyCode::KeyS) {
         dir.0 = dir
             .0
@@ -1314,7 +1324,7 @@ fn juster_camera_størrelse_dragning_retning (
     }
 }
 
-fn juster_camera_størrelse_med_dragning (
+fn juster_camera_størrelse_med_dragning(
     mut windows: Query<&mut Window>,
     mut cameras: Query<&mut Window>,
     action: Res<CameraDragningModus>,
@@ -1339,17 +1349,50 @@ fn juster_camera_størrelse_med_dragning (
     }
 }
 
+trait FindTargetWindowForCamera {
+    fn is_window_target_primary(&self) -> bool;
+    fn get_window_target_entity(&self) -> Option<Entity>;
+}
+
+impl FindTargetWindowForCamera for RenderTarget {
+    fn is_window_target_primary(&self) -> bool {
+        match self {
+            RenderTarget::Window(window_ref) => {
+                return match window_ref {
+                    WindowRef::Primary => true,
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+    fn get_window_target_entity(&self) -> Option<Entity> {
+        match self {
+            RenderTarget::Window(window_ref) => {
+                return match window_ref {
+                    WindowRef::Primary => Option::None,
+                    WindowRef::Entity(entity) => Some(*entity),
+                }
+            }
+            _ => Option::None,
+        }
+    }
+}
+
 fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     // commands.spawn(Camera2d::default());
-    commands.entity(query.single()).insert( (AllIndividerWindowTag));
+    commands
+        .entity(query.single())
+        .insert((AllIndividerWindowTag));
 
     // Spawn a second window
     let second_window = commands
-        .spawn((Window {
-            title: "Second window".to_owned(),
-            ..default()
-        },
-                // AllIndividerWindowTag
+        .spawn((
+            Window {
+                title: "Second window".to_owned(),
+                ..default()
+            },
+            // AllIndividerWindowTag
         ))
         .id();
 
@@ -1371,6 +1414,15 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
                 pos: UVec2::new((0 % 2) as u32, (0 / 2) as u32),
                 // pos: UVec2::new((0 % 2) as u32, (0) as u32),
             },
+            CameraViewportSetting {
+                camera_modes: vec![
+                    CameraMode::HALV,
+                    CameraMode::KVART,
+                    CameraMode::AV,
+                    CameraMode::HEL,
+                ],
+                active_camera_mode_index: 1,
+            },
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
         ))
         .id();
@@ -1390,7 +1442,12 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
             // AllIndividerCamera{ camera_mode: CameraMode::HALV },
             AllIndividerCameraTag,
             CameraViewportSetting {
-                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
+                camera_modes: vec![
+                    CameraMode::HALV,
+                    CameraMode::KVART,
+                    CameraMode::AV,
+                    CameraMode::HEL,
+                ],
                 active_camera_mode_index: 0,
             },
             RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
@@ -1406,6 +1463,15 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
                 target: RenderTarget::Window(WindowRef::Entity(second_window)),
                 ..default()
             },
+            CameraViewportSetting {
+                camera_modes: vec![
+                    CameraMode::HALV,
+                    CameraMode::KVART,
+                    CameraMode::AV,
+                    CameraMode::HEL,
+                ],
+                active_camera_mode_index: 1,
+            },
             CameraPosition {
                 pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
@@ -1415,7 +1481,7 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
         ))
         .id();
 
-    let camera =  commands.spawn((
+    let camera = commands.spawn((
         Camera2d::default(),
         Camera {
             // Renders cameras with different priorities to prevent ambiguities
@@ -1430,13 +1496,11 @@ fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
         KnapperMenyCameraTag,
         RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
     ));
-
-
-
 }
 
 fn set_camera_viewports(
-    windows: Query<&Window>, //     windows: Query<&Window, Without<AllIndividerWindowTag>>,
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    secondary_windows: Query<&Window, Without<PrimaryWindow>>,
     mut resize_events: EventReader<WindowResized>,
     mut absolutt_kamera_query: Query<
         (&CameraAbsolutePosition, &mut Camera),
@@ -1446,16 +1510,16 @@ fn set_camera_viewports(
             Without<AllIndividerCameraTag>,
         ),
     >,
-    mut kvart_kamera_query: Query<
-        (&CameraPosition, &mut Camera),
-        (
-            Without<AllIndividerCameraTag>,
-            Without<CameraAbsolutePosition>,
-        ),
-    >,
-    mut variabel_kamera_query: Query<
+    // mut kvart_kamera_query: Query<
+    //     (&CameraPosition, &mut Camera),
+    //     (
+    //         Without<AllIndividerCameraTag>,
+    //         Without<CameraAbsolutePosition>,
+    //     ),
+    // >,
+    mut kamera_med_størrelse_og_posisjon_settings_query: Query<
         (&CameraPosition, &mut Camera, &CameraViewportSetting),
-        (With<AllIndividerCameraTag>, Without<CameraAbsolutePosition>),
+        (Without<CameraAbsolutePosition>),
     >,
 ) {
     // We need to dynamically resize the camera's viewports whenever the window size changes
@@ -1465,79 +1529,152 @@ fn set_camera_viewports(
     // todo bruke  window_drag_move.rs eksempel til å endre på camera viewport størrelser inne i windu.
 
     for resize_event in resize_events.read() {
-        let window = windows.get(resize_event.window).unwrap();
-        println!("resize_event");
-        let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut();
-        let window_without_meny_size = window.physical_size()
-            - UVec2 {
-                x: 0,
-                y: knapp_meny_position.y_høyde,
-            };
+        // let primary_window = primary_window.get(resize_event.window);
+
+        if let Ok(window) = primary_window.get(resize_event.window) {
+            // Only main camera nees to be resized
+            println!("resize_event for PRIMARY window");
+
+            let window_size = window.physical_size();
+            let kvart_skjerm_størrelse = window_size / 2;
+            let halv_skjerm_størrelse = UVec2::new(window_size.x / 2, window_size.y);
+
+            println!("------------");
+            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
+                if !camera.target.is_window_target_primary() {
+                    println!("camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg");
+                    continue;
+                }
+                adjust_camera_viewport_according_to_settings(
+                    window_size,
+                    kvart_skjerm_størrelse,
+                    halv_skjerm_størrelse,
+                    camera_position,
+                    &mut camera,
+                    viewport_settings,
+                );
+            }
+        };
+        if let Ok(window) = secondary_windows.get(resize_event.window) {
+            // Only cameras in secondary windows needs to be resized
+            println!("resize_event for secondary window");
+
+            // Knapp meny er alltid i andre windu
+            let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut();
+
+            println!(
+                "knapp_meny_camera er i primary window : {} ,  ",
+                knapp_meny_camera.target.is_window_target_primary(),
+                // knapp_meny_camera.target.get_window_target_entity().unwrap()
+            );
+            let window_without_meny_size = window.physical_size()
+                - UVec2 {
+                    x: 0,
+                    y: knapp_meny_position.y_høyde,
+                };
+            let kvart_skjerm_størrelse = window_without_meny_size / 2;
+            let halv_skjerm_størrelse =
+                UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
+
+            // TODO FINN HVILKE KAMERASER SOM ER I WINDOW
+
+            println!("------------");
+            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
+                if camera.target.is_window_target_primary() {
+                    println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
+                    continue;
+                }
+                if let Some(entity) = camera.target.get_window_target_entity() {
+                    if entity != resize_event.window {
+                        println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
+                        continue;
+                    }
+                }
+                adjust_camera_viewport_according_to_settings(
+                    window_without_meny_size,
+                    kvart_skjerm_størrelse,
+                    halv_skjerm_størrelse,
+                    camera_position,
+                    &mut camera,
+                    viewport_settings,
+                );
+            }
+            knapp_meny_camera.viewport = Some(Viewport {
+                physical_position: UVec2 {
+                    x: 0,
+                    y: window_without_meny_size.y,
+                },
+                physical_size: UVec2 {
+                    x: window_without_meny_size.x,
+                    y: knapp_meny_position.y_høyde,
+                },
+                ..default()
+            });
+        };
+
+        // let window = windows.get(resize_event.window).unwrap();
+
         // let window_without_meny_size = window.physical_size()- UVec2::new(10 as u32, 10 as u32) ;
         // let window_without_meny_size = window.physical_size();
 
-        let kvart_skjerm_størrelse = window_without_meny_size / 2;
-        dbg!(&window_without_meny_size);
-        dbg!(&kvart_skjerm_størrelse);
-        println!("------------");
+        // dbg!(&window_without_meny_size);
+        // dbg!(&kvart_skjerm_størrelse);
+        // println!("------------");
 
-        let halv_skjerm_størrelse =
-            UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
+        // for (camera_position, mut camera) in &mut kvart_kamera_query {
+        //     // println!("Kvart-kamera justeres");
+        //     // dbg!(&kvart_skjerm_størrelse);
+        //     // dbg!(&camera_position.pos);
+        //     camera.viewport = Some(Viewport {
+        //         physical_position: camera_position.pos * kvart_skjerm_størrelse,
+        //         physical_size: kvart_skjerm_størrelse,
+        //         ..default()
+        //     });
+        // dbg!(&camera.viewport);
+    }
+}
 
-        for (camera_position, mut camera) in &mut kvart_kamera_query {
-            // println!("Kvart-kamera justeres");
-            // dbg!(&kvart_skjerm_størrelse);
-            // dbg!(&camera_position.pos);
-            camera.viewport = Some(Viewport {
-                physical_position: camera_position.pos * kvart_skjerm_størrelse,
-                physical_size: kvart_skjerm_størrelse,
-                ..default()
-            });
-            dbg!(&camera.viewport);
-        }
-        println!("------------");
-        for (camera_position, mut camera, viewport_settings) in &mut variabel_kamera_query {
-            println!("variabel-kamera justeres");
-            let camera_viewport_size_setting = viewport_settings.get_camera_mode();
-            dbg!(&camera_viewport_size_setting);
-            dbg!(&camera_position.pos);
+fn adjust_camera_viewport_according_to_settings(
+    window_size: UVec2,
+    kvart_skjerm_størrelse: UVec2,
+    halv_skjerm_størrelse: UVec2,
+    camera_position: &CameraPosition,
+    camera: &mut Mut<Camera>,
+    viewport_settings: &CameraViewportSetting,
+) {
+    println!("variabel-kamera er i vindu som ble endret og vil bli justert");
+    let camera_viewport_size_setting = viewport_settings.get_camera_mode();
+    // dbg!(&camera_viewport_size_setting);
+    // dbg!(&camera_position.pos);
 
-            if camera_viewport_size_setting != CameraMode::AV {
-                camera.viewport = Some(Viewport {
-                    physical_position: match camera_viewport_size_setting {
-                        CameraMode::HALV => camera_position.pos * halv_skjerm_størrelse,
-                        CameraMode::KVART => camera_position.pos * kvart_skjerm_størrelse,
-                        CameraMode::AV => UVec2::default(),
-                        CameraMode::HEL =>  UVec2::default(),
-                    },
-                    physical_size: match camera_viewport_size_setting {
-                        CameraMode::HALV => halv_skjerm_størrelse,
-                        CameraMode::KVART => kvart_skjerm_størrelse,
-                        CameraMode::AV => UVec2::default(),
-                        CameraMode::HEL => window_without_meny_size,
-                    },
-                    ..default()
-                });
-            }
-            
-            if camera_viewport_size_setting == CameraMode::AV {
-                camera.is_active = false;
-            } else if !camera.is_active {
-                camera.is_active = true;
-            }
-        }
+    println!(
+        "variabel_kamera_query er i primary window : {}  ",
+        camera.target.is_window_target_primary(),
+        // camera.target.get_window_target_entity().unwrap()
+    );
 
-        knapp_meny_camera.viewport = Some(Viewport {
-            physical_position: UVec2 {
-                x: 0,
-                y: window_without_meny_size.y,
+    if camera_viewport_size_setting != CameraMode::AV {
+        camera.viewport = Some(Viewport {
+            physical_position: match camera_viewport_size_setting {
+                CameraMode::HALV => camera_position.pos * halv_skjerm_størrelse,
+                CameraMode::KVART => camera_position.pos * kvart_skjerm_størrelse,
+                CameraMode::AV => UVec2::default(),
+                CameraMode::HEL => UVec2::default(),
             },
-            physical_size: UVec2 {
-                x: window_without_meny_size.x,
-                y: knapp_meny_position.y_høyde,
+            physical_size: match camera_viewport_size_setting {
+                CameraMode::HALV => halv_skjerm_størrelse,
+                CameraMode::KVART => kvart_skjerm_størrelse,
+                CameraMode::AV => UVec2::default(),
+                CameraMode::HEL => window_size,
             },
             ..default()
         });
+    }
+
+    if camera_viewport_size_setting == CameraMode::AV {
+        camera.is_active = false;
+    } else if !camera.is_active {
+        camera.is_active = true;
     }
 }
 
