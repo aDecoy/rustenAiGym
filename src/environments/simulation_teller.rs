@@ -1,6 +1,8 @@
-use crate::environments::camera_stuff::AllIndividerWindowTag;
+use crate::environments::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
 use crate::Kjøretilstand;
 use bevy::prelude::*;
+use bevy::render::camera::RenderTarget;
+use bevy::render::view::RenderLayers;
 use bevy::window::WindowResized;
 
 pub struct SimulationRunningTellerPlugin;
@@ -81,12 +83,14 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
         SimulationTotalRuntimeRunningTellerTekst,
+        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
 
-pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window_query: Query<&Window, With<AllIndividerWindowTag>>) {
+pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Commands,
+                                                           window_query: Query<&Window, With<AllIndividerWindowTag>>
+) {
     let window = window_query.single();
-
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
@@ -101,6 +105,7 @@ pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Command
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
 
         SimulationGenerationRunningTellerTekst,
+        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
 
@@ -164,6 +169,7 @@ pub(crate) fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         Transform::from_xyz(-window.width() * 0.5 + 200.0, window.height() * 0.5 - 25.0, 0.0),
         SimulationGenerationRunningTimerTekst,
+        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
 pub(crate) fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(mut query: Query<&mut Text2d, With<TellerTekst>>, teller1: Res<SimulationGenerationTimer>) {

@@ -1,8 +1,11 @@
+use avian2d::parry::na::Translation;
+use bevy::color::palettes::basic::RED;
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
+use bevy::utils::dbg;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 
 pub struct MinCameraPlugin;
@@ -11,9 +14,14 @@ impl Plugin for MinCameraPlugin {
     fn build(&self, app: &mut App) {
         // add things to your app here
         app.insert_state(CameraDragningJustering::PÅ)
+            .insert_resource(LeftClickAction::Resize)
             .insert_resource(ResizeDir(7))
-            .add_systems(PreStartup, ((setup_camera,)))
-            .add_systems(Update, (set_camera_viewports,));
+            .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
+            .add_systems(Startup, spawn_camera_resize_object_for_neuron_camera)
+            .add_systems(Update, (set_camera_viewports, adjust_camera_drag_point_viewports
+            ))
+            .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),))
+        ;
     }
 }
 
@@ -52,6 +60,8 @@ impl CameraViewportSetting {
 
 #[derive(Component)]
 pub struct AllIndividerCameraTag;
+#[derive(Component)]
+pub struct NetverkInFokusCameraTag;
 #[derive(Component)]
 pub struct AllIndividerWindowTag;
 
@@ -99,6 +109,17 @@ pub struct ResizeDir(usize);
 #[derive(Component)]
 struct CameraContainerRegisterList {
     camera_entitis: Vec<Entity>,
+}
+
+/// Determine what do on left click.
+#[derive(Resource, Debug)]
+enum LeftClickAction {
+    /// Do nothing.
+    // Nothing,
+    /// Move the window on left click.
+    // Move,
+    /// Resize the window on left click.
+    Resize,
 }
 
 /// Directions that the drag resizes the window toward.
@@ -184,6 +205,35 @@ impl FindTargetWindowForCamera for RenderTarget {
     }
 }
 
+#[derive(Component)]
+struct DragButton;
+
+pub fn spawn_camera_resize_object_for_neuron_camera(mut commands: Commands,
+                                                    mut meshes: ResMut<Assets<Mesh>>,
+                                                    mut materials: ResMut<Assets<ColorMaterial>>,
+                                                    kamera_query: Query<&Camera, With<NetverkInFokusCameraTag>>,
+) {
+    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
+    let viewport = kamera_query.get_single().unwrap().clone().viewport.unwrap().clone();
+    // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+    // let top_left_corner = viewport.physical_position.clone() - (viewport.physical_size * 0.5);
+    // let left_side = viewport.physical_position.x as f32;
+    let left_side = viewport.physical_position.x as f32 - (viewport.physical_size.x as f32 * 0.5);
+    let top_side = viewport.physical_position.y as f32 - (viewport.physical_size.y as f32 * 0.5);
+    dbg!(left_side, top_side);
+    // let top_left_corner = UVec2::default();
+    // let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(top_left_corner.x as f32, top_left_corner.y as f32));
+    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(100.0,100.0));
+    commands.spawn((
+        Mesh2d(rectangle_mesh_handle.into()),
+        MeshMaterial2d(material_handle.into()),
+        Transform::from_xyz(left_side, top_side , 5.0),
+        DragButton,
+        RenderLayers::layer(RENDER_LAYER_NETTVERK),
+    ))
+        .observe(camera_drag);
+}
+
 pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     // commands.spawn(Camera2d::default());
     commands
@@ -213,6 +263,7 @@ pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Win
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 0 as isize,
                 target: RenderTarget::Window(WindowRef::Entity(second_window)),
+                viewport: Some(Viewport::default()),
                 ..default()
             },
             CameraPosition {
@@ -228,8 +279,9 @@ pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Win
                 ],
                 active_camera_mode_index: 1,
             },
+            NetverkInFokusCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-        ))
+        )).observe(camera_drag)
         .id();
     let camera = commands
         .spawn((
@@ -303,6 +355,20 @@ pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Win
     ));
 }
 
+fn adjust_camera_drag_point_viewports(
+    kamera_query: Query<&Camera, Changed<Camera>>,
+    mut drag_icon_query: Query<&mut DragButton>,
+) {
+    // println!("adjust_camera_drag_point_viewports");
+    for kamera in kamera_query.iter() {
+        if let Some(viewport) = &kamera.viewport {
+            let pos = viewport.physical_position;
+            let size = viewport.physical_size;
+            let drag_button = drag_icon_query.single_mut();
+            println!("har alt jeg trenger");
+        }
+    }
+}
 fn set_camera_viewports(
     primary_window: Query<&Window, With<PrimaryWindow>>,
     secondary_windows: Query<&Window, Without<PrimaryWindow>>,
@@ -315,13 +381,6 @@ fn set_camera_viewports(
             Without<AllIndividerCameraTag>,
         ),
     >,
-    // mut kvart_kamera_query: Query<
-    //     (&CameraPosition, &mut Camera),
-    //     (
-    //         Without<AllIndividerCameraTag>,
-    //         Without<CameraAbsolutePosition>,
-    //     ),
-    // >,
     mut kamera_med_størrelse_og_posisjon_settings_query: Query<
         (&CameraPosition, &mut Camera, &CameraViewportSetting),
         (Without<CameraAbsolutePosition>),
@@ -376,9 +435,9 @@ fn set_camera_viewports(
             );
             let window_without_meny_size = window.physical_size()
                 - UVec2 {
-                    x: 0,
-                    y: knapp_meny_position.y_høyde,
-                };
+                x: 0,
+                y: knapp_meny_position.y_høyde,
+            };
             let kvart_skjerm_størrelse = window_without_meny_size / 2;
             let halv_skjerm_størrelse =
                 UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
@@ -442,6 +501,7 @@ fn set_camera_viewports(
         // dbg!(&camera.viewport);
     }
 }
+
 
 fn adjust_camera_viewport_according_to_settings(
     window_size: UVec2,
@@ -510,4 +570,60 @@ pub fn resize_alle_individer_camera(
         width: window.size().x,
         height: window.size().y,
     });
+
+    fn drag_camera_viewport_size(
+        input: Res<ButtonInput<KeyCode>>,
+        // mut action: ResMut<LeftClickAction>,
+        mut dir: ResMut<ResizeDir>,
+    ) {
+
+        // if input.just_pressed(KeyCode::KeyA) {
+        //     *action = match *action {
+        //         Move => Resize,
+        //         Resize => Nothing,
+        //         Nothing => Move,
+        //     };
+
+    }
 }
+
+// fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn camera_drag(
+    drag: Trigger<Pointer<Drag>>,
+    mut kamera_query: Query<( &mut Camera), With<NetverkInFokusCameraTag>,
+    >,
+) {
+    println!("dragging camera");
+    // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
+    if let Ok(mut camera) = kamera_query.get_single_mut() {
+        println!("dragging camera2");
+        // move viewport to variable
+        // let mut a = &mut camera.viewport;
+        if let Some(a) = &mut camera.viewport {
+            a.physical_size += UVec2::new(10, 10);
+        }
+        // let mut b = &mut a;
+
+        // camera.is_active = false;
+        // camera.viewport = None;
+        // let a = &camera.viewport;
+        // match a {
+        //     None => {}
+        //     &Some(mut viewport) => { viewport.physical_size.x += 1 }
+        // }
+    }
+}
+// if let &Some(mut old_viewport) = &camera.viewport {
+// camera.viewport.unwrap().physical_size.x+=1;
+//     old_viewport.physical_size.x +=1;
+//     // camera.viewport.unwrap().physical_size.x += 20;
+//     // old_viewport.physical_size.x += 1;
+//     camera.viewport = Some(Viewport {
+//         physical_position: UVec2 { x: old_viewport.physical_position.x + 10, y: old_viewport.physical_position.y },
+//         physical_size: old_viewport.physical_size,
+//         depth: old_viewport.depth,
+//     }
+//     );
+// }
+// }
+// }
