@@ -220,7 +220,7 @@ impl FindTargetWindowForCamera for RenderTarget {
 #[derive(Component)]
 struct DragButton;
 
-pub fn spawn_camera_resize_object_for_neuron_camera(
+pub fn spawn_camera_resize_object_for_neuron_camera(  // todo gjøre denne til en child entity også
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -247,7 +247,7 @@ pub fn spawn_camera_resize_object_for_neuron_camera(
         .spawn((
             Mesh2d(rectangle_mesh_handle.into()),
             MeshMaterial2d(material_handle.into()),
-            Transform::from_xyz(left_side, top_side, 5.0),
+            Transform::from_xyz(left_side, top_side, 10.0),
             DragButton,
             RenderLayers::layer(RENDER_LAYER_NETTVERK),
         ))
@@ -258,6 +258,7 @@ pub(crate) fn setup_camera(
     mut commands: Commands,
     query: Query<Entity, With<Window>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(CYAN_950));
@@ -309,37 +310,20 @@ pub(crate) fn setup_camera(
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
         ))
         .with_children(|parent_builder| {
-            // default values since they will be changed when camera is moved (events)
+            spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_NETTVERK);
+            let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
+            let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
             parent_builder.spawn((
-                CameraMarginDirection::TOPP,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::VENSTRE,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::HØYRE,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::BUNN,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-            ));
+                Mesh2d(rectangle_mesh_handle.into()),
+                MeshMaterial2d(material_handle.into()),
+                Transform::from_xyz(0.0, 0.0, 10.0),
+                DragButton,
+                RenderLayers::layer(RENDER_LAYER_NETTVERK),
+            ))
+                .observe(camera_drag);
+            
         })
-        .observe(camera_drag)
+        // .observe(camera_drag)
         .id();
     let camera = commands
         .spawn((
@@ -396,34 +380,7 @@ pub(crate) fn setup_camera(
         ))
         .with_children(|parent_builder| {
             // default values since they will be changed when camera is moved (events)
-            parent_builder.spawn((
-                CameraMarginDirection::TOPP,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::VENSTRE,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::HØYRE,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
-            ));
-            parent_builder.spawn((
-                CameraMarginDirection::BUNN,
-                Transform::default(),
-                Mesh2d::default(),
-                MeshMaterial2d(color_material_handle.clone()),
-                RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
-            ));
+            spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_POPULASJON_MENY);
         })
         .id();
 
@@ -444,35 +401,40 @@ pub(crate) fn setup_camera(
     ))
     .with_children(|parent_builder| {
         // default values since they will be changed when camera is moved (events)
-        parent_builder.spawn((
-            CameraMarginDirection::TOPP,
-            Transform::default(),
-            Mesh2d::default(),
-            MeshMaterial2d(color_material_handle.clone()),
-            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
-        ));
-        parent_builder.spawn((
-            CameraMarginDirection::VENSTRE,
-            Transform::default(),
-            Mesh2d::default(),
-            MeshMaterial2d(color_material_handle.clone()),
-            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
-        ));
-        parent_builder.spawn((
-            CameraMarginDirection::HØYRE,
-            Transform::default(),
-            Mesh2d::default(),
-            MeshMaterial2d(color_material_handle.clone()),
-            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
-        ));
-        parent_builder.spawn((
-            CameraMarginDirection::BUNN,
-            Transform::default(),
-            Mesh2d::default(),
-            MeshMaterial2d(color_material_handle.clone()),
-            RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
-        ));
+        spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_TOP_BUTTON_MENY);
     });
+}
+
+fn spawn_camera_margins(color_material_handle: Handle<ColorMaterial>, parent_builder: &mut ChildBuilder, render_target: usize) {
+    // default values since they will be changed when camera is moved (events)
+    parent_builder.spawn((
+        CameraMarginDirection::TOPP,
+        Transform::from_xyz(0.0, 0.0, 1.0),
+        Mesh2d::default(),
+        MeshMaterial2d(color_material_handle.clone()),
+        RenderLayers::from_layers(&[render_target]),
+    ));
+    parent_builder.spawn((
+        CameraMarginDirection::VENSTRE,
+        Transform::from_xyz(0.0, 0.0, 1.0),
+        Mesh2d::default(),
+        MeshMaterial2d(color_material_handle.clone()),
+        RenderLayers::from_layers(&[render_target]),
+    ));
+    parent_builder.spawn((
+        CameraMarginDirection::HØYRE,
+        Transform::from_xyz(0.0, 0.0, 1.0),
+        Mesh2d::default(),
+        MeshMaterial2d(color_material_handle.clone()),
+        RenderLayers::from_layers(&[render_target]),
+    ));
+    parent_builder.spawn((
+        CameraMarginDirection::BUNN,
+        Transform::from_xyz(0.0, 0.0, 1.0),
+        Mesh2d::default(),
+        MeshMaterial2d(color_material_handle.clone()),
+        RenderLayers::from_layers(&[render_target]),
+    ));
 }
 
 fn adjust_camera_drag_point_viewports(
