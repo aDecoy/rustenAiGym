@@ -34,7 +34,7 @@ fn genome_changed_event_update_phenotype(query: Query<&PlankPhenotype, Changed<G
 pub fn mutate_existing_nodes(mut node_genes: &mut Vec<NodeGene>) {
     // println!("mutating {} nodes ", node_genes.iter().count());
     let mutation_strength = 2.0;
-    for mut node_gene in node_genes.iter_mut() {
+    for node_gene in node_genes.iter_mut() {
         if random::<f32>() > node_gene.mutation_stability {
             let change = (random::<f32>() * 2.0 - 1.0) * mutation_strength;
             {

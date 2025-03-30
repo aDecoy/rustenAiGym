@@ -455,8 +455,8 @@ pub fn remove_drawing_of_network_for_individ_in_focus(
     mut query: Query<Entity, With<DrawingTag>>,
     mut commands: Commands,
 ) {
-    let individInFocusChangedEvent = event_reader.read().next();
-    if individInFocusChangedEvent.is_some() {
+    let individ_in_focus_changed_event = event_reader.read().next();
+    if individ_in_focus_changed_event.is_some() {
         println!("indovid endret fokus");
 
         for (entity) in query.iter_mut() {

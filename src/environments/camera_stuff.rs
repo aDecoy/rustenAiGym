@@ -1,5 +1,6 @@
 use avian2d::parry::na::Translation;
 use bevy::color::palettes::basic::RED;
+use bevy::color::palettes::tailwind::{CYAN_300, CYAN_950};
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
@@ -7,6 +8,7 @@ use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
 use bevy::utils::dbg;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
+use bevy_inspector_egui::egui::Margin;
 
 pub struct MinCameraPlugin;
 
@@ -18,10 +20,20 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_object_for_neuron_camera)
-            .add_systems(Update, (set_camera_viewports, adjust_camera_drag_point_viewports
-            ))
-            .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),))
-        ;
+            // .add_systems(Startup, spawn_camera_margines)
+            .add_systems(
+                Update,
+                (
+                    set_camera_viewports,
+                    adjust_camera_drag_point_viewports,
+                    adjust_camera_margines,
+                ),
+            )
+            .add_systems(
+                Update,
+                (juster_camera_størrelse_dragning_retning
+                    .run_if(in_state(CameraDragningJustering::PÅ)),),
+            );
     }
 }
 
@@ -187,7 +199,7 @@ impl FindTargetWindowForCamera for RenderTarget {
                 return match window_ref {
                     WindowRef::Primary => true,
                     _ => false,
-                }
+                };
             }
             _ => false,
         }
@@ -198,7 +210,7 @@ impl FindTargetWindowForCamera for RenderTarget {
                 return match window_ref {
                     WindowRef::Primary => Option::None,
                     WindowRef::Entity(entity) => Some(*entity),
-                }
+                };
             }
             _ => Option::None,
         }
@@ -208,13 +220,20 @@ impl FindTargetWindowForCamera for RenderTarget {
 #[derive(Component)]
 struct DragButton;
 
-pub fn spawn_camera_resize_object_for_neuron_camera(mut commands: Commands,
-                                                    mut meshes: ResMut<Assets<Mesh>>,
-                                                    mut materials: ResMut<Assets<ColorMaterial>>,
-                                                    kamera_query: Query<&Camera, With<NetverkInFokusCameraTag>>,
+pub fn spawn_camera_resize_object_for_neuron_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    kamera_query: Query<&Camera, With<NetverkInFokusCameraTag>>,
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
-    let viewport = kamera_query.get_single().unwrap().clone().viewport.unwrap().clone();
+    let viewport = kamera_query
+        .get_single()
+        .unwrap()
+        .clone()
+        .viewport
+        .unwrap()
+        .clone();
     // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
     // let top_left_corner = viewport.physical_position.clone() - (viewport.physical_size * 0.5);
     // let left_side = viewport.physical_position.x as f32;
@@ -223,18 +242,25 @@ pub fn spawn_camera_resize_object_for_neuron_camera(mut commands: Commands,
     dbg!(left_side, top_side);
     // let top_left_corner = UVec2::default();
     // let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(top_left_corner.x as f32, top_left_corner.y as f32));
-    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(100.0,100.0));
-    commands.spawn((
-        Mesh2d(rectangle_mesh_handle.into()),
-        MeshMaterial2d(material_handle.into()),
-        Transform::from_xyz(left_side, top_side , 5.0),
-        DragButton,
-        RenderLayers::layer(RENDER_LAYER_NETTVERK),
-    ))
+    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
+    commands
+        .spawn((
+            Mesh2d(rectangle_mesh_handle.into()),
+            MeshMaterial2d(material_handle.into()),
+            Transform::from_xyz(left_side, top_side, 5.0),
+            DragButton,
+            RenderLayers::layer(RENDER_LAYER_NETTVERK),
+        ))
         .observe(camera_drag);
 }
 
-pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
+pub(crate) fn setup_camera(
+    mut commands: Commands,
+    query: Query<Entity, With<Window>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    // let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
+    let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(CYAN_950));
     // commands.spawn(Camera2d::default());
     commands
         .entity(query.single())
@@ -281,7 +307,36 @@ pub(crate) fn setup_camera(mut commands: Commands, query: Query<Entity, With<Win
             },
             NetverkInFokusCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
-        )).observe(camera_drag)
+        ))
+        .with_children(|parent_builder| {
+            // default values since they will be changed when camera is moved (events)
+            parent_builder.spawn((
+                CameraMarginDirection::TOPP,
+                Transform::default(),
+                Mesh2d::default(),
+                MeshMaterial2d(color_material_handle.clone()),
+                // MeshMaterial2d<ColorMaterial>::default(),
+            ));
+            parent_builder.spawn((
+                CameraMarginDirection::VENSTRE,
+                Transform::default(),
+                Mesh2d::default(),
+                MeshMaterial2d(color_material_handle.clone()),
+            ));
+            parent_builder.spawn((
+                CameraMarginDirection::HØYRE,
+                Transform::default(),
+                Mesh2d::default(),
+                MeshMaterial2d(color_material_handle.clone()),
+            ));
+            parent_builder.spawn((
+                CameraMarginDirection::BUNN,
+                Transform::default(),
+                Mesh2d::default(),
+                MeshMaterial2d(color_material_handle.clone()),
+            ));
+        })
+        .observe(camera_drag)
         .id();
     let camera = commands
         .spawn((
@@ -408,7 +463,9 @@ fn set_camera_viewports(
                 &mut kamera_med_størrelse_og_posisjon_settings_query
             {
                 if !camera.target.is_window_target_primary() {
-                    println!("camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg");
+                    println!(
+                        "camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg"
+                    );
                     continue;
                 }
                 adjust_camera_viewport_according_to_settings(
@@ -435,9 +492,9 @@ fn set_camera_viewports(
             );
             let window_without_meny_size = window.physical_size()
                 - UVec2 {
-                x: 0,
-                y: knapp_meny_position.y_høyde,
-            };
+                    x: 0,
+                    y: knapp_meny_position.y_høyde,
+                };
             let kvart_skjerm_størrelse = window_without_meny_size / 2;
             let halv_skjerm_størrelse =
                 UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
@@ -449,12 +506,16 @@ fn set_camera_viewports(
                 &mut kamera_med_størrelse_og_posisjon_settings_query
             {
                 if camera.target.is_window_target_primary() {
-                    println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
+                    println!(
+                        "camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg"
+                    );
                     continue;
                 }
                 if let Some(entity) = camera.target.get_window_target_entity() {
                     if entity != resize_event.window {
-                        println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
+                        println!(
+                            "camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg"
+                        );
                         continue;
                     }
                 }
@@ -502,6 +563,140 @@ fn set_camera_viewports(
     }
 }
 
+// #[derive(Component, Debug)]
+// struct CameraMargin {
+//     topp: CameraMarginRectangle,
+//     høyre: CameraMarginRectangle,
+//     venstre: CameraMarginRectangle,
+//     bunn: CameraMarginRectangle,
+// }
+
+// #[derive(Component, Debug)]
+// struct CameraMargin {
+
+#[derive(Component, Debug)]
+// #[require(Transform)]
+struct CameraMarginRectangle {
+    direction: CameraMarginDirection,
+    transform: Transform,
+    mesh: Mesh2d,
+    mesh_material: MeshMaterial2d<ColorMaterial>,
+    // render_layers: RenderLayers,
+}
+#[derive(Component, Debug)]
+enum CameraMarginDirection {
+    TOPP,
+    VENSTRE,
+    HØYRE,
+    BUNN,
+}
+
+fn adjust_camera_margines(
+    // mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
+    kamera_query: Query<
+        (Entity, &Camera, &Transform, &Children),
+        (Changed<Camera>, Without<CameraMarginDirection>),
+    >,
+    mut margin_query: Query<
+        (&CameraMarginDirection, &mut Mesh2d, &mut Transform),
+        With<CameraMarginDirection>,
+    >,
+) {
+    for (kamera_entity, camera, camera_transform, barn_marginer) in kamera_query.iter() {
+        println!("justerer camera margin ");
+        dbg!(camera);
+        // the size of the area being rendered to
+        // if let Some(view_dimensions) = camera.logical_viewport_size() {
+        if let Some(viewport) = &camera.viewport {
+            // println!("fant kamera logical_viewport_size ");
+            println!("fant kamera viewport ");
+            dbg!(&viewport.physical_size);
+            let view_dimensions = Vec2 {
+                x: viewport.physical_size.x as f32,
+                y: viewport.physical_size.y as f32,
+            };
+
+            let bredde_rectangle_mesh_handle: Handle<Mesh> =
+                meshes.add(Rectangle::new(view_dimensions.x, 10.0));
+            let høyde_rectangle_mesh_handle: Handle<Mesh> =
+                meshes.add(Rectangle::new(10.0, view_dimensions.y));
+            // let color_material_handle = materials.add(Color::from(RED));
+            // let color_material_handle = materials.add(Color::from(CYAN_950));
+
+            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+            let padding = 5.0;
+            // let venstre_side_x = camera_transform.translation.x -(view_dimensions.x * 0.5) + padding;
+            // let høyre_side_x = camera_transform.translation.x + (view_dimensions.x * 0.5) - padding;
+            // let top_side_y = camera_transform.translation.y + (view_dimensions.y * 0.5) - padding;
+            // let bunn_side_y =camera_transform.translation.y -(view_dimensions.y * 0.5) + padding;
+            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+            let top_side_y = (view_dimensions.y * 0.5) - padding;
+            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+            dbg!(venstre_side_x, høyre_side_x, top_side_y, bunn_side_y);
+
+            for barn_margin_ref in barn_marginer {
+                if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref)  {
+                    match direction {
+                        CameraMarginDirection::TOPP => {
+                            mesh.0 = bredde_rectangle_mesh_handle.clone();
+                            transform.translation.x = 0.0;
+                            transform.translation.y = top_side_y;
+                        }
+                        CameraMarginDirection::VENSTRE => {
+                            mesh.0 = høyde_rectangle_mesh_handle.clone();
+                            transform.translation.x = venstre_side_x;
+                            transform.translation.y =0.0 ;
+                        }
+                        CameraMarginDirection::HØYRE => {
+                            mesh.0 = høyde_rectangle_mesh_handle.clone();
+                            transform.translation.x = høyre_side_x;
+                            transform.translation.y =0.0 ;
+                        }
+                        CameraMarginDirection::BUNN => {
+                            mesh.0 = bredde_rectangle_mesh_handle.clone();
+                            transform.translation.x = 0.0;
+                            transform.translation.y = bunn_side_y;
+                        }
+                    }
+                }
+            }
+
+            // margin.topp.transform.translation.y = top_side_y;
+            // margin.topp.transform.translation.y = 0.0;
+            // // margin.topp.transform.translation.x = høyre_side_x;
+            // margin.topp.transform.translation.x = 0.0;
+            // margin.topp.mesh = Mesh2d(bredde_rectangle_mesh_handle.clone());
+            // // commands.spawn((
+            //     CameraMarginRectangleTag { direction: Direction::BUNN },
+            //     Mesh2d(bredde_rectangle_mesh_handle.clone()),
+            //     Transform::from_xyz(0.0, bunn_side_y, 0.0),
+            //     MeshMaterial2d(color_material_handle.clone()),
+            //     RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]), // todo legg Render layer på kemara tag komponenten
+            // )
+            // );
+            // commands.spawn((
+            //     CameraMarginRectangleTag{ direction: Direction::VENSTRE },
+            //     Mesh2d(høyde_rectangle_mesh_handle.clone()),
+            //     Transform::from_xyz(venstre_side_x, 0.0,0.0),
+            //     MeshMaterial2d(color_material_handle.clone()),
+            //     RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]), // todo legg Render layer på kemara tag komponenten
+            // )
+            // );
+            // commands.spawn((
+            //     CameraMarginRectangleTag{ direction: Direction::HØYRE },
+            //     Mesh2d(høyde_rectangle_mesh_handle.clone()),
+            //     Transform::from_xyz(høyre_side_x, 0.0,0.0),
+            //     MeshMaterial2d(color_material_handle.clone()),
+            //     RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]), // todo legg Render layer på kemara tag komponenten
+            // )
+            // );
+        };
+    }
+}
 
 fn adjust_camera_viewport_according_to_settings(
     window_size: UVec2,
@@ -574,24 +769,21 @@ pub fn resize_alle_individer_camera(
     fn drag_camera_viewport_size(
         input: Res<ButtonInput<KeyCode>>,
         // mut action: ResMut<LeftClickAction>,
-        mut dir: ResMut<ResizeDir>,
+        dir: ResMut<ResizeDir>,
     ) {
-
         // if input.just_pressed(KeyCode::KeyA) {
         //     *action = match *action {
         //         Move => Resize,
         //         Resize => Nothing,
         //         Nothing => Move,
         //     };
-
     }
 }
 
 // fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
 fn camera_drag(
     drag: Trigger<Pointer<Drag>>,
-    mut kamera_query: Query<( &mut Camera), With<NetverkInFokusCameraTag>,
-    >,
+    mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
 ) {
     println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {

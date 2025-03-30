@@ -164,9 +164,9 @@ fn main() {
 // Denne kan potensielt heller gjørs med event
 fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &mut PlankPhenotype)>) {
     // genom verdier endrer seg ved tenking også, kan derfor ikke bruke  Changed<Genome>>, siden det tar alle
-    for (genome, mut plankPhenotype) in query.iter_mut() {
+    for (genome, mut plank_phenotype) in query.iter_mut() {
         if genome.allowed_to_change {
-            plankPhenotype.phenotype_layers = PhenotypeNeuralNetwork::new(genome)
+            plank_phenotype.phenotype_layers = PhenotypeNeuralNetwork::new(genome)
         }
     }
 }
@@ -325,7 +325,7 @@ fn spawn_start_population(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
@@ -333,7 +333,7 @@ fn spawn_start_population(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &mut innovationNumberGlobalCounter,
+            &mut innovation_number_global_counter,
             n,
         );
     }
@@ -364,14 +364,14 @@ fn spawn_a_random_new_individual2(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     let n: i32 = 1;
     spawn_a_random_new_individual(
         &mut commands,
         &mut meshes,
         &mut materials,
-        &mut innovationNumberGlobalCounter,
+        &mut innovation_number_global_counter,
         n,
     )
 }
@@ -380,7 +380,7 @@ fn spawn_a_random_new_individual(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
-    innovationNumberGlobalCounter: &mut ResMut<InnovationNumberGlobalCounter>,
+    innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
     n: i32,
 ) {
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
@@ -394,8 +394,8 @@ fn spawn_a_random_new_individual(
     //     ..default()
     // };
     let genome = match ACTIVE_ENVIROMENT {
-        EnvValg::HomingGroudY => new_random_genome(1, 1, innovationNumberGlobalCounter),
-        _ => new_random_genome(2, 2, innovationNumberGlobalCounter),
+        EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
+        _ => new_random_genome(2, 2, innovation_number_global_counter),
     };
 
     match ACTIVE_ENVIROMENT {
@@ -499,7 +499,7 @@ fn place_in_focus_from_meny(
     mut commands: Commands,
     old_focus_query: Query<Entity, With<IndividInFocus>>,
     // mut individ_query: Query<Entity, With<Genome>>,
-    mut meny_individ_box_query: Query<(Entity, &MenyTagForIndivid)>,
+    meny_individ_box_query: Query<(Entity, &MenyTagForIndivid)>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
     if let Ok(old_focus) = old_focus_query.get_single() {
@@ -516,7 +516,7 @@ fn place_in_focus_from_meny(
     let meny_bokks_for_individ_entity = meny_individ_box_query
         .get(focus_trigger_click.target)
         .unwrap();
-    let individ_entity = meny_bokks_for_individ_entity.1.individEntity;
+    let individ_entity = meny_bokks_for_individ_entity.1.individ_entity;
 
     if let Some(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {
         invidiv_entity_commandering.insert(IndividInFocus);
@@ -532,7 +532,7 @@ fn extinction_on_t(
     materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
-    innovationNumberGlobalCounter: ResMut<InnovationNumberGlobalCounter>,
+    innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
@@ -542,7 +542,7 @@ fn extinction_on_t(
             commands,
             meshes,
             materials,
-            innovationNumberGlobalCounter,
+            innovation_number_global_counter,
         )
     }
 }
@@ -959,7 +959,7 @@ fn check_if_done(
 
 #[derive(Component, Debug)]
 struct MenyTagForIndivid {
-    individEntity: Entity,
+    individ_entity: Entity,
 }
 
 fn setup_knapp_meny(
@@ -1129,7 +1129,7 @@ fn setup_population_meny(
                                 BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
                                 RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
                                 MenyTagForIndivid {
-                                    individEntity: phenotype_and_genome.entity,
+                                    individ_entity: phenotype_and_genome.entity,
                                 },
                             ))
                             .observe(place_in_focus_from_meny)
@@ -1437,8 +1437,8 @@ fn label_plank_with_current_score_in_meny(
     mut query: Query<(&mut TextSpan, &IndividFitnessLabelText)>,
     phenotype_query: Query<&PlankPhenotype>,
 ) {
-    for (mut span, individFitnessLabelText) in query.iter_mut() {
-        if let Ok(pheontype) = phenotype_query.get(individFitnessLabelText.entity) {
+    for (mut span, individ_fitness_label_text) in query.iter_mut() {
+        if let Ok(pheontype) = phenotype_query.get(individ_fitness_label_text.entity) {
             **span = format!("{:.5}", pheontype.score);
         }
     }
@@ -1465,7 +1465,7 @@ struct PhenotypeNeuralNetwork {
     ant_layers: usize,
     // Holder på objektene
     // alleNoder: Vec<NodeGene>,
-    alleVekter: Vec<WeightGene>,
+    alle_vekter: Vec<WeightGene>,
     // hidden_layers: Vec<Vec<&'a NodeGene>>,
     // hidden_nodes: Vec<Vec<Arc<NodeGene>>>,
     input_layer: Vec<Arc<NodeGene>>,
@@ -1571,7 +1571,7 @@ impl PhenotypeNeuralNetwork {
     }
 
     pub(crate) fn new(genome: &Genome) -> Self {
-        // let alleVekter: Vec<WeightGene> = genome.weight_genes.clone();
+        // let alle_vekter: Vec<WeightGene> = genome.weight_genes.clone();
 
         let weights_per_desination_node = genome.få_aktive_vekter_per_aktive_destinasjonsnode();
         // dbg!(&weights_per_desination_node);
@@ -1586,12 +1586,12 @@ impl PhenotypeNeuralNetwork {
         let mut input_layer: Vec<Arc<NodeGene>> = Vec::new();
         let mut output_layer: Vec<Arc<NodeGene>> = Vec::new();
 
-        for nodeArc in genome.node_genes.iter() {
-            // let  nodeArc = Arc::new(node);
-            if nodeArc.inputnode {
-                input_layer.push(Arc::clone(nodeArc))
-            } else if nodeArc.outputnode {
-                output_layer.push(Arc::clone(nodeArc));
+        for node_arc in genome.node_genes.iter() {
+            // let  node_arc = Arc::new(node);
+            if node_arc.inputnode {
+                input_layer.push(Arc::clone(node_arc))
+            } else if node_arc.outputnode {
+                output_layer.push(Arc::clone(node_arc));
             }
         }
         let alle_enabled_vekter: Vec<WeightGene> = genome
@@ -1606,7 +1606,7 @@ impl PhenotypeNeuralNetwork {
             ant_layers: layers_ordered_output_to_input.len(),
             // alleNoder: alleNoder,
             // alleNoderArc: alleNoderArc,  // remove!! ikke i bruk !!!
-            alleVekter: alle_enabled_vekter,
+            alle_vekter: alle_enabled_vekter,
             // hidden_nodes: vec![],
             input_layer: input_layer,
             output_layer: output_layer,
