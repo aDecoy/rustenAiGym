@@ -1,4 +1,5 @@
 use bevy::color::palettes::basic::RED;
+use bevy::color::palettes::css::BLUE;
 use bevy::color::palettes::tailwind::CYAN_950;
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
@@ -17,7 +18,8 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera)
-            .add_systems(Startup, spawn_camera_move_button_for_neuron_camera)
+            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
@@ -27,6 +29,7 @@ impl Plugin for MinCameraPlugin {
                     adjust_camera_margines,
                     adjust_camera_drag_resize_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement,
+                    adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement,
                 ),
             )
             .add_systems(
@@ -222,8 +225,10 @@ struct KameraEdgeResizeDragButton;
 
 #[derive(Component)]
 struct KameraEdgeMoveCameraInTheWorldDragButton;
+#[derive(Component)]
+struct KameraEdgeMoveCameraInTheWindowDragButton;
 
-pub fn spawn_camera_move_button_for_neuron_camera(
+pub fn spawn_camera_move_in_world_button_for_neuron_camera(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -247,6 +252,36 @@ pub fn spawn_camera_move_button_for_neuron_camera(
                     RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ))
                 .observe(camera_drag_to_move_camera_in_the_world);
+        });
+    }
+}
+
+
+pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+) {
+    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(BLUE));
+    let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(Vec2::new(-15., 0.), Vec2::new(15., 0.), Vec2::new(0., 15.)));
+
+    kamera_query
+        .get_single()
+        .expect("Kamera eksisterer ikke :(");
+    for (kamera_entity) in kamera_query.iter() {
+        let mut parent_kamera = commands.get_entity(kamera_entity);
+
+        parent_kamera.unwrap().with_children(|parent_builder| {
+            parent_builder
+                .spawn((
+                    Mesh2d(mesh_handle.clone().into()),
+                    MeshMaterial2d(material_handle.clone().into()),
+                    Transform::from_xyz(0.0, 0.0, 10.0), // will be adjusted on camera move events
+                    KameraEdgeMoveCameraInTheWindowDragButton,
+                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
+                ))
+                .observe(camera_drag_to_move_camera_in_the_window);
         });
     }
 }
@@ -761,7 +796,7 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
 fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
     kamera_query: Query<
         (&Camera, &Children),
-        (Changed<Camera>, Without<KameraEdgeResizeDragButton>),
+        (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWorldDragButton>),
     >,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
@@ -775,6 +810,38 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
             // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
             // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
             let padding = 15.0;
+            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+            let top_side_y = (view_dimensions.y * 0.5) - padding;
+            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+            for barn_margin_ref in barn_marginer {
+                // akkurat nå så er knappen alltid nede til høyre
+                if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
+                    transform.translation.x = høyre_side_x;
+                    transform.translation.y = bunn_side_y;
+                }
+            }
+        };
+    }
+}
+
+fn adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement(
+    kamera_query: Query<
+        (&Camera, &Children),
+        (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWindowDragButton>),
+    >,
+    mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWindowDragButton>>,
+) {
+    for (camera, barn_marginer) in kamera_query.iter() {
+        if let Some(viewport) = &camera.viewport {
+            let view_dimensions = Vec2 {
+                x: viewport.physical_size.x as f32,
+                y: viewport.physical_size.y as f32,
+            };
+
+            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+            let padding = 20.0;
             let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
             let høyre_side_x = (view_dimensions.x * 0.5) - padding;
             let top_side_y = (view_dimensions.y * 0.5) - padding;
@@ -885,7 +952,19 @@ fn camera_drag_to_resize(
         if let Some(a) = &mut camera.viewport {
             dbg!(drag.delta);
             dbg!(UVec2::new(drag.delta.x as u32, drag.delta.y as u32));
-            a.physical_size += UVec2::new(drag.delta.x as u32, drag.delta.y as u32);
+            // a.physical_size += UVec2::new(drag.delta.x as u32, drag.delta.y as u32);
+            if drag.delta.x.is_sign_positive(){
+                a.physical_size.x =  a.physical_size.x + drag.delta.x as u32;
+            } else {
+                dbg!( drag.delta.x as u32);
+                a.physical_size.x =  a.physical_size.x - drag.delta.x.abs() as u32;
+            }            
+            if drag.delta.y.is_sign_positive(){
+                a.physical_size.y =  a.physical_size.y + drag.delta.y as u32;
+            } else {
+                dbg!( drag.delta.x as u32);
+                a.physical_size.y =  a.physical_size.y - drag.delta.y.abs() as u32;
+            }
         }
     }
 }
@@ -901,6 +980,24 @@ fn camera_drag_to_move_camera_in_the_world(
         // more intuiative to invert
         transform.translation.x -= drag.delta.x;
         transform.translation.y += drag.delta.y;
+    }
+}
+
+fn camera_drag_to_move_camera_in_the_window(
+    drag: Trigger<Pointer<Drag>>,
+    mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
+) {
+
+    if let Ok(mut camera) = kamera_query.get_single_mut() {
+        println!("moving camera in window");
+        // move viewport to variable
+
+        if let Some(a) = &mut camera.viewport {
+            dbg!(drag.delta);
+            dbg!(UVec2::new(drag.delta.x as u32, drag.delta.y as u32));
+            a.physical_position.x = (a.physical_position.x as f32 + drag.delta.x) as u32;
+            a.physical_position.y = (a.physical_position.y as f32 + drag.delta.y) as u32;
+        }
     }
 }
 
