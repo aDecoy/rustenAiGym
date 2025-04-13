@@ -1,9 +1,10 @@
 use bevy::prelude::{Component, ResMut, Resource};
-use rand::{random, rng, thread_rng, Rng};
+use rand::distr::Uniform;
+use rand::prelude::ThreadRng;
+use rand::{Rng, random, rng, thread_rng};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};
-use rand::distr::Uniform;
 
 // #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
 #[derive(Debug)] // todo spesifisker eq uten f32 verdiene
@@ -57,7 +58,7 @@ pub struct WeightGene {
     pub(crate) destinasjonsnode: Arc<NodeGene>,
     pub(crate) value_mutation_stability: f32,
     pub(crate) enabled_mutation_stability: f32, // drastic mutations such as disabling the entire neuron has a different parameter than just small changes
-    pub(crate) add_new_node_in_middle_mutation_stability: f32, 
+    pub(crate) add_new_node_in_middle_mutation_stability: f32,
 }
 impl PartialEq for WeightGene {
     fn eq(&self, other: &Self) -> bool {
@@ -67,6 +68,62 @@ impl PartialEq for WeightGene {
     }
 }
 impl Eq for WeightGene {}
+
+impl WeightGene {
+    pub(crate) fn default_weight_with_random_value(
+        thread_random: &mut ThreadRng,
+        uniform_dist: Uniform<f32>,
+        n: &Arc<NodeGene>,
+        m: &Arc<NodeGene>,
+    ) -> Self {
+        WeightGene {
+            kildenode: Arc::clone(n),
+            destinasjonsnode: Arc::clone(m),
+            value: thread_random.sample(uniform_dist),
+            enabled: true,
+            value_mutation_stability: 0.0,
+            enabled_mutation_stability: 0.9,
+            add_new_node_in_middle_mutation_stability: 0.5,
+        }
+    }
+
+    pub(crate) fn neutral_default_for_hidden(
+        end_node: &Arc<NodeGene>,
+        new_middle_node: &Arc<NodeGene>,
+    ) -> Self {
+        let new_weight = WeightGene {
+            kildenode: Arc::clone(&new_middle_node),
+            destinasjonsnode: Arc::clone(&end_node),
+            value: 1.0, // litt av ideen er at denne mutasjonen ikke egentlig skal påvirke nettverk output
+            enabled: true,
+            value_mutation_stability: 0.8,
+            enabled_mutation_stability: 0.9,
+            add_new_node_in_middle_mutation_stability: 0.5,
+        };
+        new_weight
+    }
+}
+
+impl NodeGene {
+    pub(crate) fn default_for_hidden(
+        innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
+        innovation_number: i32,
+    ) -> Self {
+        NodeGene {
+            // innovation_number: n as i32,
+            innovation_number: innovation_number_global_counter.get_number(),
+            bias: RwLock::new(0.0), // litt av ideen er at det ikke egentlig skal påvirke noe med denne mutasjonen
+            enabled: RwLock::new(true),
+            inputnode: false,
+            outputnode: false,
+            mutation_stability: 0.8,
+            enabled_mutation_stability: 0.8,
+            layer: 0, // denne brukes vell strengt tatt ikke
+            value: RwLock::new(0.0),
+            label: innovation_number.to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Resource)]
 pub struct InnovationNumberGlobalCounter {
@@ -131,7 +188,8 @@ impl Clone for Genome {
             let ny_vekt = WeightGene {
                 enabled: vekt.enabled,
                 value_mutation_stability: vekt.value_mutation_stability,
-                add_new_node_in_middle_mutation_stability: vekt.add_new_node_in_middle_mutation_stability,
+                add_new_node_in_middle_mutation_stability: vekt
+                    .add_new_node_in_middle_mutation_stability,
                 enabled_mutation_stability: vekt.enabled_mutation_stability,
                 value: vekt.value,
                 kildenode: Arc::clone(
@@ -231,19 +289,12 @@ pub fn new_random_genome(
             .iter()
             .filter(|node_gene| node_gene.outputnode)
         {
-            weight_genes.push(WeightGene { // todo kanskje lage default verdier for weightGene?
-                kildenode: Arc::clone(n),
-                destinasjonsnode: Arc::clone(m),
-                // kildenode: n as i32,
-                // kildenode: n.innovation_number,
-                // destinationsnode: m.innovation_number,
-                // innovation_number: innovation_number_global_counter.get_number(),
-                value: thread_random.sample(uniform_dist),
-                enabled: true,
-                value_mutation_stability: 0.0,
-                enabled_mutation_stability: 0.9,
-                add_new_node_in_middle_mutation_stability: 0.5
-            })
+            weight_genes.push(WeightGene::default_weight_with_random_value(
+                &mut thread_random,
+                uniform_dist,
+                n,
+                m,
+            ))
         }
     }
     return Genome {

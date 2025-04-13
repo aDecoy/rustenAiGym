@@ -25,7 +25,7 @@ pub fn mutate_genomes(mut genomer: Query<&mut Genome>,
         if genom.allowed_to_change {
             mutate_existing_nodes_arc(&mut genom.node_genes);
             mutate_existing_weights_value_and_på_av(&mut genom.weight_genes);
-            mutate_new_node_in_middle_mutation(&mut genom, &mut innovation_number_global_counter )
+            mutate_new_node_in_middle_of_connection_mutation(&mut genom, &mut innovation_number_global_counter )
         }
     }
 }
@@ -89,49 +89,27 @@ pub fn mutate_existing_weights_value_and_på_av(mut weight_genes: &mut Vec<Weigh
     }
 }
 
-pub fn mutate_new_node_in_middle_mutation(
+pub fn mutate_new_node_in_middle_of_connection_mutation(
     mut genome:  &mut Genome,
     innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
 ) {
     let mut weight_genes: &mut Vec<WeightGene> =  &mut genome.weight_genes;
     let mut node_genes: &mut Vec<Arc<NodeGene>> =  &mut genome.node_genes;
-    
+
     let mut weight_genes_to_add: Vec<WeightGene> =  Vec::new();
-    
+
     for mut weight_gene in weight_genes.iter_mut() {
         if random::<f32>() > weight_gene.add_new_node_in_middle_mutation_stability {
             // O ------- O  =>  O ----O--- O
             let end_node = Arc::clone(&weight_gene.destinasjonsnode);
-            let start_node =  Arc::clone(&weight_gene.kildenode);
             let innovation_number = innovation_number_global_counter.get_number();
-            let new_middle_node = Arc::new( NodeGene { // todo ha noe defalult for hidden noder?
-                // innovation_number: n as i32,
-                innovation_number: innovation_number_global_counter.get_number(),
-                bias: RwLock::new(0.0), // litt av ideen er at det ikke egentlig skal påvirke noe med denne mutasjonen
-                enabled: RwLock::new(true),
-                inputnode: false,
-                outputnode: false,
-                mutation_stability: 0.8,
-                enabled_mutation_stability: 0.8,
-                layer: 0, // denne brukes vell strengt tatt ikke
-                value: RwLock::new(0.0),
-                label: innovation_number.to_string(),
-            });
+            let new_middle_node = Arc::new(NodeGene::default_for_hidden(innovation_number_global_counter, innovation_number));
             weight_gene.destinasjonsnode =  Arc::clone(&new_middle_node);
 
-            let new_weight = WeightGene { // todo kanskje lage default verdier for hidden weightGene?
-                kildenode: Arc::clone(&new_middle_node),
-                destinasjonsnode: Arc::clone(&end_node),
-                value: 1.0, // litt av ideen er at denne mutasjonen ikke egentlig skal påvirke nettverk output 
-                enabled: true,
-                value_mutation_stability: 0.8,
-                enabled_mutation_stability: 0.9,
-                add_new_node_in_middle_mutation_stability: 0.5
-            };
+            let new_weight = WeightGene::neutral_default_for_hidden(&end_node, &new_middle_node);
 
             node_genes.push(new_middle_node);
             weight_genes_to_add.push(new_weight);
-
         }
     }
     genome.weight_genes.append(&mut weight_genes_to_add);
