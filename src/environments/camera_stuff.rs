@@ -935,19 +935,6 @@ pub fn resize_alle_individer_camera(
         width: window.size().x,
         height: window.size().y,
     });
-
-    fn drag_camera_viewport_size(
-        input: Res<ButtonInput<KeyCode>>,
-        // mut action: ResMut<LeftClickAction>,
-        dir: ResMut<ResizeDir>,
-    ) {
-        // if input.just_pressed(KeyCode::KeyA) {
-        //     *action = match *action {
-        //         Move => Resize,
-        //         Resize => Nothing,
-        //         Nothing => Move,
-        //     };
-    }
 }
 
 fn camera_drag_to_resize(
