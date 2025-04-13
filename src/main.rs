@@ -314,9 +314,9 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 3;
-static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 1;
-static ANT_PARENTS_HVER_GENERASJON: usize = 1;
+static START_POPULATION_SIZE: i32 = 24;
+static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 5;
+static ANT_PARENTS_HVER_GENERASJON: usize = 3;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
@@ -505,13 +505,6 @@ fn place_in_focus_from_meny(
     if let Ok(old_focus) = old_focus_query.get_single() {
         commands.entity(old_focus).remove::<IndividInFocus>();
     }
-    // println!("placing entitity in focus from meny");
-    // println!(" count for meny_individ_box_query query {} ",  meny_individ_box_query.iter().count());
-    // println!(" meny_individ_box_query entity : ");
-    // meny_individ_box_query.iter().for_each( |entity| {
-    //     dbg!(entity);
-    // });
-    // println!("focus_trigger_click target {:?} ",  focus_trigger_click.target);
 
     let meny_bokks_for_individ_entity = meny_individ_box_query
         .get(focus_trigger_click.target)

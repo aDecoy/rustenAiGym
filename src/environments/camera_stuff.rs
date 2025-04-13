@@ -418,7 +418,7 @@ pub(crate) fn setup_camera(
                     CameraMode::AV,
                     CameraMode::HEL,
                 ],
-                active_camera_mode_index: 0,
+                active_camera_mode_index: 3,
             },
             RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
         ))
@@ -960,10 +960,10 @@ fn camera_drag_to_resize(
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("resizing camera2");
 
-        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu) 
-        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity. 
+        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
+        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
         let window_size = window.physical_size();
-        
+
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
 
         if let Some(viewport) = potensiell_viewport {
@@ -1012,16 +1012,16 @@ fn camera_drag_to_move_camera_in_the_window(
 ) {
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("moving camera in window");
-        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu) 
+        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
         let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap();
         let window_size = window.physical_size();
-        
-        // move viewport 
+
+        // move viewport
 
         if let Some(viewport) = &mut camera.viewport {
             let u32_vektor: &mut UVec2 = &mut viewport.physical_position;
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
-            
+
             u32_vektor.x = min(window_size.x - viewport.physical_size.x, u32_vektor.x  );
             u32_vektor.y = min(window_size.y - viewport.physical_size.y, u32_vektor.y  );
         }

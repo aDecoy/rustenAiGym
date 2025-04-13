@@ -8,7 +8,7 @@ use rand::distr::Uniform;
 // #[derive(Debug, Component, Copy, Clone)] // todo spesifisker eq uten f32 verdiene
 #[derive(Debug)] // todo spesifisker eq uten f32 verdiene
 pub struct NodeGene {
-    innovation_number: i32,
+    pub(crate) innovation_number: i32,
     // bias: f32,
     pub(crate) bias: RwLock<f32>, // fordi at andre ting (vekter) har refferanser til NodeGene, så er NodeGene pakket inn i en Arc (bevy kan ha flere systemer kjøre på entity med komponent samtidig, så asyncaronus).
     // For å få lov til å mutere bias, så må den være inne i en rwlock, siden hele klassen er inne i en Arc, som ikke gir skrivetilgang til vanlig
@@ -18,7 +18,7 @@ pub struct NodeGene {
     pub(crate) outputnode: bool,
     pub(crate) mutation_stability: f32, // 1 is compleat lock/static genome. 0 is a mutation for all genes
     pub(crate) enabled_mutation_stability: f32, // drastic mutations such as disabling the entire neuron has a different parameter than just small changes
-    layer: usize,
+    pub(crate) layer: usize,
     // value: f32, // mulig denne blir flyttet til sin egen Node struct som brukes i nettverket, for å skille fra gen.
 
     //  Rwlock, slik at denne kan endres selv om den er inne i en Arc, som den må være om flere WeightGene skal kunne ha en peker på den,
@@ -55,8 +55,9 @@ pub struct WeightGene {
     pub(crate) kildenode: Arc<NodeGene>,
     // destinationsnode: i32,
     pub(crate) destinasjonsnode: Arc<NodeGene>,
-    pub(crate) mutation_stability: f32,
+    pub(crate) value_mutation_stability: f32,
     pub(crate) enabled_mutation_stability: f32, // drastic mutations such as disabling the entire neuron has a different parameter than just small changes
+    pub(crate) add_new_node_in_middle_mutation_stability: f32, 
 }
 impl PartialEq for WeightGene {
     fn eq(&self, other: &Self) -> bool {
@@ -72,7 +73,7 @@ pub struct InnovationNumberGlobalCounter {
     pub(crate) count: i32,
 }
 impl InnovationNumberGlobalCounter {
-    fn get_number(&mut self) -> i32 {
+    pub(crate) fn get_number(&mut self) -> i32 {
         self.count += 1;
         return self.count;
     }
@@ -129,7 +130,8 @@ impl Clone for Genome {
 
             let ny_vekt = WeightGene {
                 enabled: vekt.enabled,
-                mutation_stability: vekt.mutation_stability,
+                value_mutation_stability: vekt.value_mutation_stability,
+                add_new_node_in_middle_mutation_stability: vekt.add_new_node_in_middle_mutation_stability,
                 enabled_mutation_stability: vekt.enabled_mutation_stability,
                 value: vekt.value,
                 kildenode: Arc::clone(
@@ -181,8 +183,8 @@ pub fn new_random_genome(
             enabled: RwLock::new(true),
             inputnode: true,
             outputnode: false,
-            mutation_stability: 0.5,
-            enabled_mutation_stability: 0.1,
+            mutation_stability: 0.8,
+            enabled_mutation_stability: 0.8,
             layer: 0,
             value: RwLock::new(0.0),
             label,
@@ -199,8 +201,8 @@ pub fn new_random_genome(
             enabled: RwLock::new(true),
             inputnode: false,
             outputnode: true,
-            mutation_stability: 0.5,
-            enabled_mutation_stability: 0.1,
+            mutation_stability: 0.8,
+            enabled_mutation_stability: 0.8,
             layer: 0,
             value: RwLock::new(0.0),
             label: label,
@@ -229,7 +231,7 @@ pub fn new_random_genome(
             .iter()
             .filter(|node_gene| node_gene.outputnode)
         {
-            weight_genes.push(WeightGene {
+            weight_genes.push(WeightGene { // todo kanskje lage default verdier for weightGene?
                 kildenode: Arc::clone(n),
                 destinasjonsnode: Arc::clone(m),
                 // kildenode: n as i32,
@@ -238,8 +240,9 @@ pub fn new_random_genome(
                 // innovation_number: innovation_number_global_counter.get_number(),
                 value: thread_random.sample(uniform_dist),
                 enabled: true,
-                mutation_stability: 0.0,
+                value_mutation_stability: 0.0,
                 enabled_mutation_stability: 0.9,
+                add_new_node_in_middle_mutation_stability: 0.5
             })
         }
     }
