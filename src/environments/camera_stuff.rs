@@ -8,7 +8,7 @@ use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
 use bevy::utils::dbg;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
-use std::cmp::max;
+use std::cmp::{max, min};
 
 pub struct MinCameraPlugin;
 
@@ -556,9 +556,6 @@ fn set_camera_viewports(
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
-
-    // todo bruke  window_drag_move.rs eksempel til å endre på camera viewport størrelser inne i windu.
-
     for resize_event in resize_events.read() {
         // let primary_window = primary_window.get(resize_event.window);
 
@@ -956,19 +953,27 @@ pub fn resize_alle_individer_camera(
 fn camera_drag_to_resize(
     drag: Trigger<Pointer<Drag>>,
     mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
+    window_query: Query<&Window>,
 ) {
     // println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("resizing camera2");
-        // move viewport to variable
-        // let mut a = &mut camera.viewport;
+
+        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu) 
+        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity. 
+        let window_size = window.physical_size();
+        
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
 
         if let Some(viewport) = potensiell_viewport {
             let u32_vektor: &mut UVec2 = &mut viewport.physical_size;
-            dbg!(drag.delta);
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
+
+            // camera.pos.x + camera.size.x <= window_size.x
+            // camera.size.x <= window_size.x - camera.pos.x
+            u32_vektor.x = min(window_size.x - viewport.physical_position.x  , u32_vektor.x  );
+            u32_vektor.y = min(window_size.y - viewport.physical_position.y , u32_vektor.y  );
         }
     }
 }
@@ -1003,15 +1008,22 @@ fn camera_drag_to_move_camera_in_the_world(
 fn camera_drag_to_move_camera_in_the_window(
     drag: Trigger<Pointer<Drag>>,
     mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
+    window_query: Query<&Window>,
 ) {
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("moving camera in window");
-        // move viewport to variable
+        // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu) 
+        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap();
+        let window_size = window.physical_size();
+        
+        // move viewport 
 
         if let Some(viewport) = &mut camera.viewport {
             let u32_vektor: &mut UVec2 = &mut viewport.physical_position;
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
-            dbg!(&u32_vektor);
+            
+            u32_vektor.x = min(window_size.x - viewport.physical_size.x, u32_vektor.x  );
+            u32_vektor.y = min(window_size.y - viewport.physical_size.y, u32_vektor.y  );
         }
     }
 }
