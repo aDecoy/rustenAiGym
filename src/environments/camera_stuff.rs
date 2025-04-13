@@ -19,7 +19,10 @@ impl Plugin for MinCameraPlugin {
             .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
-            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
+            .add_systems(
+                Startup,
+                spawn_camera_move_on_screen_button_for_neuron_camera,
+            )
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
@@ -256,7 +259,6 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera(
     }
 }
 
-
 pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -264,7 +266,11 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
     kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(BLUE));
-    let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(Vec2::new(-15., 0.), Vec2::new(15., 0.), Vec2::new(0., 15.)));
+    let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(
+        Vec2::new(-15., 0.),
+        Vec2::new(15., 0.),
+        Vec2::new(0., 15.),
+    ));
 
     kamera_query
         .get_single()
@@ -796,7 +802,10 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
 fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
     kamera_query: Query<
         (&Camera, &Children),
-        (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWorldDragButton>),
+        (
+            Changed<Camera>,
+            Without<KameraEdgeMoveCameraInTheWorldDragButton>,
+        ),
     >,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
@@ -828,7 +837,10 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
 fn adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement(
     kamera_query: Query<
         (&Camera, &Children),
-        (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWindowDragButton>),
+        (
+            Changed<Camera>,
+            Without<KameraEdgeMoveCameraInTheWindowDragButton>,
+        ),
     >,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWindowDragButton>>,
 ) {
@@ -949,23 +961,27 @@ fn camera_drag_to_resize(
         println!("resizing camera2");
         // move viewport to variable
         // let mut a = &mut camera.viewport;
-        if let Some(a) = &mut camera.viewport {
+        let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
+
+        if let Some(viewport) = potensiell_viewport {
+            
+            let u32_vektor : &mut UVec2 = &mut viewport.physical_size;
             dbg!(drag.delta);
-            dbg!(UVec2::new(drag.delta.x as u32, drag.delta.y as u32));
-            // a.physical_size += UVec2::new(drag.delta.x as u32, drag.delta.y as u32);
-            if drag.delta.x.is_sign_positive(){
-                a.physical_size.x =  a.physical_size.x + drag.delta.x as u32;
-            } else {
-                dbg!( drag.delta.x as u32);
-                a.physical_size.x =  a.physical_size.x - drag.delta.x.abs() as u32;
-            }            
-            if drag.delta.y.is_sign_positive(){
-                a.physical_size.y =  a.physical_size.y + drag.delta.y as u32;
-            } else {
-                dbg!( drag.delta.x as u32);
-                a.physical_size.y =  a.physical_size.y - drag.delta.y.abs() as u32;
-            }
+            drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
         }
+    }
+}
+
+fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: Trigger<Pointer<Drag>>, u32_vektor: &mut UVec2) {
+    if drag.delta.x.is_sign_positive() {
+        u32_vektor.x += drag.delta.x as u32;
+    } else {
+        u32_vektor.x -= drag.delta.x.abs() as u32;
+    }
+    if drag.delta.y.is_sign_positive() {
+        u32_vektor.y += drag.delta.y as u32;
+    } else {
+        u32_vektor.y -= drag.delta.y.abs() as u32;
     }
 }
 
@@ -987,16 +1003,13 @@ fn camera_drag_to_move_camera_in_the_window(
     drag: Trigger<Pointer<Drag>>,
     mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
 ) {
-
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("moving camera in window");
         // move viewport to variable
 
-        if let Some(a) = &mut camera.viewport {
-            dbg!(drag.delta);
-            dbg!(UVec2::new(drag.delta.x as u32, drag.delta.y as u32));
-            a.physical_position.x = (a.physical_position.x as f32 + drag.delta.x) as u32;
-            a.physical_position.y = (a.physical_position.y as f32 + drag.delta.y) as u32;
+        if let Some(viewport) = &mut camera.viewport {
+            let u32_vektor  : &mut UVec2  = &mut viewport.physical_position;
+            drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
         }
     }
 }
