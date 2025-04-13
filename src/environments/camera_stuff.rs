@@ -6,7 +6,9 @@ use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
+use bevy::utils::dbg;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
+use std::cmp::max;
 
 pub struct MinCameraPlugin;
 
@@ -964,25 +966,24 @@ fn camera_drag_to_resize(
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
 
         if let Some(viewport) = potensiell_viewport {
-            
-            let u32_vektor : &mut UVec2 = &mut viewport.physical_size;
+            let u32_vektor: &mut UVec2 = &mut viewport.physical_size;
             dbg!(drag.delta);
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
         }
     }
 }
 
-fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: Trigger<Pointer<Drag>>, u32_vektor: &mut UVec2) {
-    if drag.delta.x.is_sign_positive() {
-        u32_vektor.x += drag.delta.x as u32;
-    } else {
-        u32_vektor.x -= drag.delta.x.abs() as u32;
-    }
-    if drag.delta.y.is_sign_positive() {
-        u32_vektor.y += drag.delta.y as u32;
-    } else {
-        u32_vektor.y -= drag.delta.y.abs() as u32;
-    }
+fn drag_u32_vektor_med_potensielt_negative_i32_verdier(
+    drag: Trigger<Pointer<Drag>>,
+    u32_vektor: &mut UVec2,
+) {
+    let mut new_x_value = u32_vektor.x as i32;
+    new_x_value += drag.delta.x as i32;
+    u32_vektor.x = max(0, new_x_value) as u32;
+
+    let mut new_y_value = u32_vektor.y as i32;
+    new_y_value += drag.delta.y as i32;
+    u32_vektor.y = max(0, new_y_value) as u32;
 }
 
 fn camera_drag_to_move_camera_in_the_world(
@@ -1008,8 +1009,9 @@ fn camera_drag_to_move_camera_in_the_window(
         // move viewport to variable
 
         if let Some(viewport) = &mut camera.viewport {
-            let u32_vektor  : &mut UVec2  = &mut viewport.physical_position;
+            let u32_vektor: &mut UVec2 = &mut viewport.physical_position;
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
+            dbg!(&u32_vektor);
         }
     }
 }
