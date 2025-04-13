@@ -3,12 +3,7 @@ use crate::environments::camera_stuff::{
     AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
     RENDER_LAYER_POPULASJON_MENY,
 };
-use crate::environments::draw_network::{
-    oppdater_node_tegninger, remove_drawing_of_network,
-    remove_drawing_of_network_for_individ_in_focus,
-    spawn_drawing_of_network_for_changed_individ_in_focus,
-    spawn_drawing_of_network_for_individ_in_focus,
-};
+use crate::environments::draw_network::{oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_individ_in_focus, spawn_drawing_of_network_for_changed_individ_in_focus, spawn_drawing_of_network_for_individ_in_focus};
 use crate::environments::genom_muteringer::lock_mutation_stability;
 use crate::environments::genom_muteringer::mutate_genomes;
 use crate::environments::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
@@ -449,6 +444,10 @@ fn spawn_a_random_new_individual(
     .observe(place_in_focus);
 }
 
+fn add_observers_to_individuals(  commands: &mut Commands, materials: &mut ResMut<Assets<ColorMaterial>>, individ_query Query<Entity>){
+    
+}
+
 /// Returns an observer that updates the entity's material to the one specified.
 fn update_material_on<E>(
     new_material: Handle<ColorMaterial>,
@@ -472,26 +471,6 @@ fn rotate_on_drag(
     println!("dragging");
     let mut angular_velocitiy = angular_velocities.get_mut(drag.entity()).unwrap();
     angular_velocitiy.0 += 0.1;
-}
-
-fn place_in_focus(
-    focus_trigger_click: Trigger<Pointer<Click>>,
-    mut commands: Commands,
-    old_focus_query: Query<Entity, With<IndividInFocus>>,
-) {
-    // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
-    if let Ok(old_focus) = old_focus_query.get_single() {
-        commands.entity(old_focus).remove::<IndividInFocus>();
-    }
-
-    println!("placing entitity in focus");
-    commands
-        .get_entity(focus_trigger_click.target)
-        .unwrap()
-        .insert(IndividInFocus);
-    commands.send_event(IndividInFocusСhangedEvent {
-        entity: focus_trigger_click.target,
-    });
 }
 
 fn place_in_focus_from_meny(

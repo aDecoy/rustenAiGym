@@ -1,6 +1,4 @@
 use crate::{Genome, IndividInFocus, IndividInFocusСhangedEvent, NodeGene, WeightGene};
-use bevy::color::palettes::basic::{BLUE, GREEN, RED};
-use bevy::color::ColorCurve;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
@@ -43,6 +41,27 @@ pub fn draw_network_in_genome2(
     );
     tegn_og_spawn_noder(&mut commands, meshes, materials, genome, &point_per_node);
     // commands.spawn((genome));
+}
+
+
+pub(crate) fn place_in_focus(
+    focus_trigger_click: Trigger<Pointer<Click>>,
+    mut commands: Commands,
+    old_focus_query: Query<Entity, With<IndividInFocus>>,
+) {
+    // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
+    if let Ok(old_focus) = old_focus_query.get_single() {
+        commands.entity(old_focus).remove::<IndividInFocus>();
+    }
+
+    println!("placing entitity in focus");
+    commands
+        .get_entity(focus_trigger_click.target)
+        .unwrap()
+        .insert(IndividInFocus);
+    commands.send_event(IndividInFocusСhangedEvent {
+        entity: focus_trigger_click.target,
+    });
 }
 
 #[derive(Component, Debug)]
