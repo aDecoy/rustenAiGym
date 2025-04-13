@@ -103,15 +103,15 @@ fn main() {
                 reset_to_star_pos_on_event,
                 endre_om_mutasjoner_er_aktive_ved_input,
                 extinction_on_t,
+                // eventer hvis individ i fokus skifter
+                (remove_drawing_of_network_for_individ_in_focus,
+                spawn_drawing_of_network_for_changed_individ_in_focus).chain(),
                 (
                     // print_pois_velocity_and_force,
                     agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
                     label_plank_with_current_score,
                     label_plank_with_current_score_in_meny,
                     oppdater_node_tegninger,
-                    // eventer hvis individ i fokus skifter
-                    remove_drawing_of_network_for_individ_in_focus,
-                    spawn_drawing_of_network_for_changed_individ_in_focus,
                 )
                     .chain()
                     .run_if(in_state(Kjøretilstand::Kjørende)),
@@ -487,10 +487,14 @@ fn place_in_focus_from_meny(
     old_focus_query: Query<Entity, With<IndividInFocus>>,
     // mut individ_query: Query<Entity, With<Genome>>,
     meny_individ_box_query: Query<(Entity, &MenyTagForIndivid)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
     if let Ok(old_focus) = old_focus_query.get_single() {
         commands.entity(old_focus).remove::<IndividInFocus>();
+        // back to default color
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
     }
 
     let meny_bokks_for_individ_entity = meny_individ_box_query
