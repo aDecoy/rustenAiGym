@@ -112,8 +112,8 @@ fn main() {
                     label_plank_with_current_score_in_meny,
                     oppdater_node_tegninger,
                     // eventer hvis individ i fokus skifter
-                    remove_drawing_of_network_for_individ_in_focus,
-                    spawn_drawing_of_network_for_changed_individ_in_focus,
+                    (remove_drawing_of_network_for_individ_in_focus,
+                     spawn_drawing_of_network_for_changed_individ_in_focus).chain(),
                 )
                     .chain()
                     .run_if(in_state(Kjøretilstand::Kjørende)),
@@ -491,10 +491,14 @@ fn place_in_focus_from_meny(
     old_focus_query: Query<Entity, With<IndividInFocus>>,
     // mut individ_query: Query<Entity, With<Genome>>,
     meny_individ_box_query: Query<(Entity, &MenyTagForIndivid)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
     if let Ok(old_focus) = old_focus_query.get_single() {
         commands.entity(old_focus).remove::<IndividInFocus>();
+        // back to default color
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
     }
 
     let meny_bokks_for_individ_entity = meny_individ_box_query
@@ -830,20 +834,15 @@ fn create_new_children(
                 new_genome,
             )),
         }
-        .with_children(|builder| {
-            builder.spawn((
-                Text2d::new("Fitness label"),
-                TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-                IndividFitnessLabelTextTag,
-                RenderLayers::layer(1),
-            ));
-        })
-        .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-        // .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-        .observe(pointer_out_of_individ)
-        .observe(rotate_on_drag)
-        .observe(place_in_focus);
+            .with_children(|builder| {
+                builder.spawn((
+                    Text2d::new("Fitness label"),
+                    TextLayout::new_with_justify(JustifyText::Center),
+                    Transform::from_xyz(0.0, 0.0, 2.0),
+                    IndividFitnessLabelTextTag,
+                    RenderLayers::layer(1),
+                ));
+            });
     }
 }
 
@@ -856,7 +855,8 @@ fn pointer_out_of_individ(
             Option<&EliteTag>,
             Option<&IndividInFocus>,
         ),
-        With<Individ>,
+        // With<(Individ, PlankPhenotype)>,
+        With<(PlankPhenotype)>,
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -1438,14 +1438,14 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
-                                                  // pub genotype: Genome,
-                                                  // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
-                                                  // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+    // pub genotype: Genome,
+    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 #[derive(Component, Debug)]
 // #[derive(Component, Eq, Ord, PartialEq, PartialOrd, PartialEq)]
-pub struct Individ {}
+pub struct Individ {} // denne er ganske det samme som PlankPhenotype, siden alle individer har PlankPhenotype
 
 #[derive(Debug)]
 struct PhenotypeNeuralNetwork {

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Arc;
+use bevy::color::palettes::basic::PURPLE;
 
 pub fn draw_network_in_genome(
     commands: Commands,
@@ -47,10 +48,17 @@ pub(crate) fn place_in_focus(
     focus_trigger_click: Trigger<Pointer<Click>>,
     mut commands: Commands,
     old_focus_query: Query<Entity, With<IndividInFocus>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
     if let Ok(old_focus) = old_focus_query.get_single() {
+        dbg!(old_focus);
         commands.entity(old_focus).remove::<IndividInFocus>();
+
+        // todo egen osbserver funksjon for farge-endring
+        println!("gir gammle fokus tilbake lilla farge");
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
     }
 
     println!("placing entitity in focus");
@@ -82,9 +90,9 @@ pub(crate) fn oppdater_node_tegninger(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut text_query: Query<&mut Text2d, With<NodeValueLabelTag>>,
 ) {
-    // println!("oppdater_node_tegninger");
     for (mut nodeforbindelse, noderef, mut children) in query.iter_mut() {
         // dbg!(&noderef);
+        // println!("oppdater_node_tegninger");
         // println!("&&noderef.node addr {:p}", &&&noderef.node);
         // println!(" en ");
         let node_value = { noderef.node.value.read().unwrap().clone() };
@@ -102,18 +110,6 @@ pub(crate) fn oppdater_node_tegninger(
         // println!("endrer verdi til {}", node_value.clone().to_string());
     }
     // println!("oppdater_node_tegninger ferdig");
-}
-
-pub(crate) fn remove_drawing_of_network(
-    mut commands: Commands,
-    mut query: Query<Entity, With<DrawingTag>>,
-) {
-    // println!("inne i remove_drawing_of_network_for_best_individ");
-    for (entity) in query.iter_mut() {
-        // dbg!(entity);
-        commands.entity(entity).despawn_recursive();
-    }
-    // println!("ut av remove_drawing_of_network_for_best_individ");
 }
 
 trait Round {
@@ -467,6 +463,18 @@ pub fn spawn_drawing_of_network_for_individ_in_focus(
     }
 }
 
+pub(crate) fn remove_drawing_of_network(
+    mut commands: Commands,
+    mut query: Query<Entity, With<DrawingTag>>,
+) {
+    println!("inne i remove_drawing_of_network_for_best_individ");
+    for (entity) in query.iter_mut() {
+        // dbg!(entity);
+        commands.entity(entity).despawn_recursive();
+    }
+    // println!("ut av remove_drawing_of_network_for_best_individ");
+}
+
 pub fn remove_drawing_of_network_for_individ_in_focus(
     mut event_reader: EventReader<IndividInFocusСhangedEvent>,
     mut query: Query<Entity, With<DrawingTag>>,
@@ -474,7 +482,7 @@ pub fn remove_drawing_of_network_for_individ_in_focus(
 ) {
     let individ_in_focus_changed_event = event_reader.read().next();
     if individ_in_focus_changed_event.is_some() {
-        println!("indovid endret fokus");
+        println!("individ endret fokus, så fjerner gammel tegning");
 
         for (entity) in query.iter_mut() {
             // dbg!(entity);
@@ -482,6 +490,8 @@ pub fn remove_drawing_of_network_for_individ_in_focus(
         }
     }
 }
+
+aøsldkjf todo til neste gang. Bugfix for node tegninger når det endres fokus
 
 pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
@@ -495,6 +505,7 @@ pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
     // let individ_in_focus_changed_event = event_reader.read().next();
     // if individ_in_focus_changed_event.is_some() {
     if let Ok(genome) = query_new_in_foscus.single(){
+        println!("individ in fokus endret seg, så jeg spawner en ny tenging");
         assert!(query_new_in_foscus.iter().count() == 1);
         draw_network_in_genome2(commands, meshes, materials, genome);
     }
