@@ -68,7 +68,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
 }
 
 pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
-    let window = window.single();
+    let window = window.single().unwrap();
 
     // let text_style = TextStyle {
     //     font_size: 30.0,
@@ -90,7 +90,7 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
 pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Commands,
                                                            window_query: Query<&Window, With<AllIndividerWindowTag>>
 ) {
-    let window = window_query.single();
+    let window = window_query.single().unwrap();
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
@@ -109,10 +109,9 @@ pub(crate) fn spawn_simulation_generation_time_tellertekst(mut commands: Command
     ));
 }
 
-fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(resize_event: Res<Events<WindowResized>>, mut query: Query<&mut Transform, With<TellerTekst>>) {
-    let mut reader = resize_event.get_reader();
-    for e in reader.read(&resize_event) {
-        let mut transform = query.single_mut();
+fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(mut resize_events: EventReader<WindowResized>, mut query: Query<&mut Transform, With<TellerTekst>>) {
+    for e in resize_events.read() {
+        let mut transform = query.single_mut().unwrap();
         transform.translation.x = e.width * 0.5 - 200.0;
         transform.translation.y = e.height * 0.5 - 20.0;
     }
@@ -121,7 +120,7 @@ fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(resize_e
 pub(crate) fn oppdater_bevy_simulation_tellertekst<TellerTekst: bevy::prelude::Component, Teller: CounterResource + bevy::prelude::Resource>(mut query: Query<&mut Text2d, With<TellerTekst>>,
                                                                                                                                              teller1: Res<Teller>, ) {
     // println!("query empty={}, query size = {}", query.is_empty(), query.iter().count());
-    let mut tekst = query.single_mut();
+    let mut tekst = query.single_mut().unwrap();
     // tekst.sections[0].value = "En fin tekst: ".to_string() + &teller1.0.to_string();
     tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
 }
@@ -154,7 +153,7 @@ fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>)
 }
 
 pub(crate) fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
-    let window = window.single();
+    let window = window.single().unwrap();
 
     // let text_style = TextStyle {
     //     font_size: 30.0,
@@ -173,7 +172,7 @@ pub(crate) fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query
     ));
 }
 pub(crate) fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(mut query: Query<&mut Text2d, With<TellerTekst>>, teller1: Res<SimulationGenerationTimer>) {
-    let mut tekst = query.single_mut();
+    let mut tekst = query.single_mut().unwrap();
     // tekst.sections[0].value = "En fin tekst: ".to_string() + &teller1.0.to_string();
     tekst.0 = "Simulation timer: ".to_string() + &teller1.main_timer.elapsed_secs().round().to_string();
 }

@@ -6,9 +6,10 @@ use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
-use bevy::utils::dbg;
+// use bevy::utils::dbg;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use std::cmp::{max, min};
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 
 pub struct MinCameraPlugin;
 
@@ -343,7 +344,7 @@ pub(crate) fn setup_camera(
     let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(CYAN_950));
     // commands.spawn(Camera2d::default());
     commands
-        .entity(query.single())
+        .entity(query.single().unwrap())
         .insert((AllIndividerWindowTag));
 
     // Spawn a second window
@@ -361,7 +362,7 @@ pub(crate) fn setup_camera(
 
     let camera_pos_1 = Vec3::new(0.0, 200.0, 150.0);
     let camera_pos_2 = Vec3::new(150.0, 150., 50.0);
-    let camera = commands
+    commands
         .spawn((
             Camera2d::default(),
             // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
@@ -388,15 +389,15 @@ pub(crate) fn setup_camera(
             NetverkInFokusCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
         ))
-        .with_children(|parent_builder| {
+        .with_children(|spawner| {
             spawn_camera_margins(
                 color_material_handle.clone(),
-                parent_builder,
+                spawner,
                 RENDER_LAYER_NETTVERK,
             );
-        })
-        .id();
-    let camera = commands
+        });
+    
+     commands
         .spawn((
             Camera2d::default(),
             // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
@@ -421,9 +422,9 @@ pub(crate) fn setup_camera(
                 active_camera_mode_index: 3,
             },
             RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
-        ))
-        .id();
-    let camera = commands
+        ));
+    
+     commands
         .spawn((
             Camera2d::default(),
             // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
@@ -449,17 +450,16 @@ pub(crate) fn setup_camera(
             PopulasjonMenyCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
         ))
-        .with_children(|parent_builder| {
+        .with_children(|parent_builder : &mut ChildSpawnerCommands<'_>| {
             // default values since they will be changed when camera is moved (events)
             spawn_camera_margins(
                 color_material_handle.clone(),
                 parent_builder,
                 RENDER_LAYER_POPULASJON_MENY,
             );
-        })
-        .id();
-
-    let camera = commands
+        });
+    
+    commands
         .spawn((
             Camera2d::default(),
             Camera {
@@ -487,32 +487,32 @@ pub(crate) fn setup_camera(
 
 fn spawn_camera_margins(
     color_material_handle: Handle<ColorMaterial>,
-    parent_builder: &mut ChildBuilder,
+    spawner: &mut RelatedSpawnerCommands<ChildOf>,
     render_target: usize,
 ) {
     // default values since they will be changed when camera is moved (events)
-    parent_builder.spawn((
+    spawner.spawn((
         CameraMarginDirection::TOPP,
         Transform::from_xyz(0.0, 0.0, 1.0),
         Mesh2d::default(),
         MeshMaterial2d(color_material_handle.clone()),
         RenderLayers::from_layers(&[render_target]),
     ));
-    parent_builder.spawn((
+    spawner.spawn((
         CameraMarginDirection::VENSTRE,
         Transform::from_xyz(0.0, 0.0, 1.0),
         Mesh2d::default(),
         MeshMaterial2d(color_material_handle.clone()),
         RenderLayers::from_layers(&[render_target]),
     ));
-    parent_builder.spawn((
+    spawner.spawn((
         CameraMarginDirection::HØYRE,
         Transform::from_xyz(0.0, 0.0, 1.0),
         Mesh2d::default(),
         MeshMaterial2d(color_material_handle.clone()),
         RenderLayers::from_layers(&[render_target]),
     ));
-    parent_builder.spawn((
+    spawner.spawn((
         CameraMarginDirection::BUNN,
         Transform::from_xyz(0.0, 0.0, 1.0),
         Mesh2d::default(),
@@ -520,21 +520,6 @@ fn spawn_camera_margins(
         RenderLayers::from_layers(&[render_target]),
     ));
 }
-
-// fn adjust_camera_drag_point_viewports(
-//     kamera_query: Query<&Camera, Changed<Camera>>,
-//     mut drag_icon_query: Query<&mut DragButton>,
-// ) {
-//     // println!("adjust_camera_drag_point_viewports");
-//     for kamera in kamera_query.iter() {
-//         if let Some(viewport) = &kamera.viewport {
-//             let pos = viewport.physical_position;
-//             let size = viewport.physical_size;
-//             // let drag_button = drag_icon_query.single_mut();
-//             println!("har alt jeg trenger");
-//         }
-//     }
-// }
 
 fn set_camera_viewports(
     primary_window: Query<&Window, With<PrimaryWindow>>,
@@ -592,7 +577,7 @@ fn set_camera_viewports(
             println!("resize_event for secondary window");
 
             // Knapp meny er alltid i andre windu
-            let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut();
+            let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut().unwrap();
 
             println!(
                 "knapp_meny_camera er i primary window : {} ,  ",

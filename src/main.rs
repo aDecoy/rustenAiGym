@@ -1,19 +1,26 @@
-use crate::environments::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin};
 use crate::environments::camera_stuff::{
     AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
     RENDER_LAYER_POPULASJON_MENY,
 };
-use crate::environments::draw_network::{oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_individ_in_focus, spawn_drawing_of_network_for_changed_individ_in_focus, spawn_drawing_of_network_for_individ_in_focus};
+use crate::environments::camera_stuff::{
+    KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera,
+};
+use crate::environments::draw_network::{
+    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network,
+    remove_drawing_of_network_for_individ_in_focus,
+    spawn_drawing_of_network_for_changed_individ_in_focus,
+    spawn_drawing_of_network_for_individ_in_focus,
+};
 use crate::environments::genom_muteringer::lock_mutation_stability;
 use crate::environments::genom_muteringer::mutate_genomes;
-use crate::environments::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::environments::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::environments::genome_stuff::{NodeGene, WeightGene};
 use crate::environments::lunar_lander_environment::{
-    spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE,
+    LANDING_SITE, spawn_ground, spawn_landing_target, spawn_roof,
 };
 use crate::environments::moving_plank::{
-    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
-    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
+    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling,
+    create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
 use crate::environments::simulation_teller::{
     SimulationGenerationTimer, SimulationRunningTellerPlugin,
@@ -28,16 +35,16 @@ use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
+use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
-use bevy::render::RenderPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
-use std::cmp::{max, min, Ordering, PartialEq};
+use rand::{Rng, thread_rng};
+use std::cmp::{Ordering, PartialEq, max, min};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -56,95 +63,92 @@ fn main() {
     println!("Starting up AI GYM");
 
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(RenderPlugin {
-        render_creation: RenderCreation::Automatic(WgpuSettings {
-            backends: Some(Backends::DX12),
-            ..default()
-        }),
-        synchronous_pipeline_compilation: false,
-    }))
-    // .add_plugins(DefaultPlugins)
-    .insert_state(Kjøretilstand::Kjørende)
-    .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-    .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins(MeshPickingPlugin)
-    .add_plugins(MinCameraPlugin)
-    .insert_state(EttHakkState::DISABLED)
-    .add_event::<IndividInFocusСhangedEvent>()
-    .init_resource::<GenerationCounter>()
-    .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-    // .init_resource(     EnvValg { Homing} )
-    .add_event::<ResetToStartPositionsEvent>()
-    .add_systems(
-        Startup,
-        (
+
+    app.add_plugins(DefaultPlugins)
+        // .add_plugins(MinimalPlugins)
+        .insert_state(Kjøretilstand::Kjørende)
+        .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
+        // .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(MeshPickingPlugin)
+        .add_plugins(MinCameraPlugin)
+        .insert_state(EttHakkState::DISABLED)
+        .add_event::<IndividInFocusСhangedEvent>()
+        .init_resource::<GenerationCounter>()
+        .insert_resource(InnovationNumberGlobalCounter { count: 0 })
+        // .init_resource(     EnvValg { Homing} )
+        .add_event::<ResetToStartPositionsEvent>()
+        .add_systems(
+            Startup,
             (
-                spawn_start_population,
-                setup_population_meny,
-                setup_knapp_meny,
-                reset_to_star_pos,
-                add_elite_component_tag_to_best_individ,
-                set_best_individ_in_focus,
-                color_elite_red,
-                spawn_drawing_of_network_for_individ_in_focus,
-            )
-                .chain(),
-            spawn_ground,
-            spawn_roof,
-            spawn_landing_target,
-        ),
-    )
-    .add_systems(
-        Update,
-        (
-            endre_kjøretilstand_ved_input,
-            reset_event_ved_input,
-            reset_to_star_pos_on_event,
-            endre_om_mutasjoner_er_aktive_ved_input,
-            extinction_on_t,
+                (
+                    spawn_start_population,
+                    add_observers_to_individuals.after(spawn_start_population),
+                    setup_population_meny, // todo , trengr å oppdatere meny også
+                    setup_knapp_meny,
+                    reset_to_star_pos,
+                    add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
+                    color_elite_red,
+                    spawn_drawing_of_network_for_individ_in_focus,
+                )
+                    .chain(),
+                spawn_ground,
+                spawn_roof,
+                spawn_landing_target,
+            ),
+        )
+        .add_systems(
+            Update,
             (
-                // print_pois_velocity_and_force,
-                agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-                label_plank_with_current_score,
-                label_plank_with_current_score_in_meny,
-                oppdater_node_tegninger,
-                // eventer hvis individ i fokus skifter
-                remove_drawing_of_network_for_individ_in_focus,
-                spawn_drawing_of_network_for_changed_individ_in_focus,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::Kjørende)),
-            check_if_done,
-            // check_if_done.run_if(every_time_if_stop_on_right_window()),
-            (
-                // print_pop_conditions,
-                increase_generation_counter,
-                lock_mutation_stability,
-                add_elite_component_tag_to_best_individ,
-                set_best_individ_in_focus,
-                color_elite_red,
-                // save_best_to_history,
-                kill_worst_individuals,
-                remove_drawing_of_network,
-                spawn_drawing_of_network_for_individ_in_focus,
-                create_new_children,
-                // spawn_a_random_new_individual2,
-                // mutate_planks,
-                mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                update_phenotype_network_for_changed_genomes
-                    .run_if(in_state(MutasjonerErAktive::Ja)),
-                reset_to_star_pos,
-                nullstill_nettverk_verdier_til_0,
-                set_to_kjørende_state,
-            )
-                .chain()
-                .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-        ),
-    )
-    // Environment spesific : Later changed
-    .add_plugins(MovingPlankPlugin)
-    .add_plugins(SimulationRunningTellerPlugin);
+                endre_kjøretilstand_ved_input,
+                reset_event_ved_input,
+                reset_to_star_pos_on_event,
+                endre_om_mutasjoner_er_aktive_ved_input,
+                extinction_on_t,
+                (
+                    // print_pois_velocity_and_force,
+                    agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
+                    label_plank_with_current_score,
+                    label_plank_with_current_score_in_meny,
+                    oppdater_node_tegninger,
+                    // eventer hvis individ i fokus skifter
+                    remove_drawing_of_network_for_individ_in_focus,
+                    spawn_drawing_of_network_for_changed_individ_in_focus,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::Kjørende)),
+                check_if_done,
+                // check_if_done.run_if(every_time_if_stop_on_right_window()),
+                (
+                    // print_pop_conditions,
+                    increase_generation_counter,
+                    lock_mutation_stability,
+                    add_elite_component_tag_to_best_individ,
+                    set_best_individ_in_focus,
+                    color_elite_red,
+                    // save_best_to_history,
+                    kill_worst_individuals,
+                    remove_drawing_of_network,
+                    spawn_drawing_of_network_for_individ_in_focus,
+                    create_new_children,
+                    add_observers_to_individuals.after(create_new_children),
+                    // spawn_a_random_new_individual2,
+                    // mutate_planks,
+                    mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                    update_phenotype_network_for_changed_genomes
+                        .run_if(in_state(MutasjonerErAktive::Ja)),
+                    reset_to_star_pos,
+                    nullstill_nettverk_verdier_til_0,
+                    set_to_kjørende_state,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+            ),
+        )
+        // Environment spesific : Later changed
+        .add_plugins(MovingPlankPlugin)
+        .add_plugins(SimulationRunningTellerPlugin);
 
     app.run();
 }
@@ -436,16 +440,24 @@ fn spawn_a_random_new_individual(
             IndividFitnessLabelTextTag,
             RenderLayers::layer(1),
         ));
-    })
-    .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-    // .observe(update_material_on::<Pointer<Out>>(material_handle.clone()))
-    .observe(pointer_out_of_individ)
-    .observe(rotate_on_drag)
-    .observe(place_in_focus);
+    });
 }
 
-fn add_observers_to_individuals(  commands: &mut Commands, materials: &mut ResMut<Assets<ColorMaterial>>, individ_query Query<Entity>){
-    
+fn add_observers_to_individuals(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    individ_query: Query<Entity, With<PlankPhenotype>>,
+) {
+    let hover_matl = materials.add(Color::from(CYAN_300));
+    for individ_entity in individ_query.iter() {
+        commands
+            .get_entity(individ_entity)
+            .unwrap()
+            .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+            .observe(pointer_out_of_individ)
+            .observe(rotate_on_drag)
+            .observe(place_in_focus);
+    }
 }
 
 /// Returns an observer that updates the entity's material to the one specified.
@@ -456,7 +468,7 @@ fn update_material_on<E>(
     // versions of this observer, each triggered by a different event and with a different hardcoded
     // material. Instead, the event type is a generic, and the material is passed in.
     move |trigger, mut query| {
-        if let Ok(mut material) = query.get_mut(trigger.entity()) {
+        if let Ok(mut material) = query.get_mut(trigger.target().entity()) {
             material.0 = new_material.clone();
         }
     }
@@ -469,7 +481,7 @@ fn rotate_on_drag(
     mut angular_velocities: Query<&mut AngularVelocity>,
 ) {
     println!("dragging");
-    let mut angular_velocitiy = angular_velocities.get_mut(drag.entity()).unwrap();
+    let mut angular_velocitiy = angular_velocities.get_mut(drag.target.entity()).unwrap();
     angular_velocitiy.0 += 0.1;
 }
 
@@ -490,7 +502,7 @@ fn place_in_focus_from_meny(
         .unwrap();
     let individ_entity = meny_bokks_for_individ_entity.1.individ_entity;
 
-    if let Some(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {
+    if let Ok(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {
         invidiv_entity_commandering.insert(IndividInFocus);
         commands.send_event(IndividInFocusСhangedEvent {
             entity: individ_entity,
@@ -745,7 +757,10 @@ fn create_new_children(
     // Select potential Parent
     for n in 0..min(ANT_PARENTS_HVER_GENERASJON, population.len()) {
         let parent = population[n].clone();
-        println!("the lucky winner was parent with entity index {}, with entity generation {} that had score: {} ", parent.entity_index, parent.entity_bevy_generation, parent.phenotype.score);
+        println!(
+            "the lucky winner was parent with entity index {}, with entity generation {} that had score: {} ",
+            parent.entity_index, parent.entity_bevy_generation, parent.phenotype.score
+        );
         parents.push(parent);
     }
 
@@ -903,7 +918,7 @@ fn check_if_done(
     simulation_timer: Res<SimulationGenerationTimer>,
     window: Query<&Window, With<AllIndividerWindowTag>>,
 ) {
-    let max_width = window.single().width() * 0.5;
+    let max_width = window.single().unwrap().width() * 0.5;
 
     match ACTIVE_ENVIROMENT {
         EnvValg::Høyre
@@ -940,7 +955,7 @@ fn setup_knapp_meny(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut camera_query: Query<(Entity, &Camera), With<KnapperMenyCameraTag>>,
 ) {
-    let (camera_entity, camera) = camera_query.single();
+    let (camera_entity, camera) = camera_query.single().unwrap();
     commands
         .spawn((
             Node {
@@ -951,7 +966,7 @@ fn setup_knapp_meny(
                 ..default()
             },
             Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-            TargetCamera(camera_entity), // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+            UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
         ))
         .with_children(|parent| {
             parent
@@ -1004,7 +1019,7 @@ fn setup_population_meny(
     //     MeshMaterial2d(material_handle),
     //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
     // ));
-    let (camera_entity, camera) = camera_query.single();
+    let (camera_entity, camera) = camera_query.single().unwrap();
     // root node
     commands
         .spawn((
@@ -1020,7 +1035,7 @@ fn setup_population_meny(
             },
             Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
             // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-            TargetCamera(camera_entity), // TargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+            UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
         ))
         .with_children(|parent| {
             // kolonner som fyller hele veien ned
@@ -1051,7 +1066,7 @@ fn setup_population_meny(
                         Text::new("en knapp"),
                         BackgroundColor(Color::from(RED_300)),
                         // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                        // TargetCamera(camera_entity),  // Target camera brukes for UI ting
+                        // UiTargetCamera(camera_entity),  // Target camera brukes for UI ting
                     ));
                     // knapp 2
                     parent.spawn((
@@ -1067,7 +1082,7 @@ fn setup_population_meny(
                         Text::new("en knapp til"),
                         BackgroundColor(Color::from(RED_300)),
                         // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                        // TargetCamera(camera_entity),
+                        // UiTargetCamera(camera_entity),
                     ));
                 });
 
@@ -1113,7 +1128,7 @@ fn setup_population_meny(
                                         Text::new(format!("Ancestor_id {ancestor_id}, score:  ")),
                                         TextFont::from_font_size(10.0),
                                         RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                        PickingBehavior::IGNORE,
+                                        Pickable::IGNORE,
                                     ))
                                     .with_child((
                                         TextFont::from_font_size(15.0),
@@ -1123,7 +1138,7 @@ fn setup_population_meny(
                                             entity: phenotype_and_genome.entity,
                                         },
                                         RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                        PickingBehavior::IGNORE,
+                                        Pickable::IGNORE,
                                     ));
                             });
                     }
@@ -1339,9 +1354,9 @@ fn agent_action_and_fitness_evaluation(
         let input_values = plank.obseravations.clone();
         // dbg!(&input_values);
         let action = plank.phenotype_layers.decide_on_action2(input_values); // fungerer
-                                                                             // dbg!(&action);
-                                                                             // individual.translation.x += random::<f32>() * action * 5.0;
-                                                                             // println!("action : {action}");
+        // dbg!(&action);
+        // individual.translation.x += random::<f32>() * action * 5.0;
+        // println!("action : {action}");
         let mut a = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
@@ -1395,11 +1410,11 @@ fn agent_action_and_fitness_evaluation(
 }
 
 fn label_plank_with_current_score(
-    mut query: Query<(&mut Text2d, &Parent), With<IndividFitnessLabelTextTag>>,
+    mut text_query: Query<(&mut Text2d, &ChildOf), With<IndividFitnessLabelTextTag>>,
     parent_query: Query<&PlankPhenotype>,
 ) {
-    for (mut tekst, parent_entity) in query.iter_mut() {
-        if let Ok(plank_phenotype) = parent_query.get(**parent_entity) {
+    for (mut tekst, child_of) in text_query.iter_mut() {
+        if let Ok(plank_phenotype) = parent_query.get(child_of.parent()) {
             tekst.0 = plank_phenotype.score.to_string();
         }
     }

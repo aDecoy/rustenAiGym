@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use avian2d::collision::{Collider, CollisionLayers, LayerMask};
-use avian2d::prelude::{Friction, Restitution, RigidBody};
+use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::{Assets, Circle, ColorMaterial, Commands, Mesh, Mesh2d, MeshMaterial2d, Rectangle, ResMut, Transform, Vec2};
@@ -10,7 +9,7 @@ use crate::{EnvValg, ACTIVE_ENVIROMENT};
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
-const GROUND_COLOR: Color = Color::rgb(0.30, 0.75, 0.5);
+const GROUND_COLOR: Color = Color::srgb(0.30, 0.75, 0.5);
 const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };

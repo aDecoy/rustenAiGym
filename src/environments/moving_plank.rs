@@ -72,7 +72,7 @@ pub const PLANK_HIGHT: f32 = 3.0 * PIXELS_PER_METER; // in meters
 const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
 const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
-const PLANK_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
+const PLANK_COLOR: Color = Color::srgb(1.0, 0.5, 0.5);
 
 fn set_physics_time_to_paused_or_unpaused(
     kjøretistand_state: Res<State<Kjøretilstand>>,
@@ -311,7 +311,7 @@ fn print_done_status(query: Query<&Transform, With<PlankPhenotype>>, window: Que
 }
 
 fn reset_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>) {
-    let mut translation = query.single_mut().translation;
+    let mut translation = query.single_mut().unwrap().translation;
     translation.x = 0.0;
     translation.y = 0.0;
 }

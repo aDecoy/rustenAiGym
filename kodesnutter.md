@@ -67,7 +67,7 @@ fn vis_tekst(mut commands: Commands) {
 }
 
 fn oppdater_tekst(mut query: Query<&mut Text, With<TellerTekst>>) {
-    let mut tekst = query.single_mut();
+    let mut tekst = query.single_mut().unwrap();
     tekst.sections[0].value = "En fin tekst: 1".to_string();
 }
 ```
@@ -147,7 +147,7 @@ fn move_plank(mut query: Query<&mut Transform, With<Plank>>,
     if (keyboard_input.pressed(KeyD)) {
         delta_x += PLANK_MOVEMENT_SPEED;
     }
-    let mut transform = query.single_mut();
+    let mut transform = query.single_mut().unwrap();
     transform.translation.x += delta_x;
 ```
 
@@ -470,7 +470,7 @@ https://github.com/bevyengine/bevy/blob/main/examples/window/window_settings.rs
 
 ```rust
 fn get_window(window: Query<&Window>) {
-    let window = window.single();
+    let window = window.single().unwrap();
 
     let width = window.width();
     let height = window.height();
@@ -479,7 +479,7 @@ fn get_window(window: Query<&Window>) {
 
 ```rust
 pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window>) {
-    let window = window.single();
+    let window = window.single().unwrap();
 
     info!("window size accoarding to Query<&Window>, {}, {}" , window.width(), window.height() );
     let text_style = TextStyle {
@@ -500,10 +500,9 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
     ));
 }
 
-fn resize_simulation_tellertekst(resize_event: Res<Events<WindowResized>>, mut query: Query<&mut Transform, With<SimulationRunningTellerTekst>>) {
-    let mut reader = resize_event.get_reader();
-    for e in reader.read(&resize_event) {
-        let mut transform = query.single_mut();
+fn resize_simulation_tellertekst(resize_events: EventReader<WindowResized>, mut query: Query<&mut Transform, With<SimulationRunningTellerTekst>>) {
+    for e in resize_events.read() {
+        let mut transform = query.single_mut().unwrap();
         println!("old translation {}", transform.translation);
         transform.translation.x =  e.width*0.5  - 200.0;
         // transform.translation.x =  200.0;

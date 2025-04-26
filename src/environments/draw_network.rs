@@ -10,7 +10,7 @@ pub fn draw_network_in_genome(
     materials: ResMut<Assets<ColorMaterial>>,
     query: Query<&Genome>,
 ) {
-    let genome = query.single();
+    let genome = query.single().unwrap();
     draw_network_in_genome2(commands, meshes, materials, genome);
 }
 
@@ -42,7 +42,6 @@ pub fn draw_network_in_genome2(
     tegn_og_spawn_noder(&mut commands, meshes, materials, genome, &point_per_node);
     // commands.spawn((genome));
 }
-
 
 pub(crate) fn place_in_focus(
     focus_trigger_click: Trigger<Pointer<Click>>,
@@ -92,7 +91,7 @@ pub(crate) fn oppdater_node_tegninger(
         // dbg!(node_value);
         let a_color = match noderef.node.enabled.read().unwrap().clone() {
             true => get_color_for_node_value(node_value),
-            false => Color::rgb(0.0, 0.0, 0.0)
+            false => Color::srgb(0.0, 0.0, 0.0),
         };
         let new_handle: Handle<ColorMaterial> = materials.add(a_color);
         nodeforbindelse.0 = new_handle;
@@ -151,7 +150,7 @@ fn tegn_og_spawn_noder(
             true => get_color_for_node_value(node_value),
             false => {
                 // println!("tegner en inaktiv SVART! node");
-                Color::rgb(0.0, 0.0, 0.0)
+                Color::srgb(0.0, 0.0, 0.0)
             }
         };
         // if !node.enabled.read().unwrap().clone() {
@@ -454,7 +453,6 @@ fn kordinater_per_node(
     point_per_node
 }
 
-
 pub fn spawn_drawing_of_network_for_individ_in_focus(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
     mut commands: Commands,
@@ -490,16 +488,17 @@ pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
     commands: Commands,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
-    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
+    // mut event_reader: EventReader<IndividInFocusСhangedEvent>,
     // mut query_new_in_foscus: Query<&Genome, With<IndividInFocus>, Added<IndividInFocus>>,
-    mut query_new_in_foscus: Query<&Genome, Added<IndividInFocus>>,
+    mut query_new_in_foscus: Query<(&Genome), Added<IndividInFocus>>,
 ) {
-    let individ_in_focus_changed_event = event_reader.read().next();
-    if individ_in_focus_changed_event.is_some() {
-        assert!(!query_new_in_foscus.is_empty());
-        let genome = query_new_in_foscus
-            .get(individ_in_focus_changed_event.unwrap().entity)
-            .unwrap();
+    // let individ_in_focus_changed_event = event_reader.read().next();
+    // if individ_in_focus_changed_event.is_some() {
+    if let Ok(genome) = query_new_in_foscus.single(){
+        assert!(query_new_in_foscus.iter().count() == 1);
         draw_network_in_genome2(commands, meshes, materials, genome);
     }
+    // let genome = query_new_in_foscus
+    //     .get(individ_in_focus_changed_event.unwrap().entity)
+    //     .unwrap();
 }
