@@ -470,7 +470,7 @@ pub(crate) fn remove_drawing_of_network(
     println!("inne i remove_drawing_of_network_for_best_individ");
     for (entity) in query.iter_mut() {
         // dbg!(entity);
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     // println!("ut av remove_drawing_of_network_for_best_individ");
 }
@@ -491,7 +491,7 @@ pub fn remove_drawing_of_network_for_individ_in_focus(
     }
 }
 
-aøsldkjf todo til neste gang. Bugfix for node tegninger når det endres fokus
+//  todo til neste gang. Bugfix for node tegninger når det endres fokus
 
 pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){

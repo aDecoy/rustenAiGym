@@ -7,9 +7,10 @@ use bevy::prelude::*;
 use bevy::render::camera::{RenderTarget, Viewport};
 use bevy::render::view::RenderLayers;
 // use bevy::utils::dbg;
-use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
-use std::cmp::{max, min};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
+use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
+use bevy_inspector_egui::egui::debug_text::print;
+use std::cmp::{max, min};
 
 pub struct MinCameraPlugin;
 
@@ -275,9 +276,7 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
         Vec2::new(0., 15.),
     ));
 
-    kamera_query
-        .get_single()
-        .expect("Kamera eksisterer ikke :(");
+    kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity) in kamera_query.iter() {
         let mut parent_kamera = commands.get_entity(kamera_entity);
 
@@ -911,15 +910,16 @@ pub fn resize_alle_individer_camera(
     mut commands: Commands,
     windows: Query<(Entity, &Window), With<AllIndividerWindowTag>>,
 ) {
-    let (entity, camera, mut camera_viewport_settings) = cameras.get_single_mut().unwrap();
-    camera_viewport_settings.next_camera_mode_index();
-    // Trigger event to make system that handles viewport changes to run
-    let (window_entity, window) = windows.get_single().unwrap();
-    resize_camera_windows.send(WindowResized {
-        window: window_entity,
-        width: window.size().x,
-        height: window.size().y,
-    });
+    if let Ok((entity, camera, mut camera_viewport_settings)) = cameras.single_mut() {
+        camera_viewport_settings.next_camera_mode_index();
+        // Trigger event to make system that handles viewport changes to run
+        let (window_entity, window) = windows.get_single().unwrap();
+        resize_camera_windows.send(WindowResized {
+            window: window_entity,
+            width: window.size().x,
+            height: window.size().y,
+        });
+    }
 }
 
 fn camera_drag_to_resize(
@@ -933,7 +933,9 @@ fn camera_drag_to_resize(
         println!("resizing camera2");
 
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
-        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
+        let window = window_query
+            .get(camera.target.get_window_target_entity().unwrap())
+            .unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
         let window_size = window.physical_size();
 
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
@@ -944,8 +946,8 @@ fn camera_drag_to_resize(
 
             // camera.pos.x + camera.size.x <= window_size.x
             // camera.size.x <= window_size.x - camera.pos.x
-            u32_vektor.x = min(window_size.x - viewport.physical_position.x  , u32_vektor.x  );
-            u32_vektor.y = min(window_size.y - viewport.physical_position.y , u32_vektor.y  );
+            u32_vektor.x = min(window_size.x - viewport.physical_position.x, u32_vektor.x);
+            u32_vektor.y = min(window_size.y - viewport.physical_position.y, u32_vektor.y);
         }
     }
 }
@@ -967,7 +969,7 @@ fn camera_drag_to_move_camera_in_the_world(
     drag: Trigger<Pointer<Drag>>,
     mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>,
 ) {
-    // println!("dragging camera");
+    println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut transform) = query.get_single_mut() {
         println!("moving camera2");
@@ -982,10 +984,14 @@ fn camera_drag_to_move_camera_in_the_window(
     mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
     window_query: Query<&Window>,
 ) {
-    if let Ok(mut camera) = kamera_query.get_single_mut() {
-        println!("moving camera in window");
+    // println!("trigger moving camera in window");
+
+    if let Ok(mut camera) = kamera_query.single_mut() {
+        // println!("moving camera in window");
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
-        let window =  window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap();
+        let window = window_query
+            .get(camera.target.get_window_target_entity().unwrap())
+            .unwrap();
         let window_size = window.physical_size();
 
         // move viewport
@@ -994,8 +1000,8 @@ fn camera_drag_to_move_camera_in_the_window(
             let u32_vektor: &mut UVec2 = &mut viewport.physical_position;
             drag_u32_vektor_med_potensielt_negative_i32_verdier(drag, u32_vektor);
 
-            u32_vektor.x = min(window_size.x - viewport.physical_size.x, u32_vektor.x  );
-            u32_vektor.y = min(window_size.y - viewport.physical_size.y, u32_vektor.y  );
+            u32_vektor.x = min(window_size.x - viewport.physical_size.x, u32_vektor.x);
+            u32_vektor.y = min(window_size.y - viewport.physical_size.y, u32_vektor.y);
         }
     }
 }

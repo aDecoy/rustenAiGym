@@ -51,6 +51,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
 
 mod environments;
 
@@ -68,7 +69,7 @@ fn main() {
         // .add_plugins(MinimalPlugins)
         .insert_state(Kjøretilstand::Kjørende)
         .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-        // .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(( EguiPlugin { enable_multipass_for_primary_context: true }, WorldInspectorPlugin::new()))
         .add_plugins(MeshPickingPlugin)
         .add_plugins(MinCameraPlugin)
         .insert_state(EttHakkState::DISABLED)
@@ -112,8 +113,11 @@ fn main() {
                     label_plank_with_current_score_in_meny,
                     oppdater_node_tegninger,
                     // eventer hvis individ i fokus skifter
-                    (remove_drawing_of_network_for_individ_in_focus,
-                     spawn_drawing_of_network_for_changed_individ_in_focus).chain(),
+                    (
+                        remove_drawing_of_network_for_individ_in_focus,
+                        spawn_drawing_of_network_for_changed_individ_in_focus,
+                    )
+                        .chain(),
                 )
                     .chain()
                     .run_if(in_state(Kjøretilstand::Kjørende)),
@@ -313,7 +317,7 @@ fn print_pop_conditions(
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 24;
+static START_POPULATION_SIZE: i32 = 3;
 static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 5;
 static ANT_PARENTS_HVER_GENERASJON: usize = 3;
 
@@ -498,7 +502,9 @@ fn place_in_focus_from_meny(
         commands.entity(old_focus).remove::<IndividInFocus>();
         // back to default color
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
+        commands
+            .entity(old_focus)
+            .insert(MeshMaterial2d(material_handle));
     }
 
     let meny_bokks_for_individ_entity = meny_individ_box_query
@@ -834,15 +840,15 @@ fn create_new_children(
                 new_genome,
             )),
         }
-            .with_children(|builder| {
-                builder.spawn((
-                    Text2d::new("Fitness label"),
-                    TextLayout::new_with_justify(JustifyText::Center),
-                    Transform::from_xyz(0.0, 0.0, 2.0),
-                    IndividFitnessLabelTextTag,
-                    RenderLayers::layer(1),
-                ));
-            });
+        .with_children(|builder| {
+            builder.spawn((
+                Text2d::new("Fitness label"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+                IndividFitnessLabelTextTag,
+                RenderLayers::layer(1),
+            ));
+        });
     }
 }
 
@@ -1019,144 +1025,147 @@ fn setup_population_meny(
     //     MeshMaterial2d(material_handle),
     //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
     // ));
-    let (camera_entity, camera) = camera_query.single().unwrap();
-    // root node
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                // justify_content: JustifyContent::SpaceBetween,
-                // justify_content: JustifyContent::Stretch,
-                justify_content: JustifyContent::SpaceEvenly,
-                flex_direction: FlexDirection::Column,
-                // justify_content: JustifyContent::Center,
-                ..default()
-            },
-            Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-            UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
-        ))
-        .with_children(|parent| {
-            // kolonner som fyller hele veien ned
-            // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
-            // meny knapper div
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    flex_wrap: FlexWrap::Wrap,
-                    // justify_content: JustifyContent::SpaceEvenly,
-                    justify_content: JustifyContent::SpaceBetween,
-                    // align_items: AlignItems::Center,
-                    // width: Val::Px(700.),
+    if let Ok((camera_entity, camera)) = camera_query.single() {
+        // root node
+        commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    // justify_content: JustifyContent::SpaceBetween,
+                    // justify_content: JustifyContent::Stretch,
+                    justify_content: JustifyContent::SpaceEvenly,
+                    flex_direction: FlexDirection::Column,
+                    // justify_content: JustifyContent::Center,
                     ..default()
-                })
-                .with_children(|parent| {
-                    // knapp 1
-                    parent.spawn((
-                        Node {
-                            width: Val::Px(100.),
-                            height: Val::Px(50.),
-                            // border: UiRect::all(Val::Px(100.)),
-                            // margin: UiRect::all(Val::Px(10.)),
-                            overflow: Overflow::scroll_y(),
-                            ..default()
-                        },
-                        TextFont::default(),
-                        Text::new("en knapp"),
-                        BackgroundColor(Color::from(RED_300)),
-                        // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                        // UiTargetCamera(camera_entity),  // Target camera brukes for UI ting
-                    ));
-                    // knapp 2
-                    parent.spawn((
-                        Node {
-                            width: Val::Px(100.),
-                            height: Val::Px(50.),
-                            // border: UiRect::all(Val::Px(100.)),
-                            // margin: UiRect::all(Val::Px(10.)),
-                            overflow: Overflow::scroll_y(),
-                            ..default()
-                        },
-                        TextFont::default(),
-                        Text::new("en knapp til"),
-                        BackgroundColor(Color::from(RED_300)),
-                        // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                        // UiTargetCamera(camera_entity),
-                    ));
-                });
+                },
+                Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
+                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+            ))
+            .with_children(|parent| {
+                // kolonner som fyller hele veien ned
+                // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
+                // meny knapper div
+                parent
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        flex_wrap: FlexWrap::Wrap,
+                        // justify_content: JustifyContent::SpaceEvenly,
+                        justify_content: JustifyContent::SpaceBetween,
+                        // align_items: AlignItems::Center,
+                        // width: Val::Px(700.),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // knapp 1
+                        parent.spawn((
+                            Node {
+                                width: Val::Px(100.),
+                                height: Val::Px(50.),
+                                // border: UiRect::all(Val::Px(100.)),
+                                // margin: UiRect::all(Val::Px(10.)),
+                                overflow: Overflow::scroll_y(),
+                                ..default()
+                            },
+                            TextFont::default(),
+                            Text::new("en knapp"),
+                            BackgroundColor(Color::from(RED_300)),
+                            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                            // UiTargetCamera(camera_entity),  // Target camera brukes for UI ting
+                        ));
+                        // knapp 2
+                        parent.spawn((
+                            Node {
+                                width: Val::Px(100.),
+                                height: Val::Px(50.),
+                                // border: UiRect::all(Val::Px(100.)),
+                                // margin: UiRect::all(Val::Px(10.)),
+                                overflow: Overflow::scroll_y(),
+                                ..default()
+                            },
+                            TextFont::default(),
+                            Text::new("en knapp til"),
+                            BackgroundColor(Color::from(RED_300)),
+                            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                            // UiTargetCamera(camera_entity),
+                        ));
+                    });
 
-            // populasjon grid
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    flex_wrap: FlexWrap::Wrap,
-                    // justify_content: JustifyContent::SpaceEvenly,
-                    justify_content: JustifyContent::SpaceBetween,
-                    // align_items: AlignItems::Center,
-                    // width: Val::Px(700.),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    // EN BOKS PER INDIVID
-                    for phenotype_and_genome in population {
-                        let ancestor_id = phenotype_and_genome.genome.original_ancestor_id;
-                        let fitness_score = phenotype_and_genome.phenotype.score;
-                        parent
-                            .spawn((
-                                Node {
-                                    width: Val::Px(100.),
-                                    height: Val::Px(100.),
-                                    // border: UiRect::all(Val::Px(100.)),
-                                    margin: UiRect::all(Val::Px(10.)),
-                                    overflow: Overflow::scroll_y(),
-                                    ..default()
-                                },
-                                TextFont::default(),
-                                BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                                RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                MenyTagForIndivid {
-                                    individ_entity: phenotype_and_genome.entity,
-                                },
-                            ))
-                            .observe(place_in_focus_from_meny)
-                            // Tekst som er inne i den grå bokksen
-                            .with_children(|parent| {
-                                parent
-                                    .spawn((
-                                        // NB: Tekst inside of NODE can not be text2d. Text2d does not care about UI grid stuff
-                                        Text::new(format!("Ancestor_id {ancestor_id}, score:  ")),
-                                        TextFont::from_font_size(10.0),
-                                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                        Pickable::IGNORE,
-                                    ))
-                                    .with_child((
-                                        TextFont::from_font_size(15.0),
-                                        TextSpan::default(), // tekst er inne i textSpan når den er en child, og ting blir tullete om det er inne i en text
-                                        IndividFitnessLabelTextTag,
-                                        IndividFitnessLabelText {
-                                            entity: phenotype_and_genome.entity,
-                                        },
-                                        RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                        Pickable::IGNORE,
-                                    ));
-                            });
-                    }
-                });
+                // populasjon grid
+                parent
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        flex_wrap: FlexWrap::Wrap,
+                        // justify_content: JustifyContent::SpaceEvenly,
+                        justify_content: JustifyContent::SpaceBetween,
+                        // align_items: AlignItems::Center,
+                        // width: Val::Px(700.),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // EN BOKS PER INDIVID
+                        for phenotype_and_genome in population {
+                            let ancestor_id = phenotype_and_genome.genome.original_ancestor_id;
+                            let fitness_score = phenotype_and_genome.phenotype.score;
+                            parent
+                                .spawn((
+                                    Node {
+                                        width: Val::Px(100.),
+                                        height: Val::Px(100.),
+                                        // border: UiRect::all(Val::Px(100.)),
+                                        margin: UiRect::all(Val::Px(10.)),
+                                        overflow: Overflow::scroll_y(),
+                                        ..default()
+                                    },
+                                    TextFont::default(),
+                                    BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                                    RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                                    MenyTagForIndivid {
+                                        individ_entity: phenotype_and_genome.entity,
+                                    },
+                                ))
+                                .observe(place_in_focus_from_meny)
+                                // Tekst som er inne i den grå bokksen
+                                .with_children(|parent| {
+                                    parent
+                                        .spawn((
+                                            // NB: Tekst inside of NODE can not be text2d. Text2d does not care about UI grid stuff
+                                            Text::new(format!(
+                                                "Ancestor_id {ancestor_id}, score:  "
+                                            )),
+                                            TextFont::from_font_size(10.0),
+                                            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                                            Pickable::IGNORE,
+                                        ))
+                                        .with_child((
+                                            TextFont::from_font_size(15.0),
+                                            TextSpan::default(), // tekst er inne i textSpan når den er en child, og ting blir tullete om det er inne i en text
+                                            IndividFitnessLabelTextTag,
+                                            IndividFitnessLabelText {
+                                                entity: phenotype_and_genome.entity,
+                                            },
+                                            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
+                                            Pickable::IGNORE,
+                                        ));
+                                });
+                        }
+                    });
 
-            // en annen kolonne
+                // en annen kolonne
 
-            // parent
-            //     .spawn((
-            //         Node {
-            //             width: Val::Px(20.),
-            //             border: UiRect::all(Val::Px(2.)),
-            //             ..default()
-            //         },
-            //         BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-            //         RenderLayers::layer(RENDER_LAYER_POPULASJON),
-            //     ));
-        });
+                // parent
+                //     .spawn((
+                //         Node {
+                //             width: Val::Px(20.),
+                //             border: UiRect::all(Val::Px(2.)),
+                //             ..default()
+                //         },
+                //         BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                //         RenderLayers::layer(RENDER_LAYER_POPULASJON),
+                //     ));
+            });
+    }
 }
 
 fn endre_kjøretilstand_ved_input(
