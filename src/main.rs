@@ -1,16 +1,3 @@
-use crate::environments::camera_stuff::{
-    resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin,
-};
-use crate::environments::camera_stuff::{
-    AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
-    RENDER_LAYER_POPULASJON_MENY,
-};
-use crate::environments::draw_network::{
-    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network,
-    remove_drawing_of_network_for_individ_in_focus,
-    spawn_drawing_of_network_for_changed_individ_in_focus,
-    spawn_drawing_of_network_for_individ_in_focus,
-};
 use crate::environments::lunar_lander_environment::{
     spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE,
 };
@@ -18,13 +5,26 @@ use crate::environments::moving_plank::{
     create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER,
     PLANK_HIGHT, PLANK_LENGTH,
 };
-use crate::environments::simulation_teller::{
-    SimulationGenerationTimer, SimulationRunningTellerPlugin,
-};
 use crate::genome::genom_muteringer::lock_mutation_stability;
 use crate::genome::genom_muteringer::mutate_genomes;
 use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
+use crate::monitoring::camera_stuff::{
+    resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin,
+};
+use crate::monitoring::camera_stuff::{
+    AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
+    RENDER_LAYER_POPULASJON_MENY,
+};
+use crate::monitoring::draw_network::{
+    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network,
+    remove_drawing_of_network_for_individ_in_focus,
+    spawn_drawing_of_network_for_changed_individ_in_focus,
+    spawn_drawing_of_network_for_individ_in_focus,
+};
+use crate::monitoring::simulation_teller::{
+    SimulationGenerationTimer, SimulationRunningTellerPlugin,
+};
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
@@ -56,6 +56,7 @@ use std::vec::Vec;
 
 mod environments;
 mod genome;
+mod monitoring;
 
 struct Environment {
     app: App,

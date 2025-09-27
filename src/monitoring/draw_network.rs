@@ -46,7 +46,7 @@ pub fn draw_network_in_genome2(
     // commands.spawn((genome));
 }
 
-pub(crate) fn place_in_focus(
+pub fn place_in_focus(
     focus_trigger_click: Trigger<Pointer<Click>>,
     mut commands: Commands,
     old_focus_query: Query<Entity, With<IndividInFocus>>,
@@ -76,16 +76,16 @@ pub(crate) fn place_in_focus(
 }
 
 #[derive(Component, Debug)]
-pub(crate) struct NodeRefForDrawing {
+pub struct NodeRefForDrawing {
     node: Arc<NodeGene>,
 }
 #[derive(Component, Debug)]
-pub(crate) struct DrawingTag;
+pub struct DrawingTag;
 
 #[derive(Component, Debug)]
-pub(crate) struct NodeValueLabelTag;
+pub struct NodeValueLabelTag;
 
-pub(crate) fn oppdater_node_tegninger(
+pub fn oppdater_node_tegninger(
     mut query: Query<(
         &mut MeshMaterial2d<ColorMaterial>,
         &NodeRefForDrawing,
@@ -469,7 +469,7 @@ pub fn spawn_drawing_of_network_for_individ_in_focus(
     }
 }
 
-pub(crate) fn remove_drawing_of_network(
+pub fn remove_drawing_of_network(
     mut commands: Commands,
     mut query: Query<Entity, With<DrawingTag>>,
 ) {

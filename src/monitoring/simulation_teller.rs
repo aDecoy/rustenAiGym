@@ -1,7 +1,7 @@
-use crate::Kjøretilstand;
-use crate::environments::camera_stuff::{
+use crate::monitoring::camera_stuff::{
     AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY,
 };
+use crate::Kjøretilstand;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
@@ -48,12 +48,12 @@ pub struct SimulationGenerationRunningTellerTekst;
 
 #[derive(Resource, Default, Debug)]
 pub struct SimulationTotalRuntimeRunningTeller {
-    pub(crate) count: u32,
+    pub count: u32,
 }
 
 #[derive(Resource, Default, Debug)]
 struct SimulationGenerationTeller {
-    pub(crate) count: u32,
+    pub count: u32,
 }
 
 trait CounterResource {
@@ -76,7 +76,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
     }
 }
 
-pub(crate) fn spawn_simulation_tellertekst(
+pub fn spawn_simulation_tellertekst(
     mut commands: Commands,
     window: Query<&Window, With<AllIndividerWindowTag>>,
 ) {
@@ -103,7 +103,7 @@ pub(crate) fn spawn_simulation_tellertekst(
     ));
 }
 
-pub(crate) fn spawn_simulation_generation_time_tellertekst(
+pub fn spawn_simulation_generation_time_tellertekst(
     mut commands: Commands,
     window_query: Query<&Window, With<AllIndividerWindowTag>>,
 ) {
@@ -140,7 +140,7 @@ fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(
     }
 }
 
-pub(crate) fn oppdater_bevy_simulation_tellertekst<
+pub fn oppdater_bevy_simulation_tellertekst<
     TellerTekst: bevy::prelude::Component,
     Teller: CounterResource + bevy::prelude::Resource,
 >(
@@ -153,7 +153,7 @@ pub(crate) fn oppdater_bevy_simulation_tellertekst<
     tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
 }
 
-pub(crate) fn add_one_to_simulation_running_teller<
+pub fn add_one_to_simulation_running_teller<
     Teller: CounterResource + bevy::prelude::Resource,
 >(
     mut frame_count: ResMut<Teller>,
@@ -183,7 +183,7 @@ fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>)
     countdown.main_timer.tick(time.delta());
 }
 
-pub(crate) fn spawn_simulation_timer_tekst(
+pub fn spawn_simulation_timer_tekst(
     mut commands: Commands,
     window: Query<&Window, With<AllIndividerWindowTag>>,
 ) {
@@ -209,7 +209,7 @@ pub(crate) fn spawn_simulation_timer_tekst(
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
-pub(crate) fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(
+pub fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(
     mut query: Query<&mut Text2d, With<TellerTekst>>,
     teller1: Res<SimulationGenerationTimer>,
 ) {

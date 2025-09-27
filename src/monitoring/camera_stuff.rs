@@ -333,7 +333,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
     }
 }
 
-pub(crate) fn setup_camera(
+pub fn setup_camera(
     mut commands: Commands,
     query: Query<Entity, With<Window>>,
     mut materials: ResMut<Assets<ColorMaterial>>,

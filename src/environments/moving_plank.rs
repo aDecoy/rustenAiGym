@@ -1,6 +1,6 @@
-use crate::environments::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use crate::genome::genome_stuff::Genome;
+use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
+use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
 use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
