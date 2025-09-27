@@ -38,6 +38,8 @@ use bevy::prelude::*;
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
+use bevy_egui::UiRenderOrder;
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
@@ -51,7 +53,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
-use bevy_inspector_egui::bevy_egui::EguiPlugin;
 
 mod environments;
 
@@ -69,7 +70,13 @@ fn main() {
         // .add_plugins(MinimalPlugins)
         .insert_state(Kjøretilstand::Kjørende)
         .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-        .add_plugins(( EguiPlugin { enable_multipass_for_primary_context: true }, WorldInspectorPlugin::new()))
+        .add_plugins((
+            EguiPlugin {
+                enable_multipass_for_primary_context: true,
+                ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+            },
+            WorldInspectorPlugin::new(),
+        ))
         .add_plugins(MeshPickingPlugin)
         .add_plugins(MinCameraPlugin)
         .insert_state(EttHakkState::DISABLED)
@@ -1447,9 +1454,9 @@ pub struct PlankPhenotype {
     pub obseravations: Vec<f32>,
     // pub phenotype: f32,
     pub phenotype_layers: PhenotypeNeuralNetwork, // for now we always have a neural network to make decisions for the agent
-    // pub genotype: Genome,
-    // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
-    // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
+                                                  // pub genotype: Genome,
+                                                  // Genome er flyttet til å bli en component på Entity som også holder på PlankPhenotype komponent. Mistenker det fungerer bedre med tanke på bevy
+                                                  // pub genotype: Entity, // by having genotype also be an entity, we can query for it directly, without going down through parenkt PlankPhenotype that carries the genome ( phenotype is not that relevant if we do mutation or other pure genotype operations)
 }
 
 #[derive(Component, Debug)]

@@ -1,13 +1,13 @@
 use crate::environments::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
+use crate::environments::genome_stuff::Genome;
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
-use avian2d::prelude::*;
 use avian2d::PhysicsPlugins;
+use avian2d::prelude::*;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
-use std::vec;
 use bevy::render::view::RenderLayers;
-use crate::environments::genome_stuff::Genome;
+use std::vec;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
@@ -34,29 +34,31 @@ impl Plugin for MovingPlankPlugin {
             // )
             .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
-
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
             .insert_resource(Gravity::ZERO)
-
             // .add_systems(Startup, spawn_plank)
-            .add_systems(Update, (
-                (set_physics_time_to_paused_or_unpaused).run_if(state_changed::<Kjøretilstand>),
+            .add_systems(
+                Update,
                 (
-                    move_plank,
-                    impulse_plank,
-                    // print_done_status,
-                    // print_score,
-                    // print_environment_observations
-                ).run_if(
-                    in_state(Kjøretilstand::Kjørende)
-                ),
-                (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
-                (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
-            ).chain());
+                    (set_physics_time_to_paused_or_unpaused).run_if(state_changed::<Kjøretilstand>),
+                    (
+                        move_plank,
+                        impulse_plank,
+                        // print_done_status,
+                        // print_score,
+                        // print_environment_observations
+                    )
+                        .run_if(in_state(Kjøretilstand::Kjørende)),
+                    (set_ett_hakk_til_kjør_ett_hakk_if_input)
+                        .run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
+                    (set_ett_hakk_til_vent_på_input)
+                        .run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
+                )
+                    .chain(),
+            );
     }
 }
-
 
 /// Defines the state found in the cart pole environment.
 #[derive(Debug, Clone, Copy, PartialEq, Component)]
@@ -65,9 +67,12 @@ pub struct MovingPlankObservation {
     y: f32,
 }
 
-
-const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 0.0 };
-pub const PLANK_LENGTH: f32 = 9.0 * PIXELS_PER_METER;  // in meters
+const PLANK_STARTING_POSITION: Vec3 = Vec3 {
+    x: 0.0,
+    y: -150.0,
+    z: 0.0,
+};
+pub const PLANK_LENGTH: f32 = 9.0 * PIXELS_PER_METER; // in meters
 pub const PLANK_HIGHT: f32 = 3.0 * PIXELS_PER_METER; // in meters
 const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
 const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
@@ -76,7 +81,8 @@ const PLANK_COLOR: Color = Color::srgb(1.0, 0.5, 0.5);
 
 fn set_physics_time_to_paused_or_unpaused(
     kjøretistand_state: Res<State<Kjøretilstand>>,
-    mut physics_time: ResMut<Time<Physics>>, ) {
+    mut physics_time: ResMut<Time<Physics>>,
+) {
     match kjøretistand_state.get() {
         Kjøretilstand::Pause => physics_time.pause(),
         Kjøretilstand::Kjørende => physics_time.unpause(),
@@ -84,7 +90,21 @@ fn set_physics_time_to_paused_or_unpaused(
     }
 }
 
-pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome) -> (Mesh2d, Transform, MeshMaterial2d<ColorMaterial>, PlankPhenotype, Genome, Collider, MovingPlankObservation, LinearVelocity) {
+pub fn create_plank_env_moving_right(
+    material_handle: Handle<ColorMaterial>,
+    mesh2d_handle: Handle<Mesh>,
+    start_position: Vec3,
+    genome: Genome,
+) -> (
+    Mesh2d,
+    Transform,
+    MeshMaterial2d<ColorMaterial>,
+    PlankPhenotype,
+    Genome,
+    Collider,
+    MovingPlankObservation,
+    LinearVelocity,
+) {
     (
         Mesh2d(mesh2d_handle),
         Transform::from_translation(start_position),
@@ -92,7 +112,7 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
         MeshMaterial2d(material_handle),
         PlankPhenotype {
             score: 0.0,
-            obseravations: vec!(0.0, 0.0),
+            obseravations: vec![0.0, 0.0],
             // phenotype_layers: create_phenotype_layers(genome.clone()),
             phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
@@ -114,18 +134,35 @@ pub fn create_plank_env_moving_right(material_handle: Handle<ColorMaterial>, mes
     )
 }
 
-pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome) -> (Mesh2d, Transform, MeshMaterial2d<ColorMaterial>, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity) {
+pub fn create_plank_env_falling(
+    material_handle: Handle<ColorMaterial>,
+    mesh2d_handle: Handle<Mesh>,
+    start_position: Vec3,
+    genome: Genome,
+) -> (
+    Mesh2d,
+    Transform,
+    MeshMaterial2d<ColorMaterial>,
+    PlankPhenotype,
+    Genome,
+    Collider,
+    RigidBody,
+    CollisionLayers,
+    LinearVelocity,
+) {
     (
         Mesh2d(mesh2d_handle),
-        Transform::from_translation(start_position)
-            .with_scale(Vec2 {
+        Transform::from_translation(start_position).with_scale(
+            Vec2 {
                 x: PLANK_LENGTH,
                 y: PLANK_HIGHT,
-            }.extend(1.)),
+            }
+            .extend(1.),
+        ),
         MeshMaterial2d(material_handle),
         PlankPhenotype {
             score: 0.0,
-            obseravations: vec!(0.0, 0.0),
+            obseravations: vec![0.0, 0.0],
             // phenotype_layers:  create_phenotype_layers(genome.clone()),
             phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
@@ -154,7 +191,26 @@ pub fn create_plank_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_h
         },
     )
 }
-pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>, mesh2d_handle: Handle<Mesh>, start_position: Vec3, genome: Genome) -> (Mesh2d, MeshMaterial2d<ColorMaterial>, Transform, PlankPhenotype, Genome, Collider, RigidBody, CollisionLayers, LinearVelocity, ExternalForce, TextLayout, RenderLayers, Individ) {
+pub fn create_plank_ext_force_env_falling(
+    material_handle: Handle<ColorMaterial>,
+    mesh2d_handle: Handle<Mesh>,
+    start_position: Vec3,
+    genome: Genome,
+) -> (
+    Mesh2d,
+    MeshMaterial2d<ColorMaterial>,
+    Transform,
+    PlankPhenotype,
+    Genome,
+    Collider,
+    RigidBody,
+    CollisionLayers,
+    LinearVelocity,
+    ExternalForce,
+    TextLayout,
+    RenderLayers,
+    Individ,
+) {
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
@@ -166,7 +222,7 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         Transform::from_translation(start_position).with_scale(Vec2 { x: 1.0, y: 1.0 }.extend(1.)),
         PlankPhenotype {
             score: 0.0,
-            obseravations: vec!(0.0, 0.0),
+            obseravations: vec![0.0, 0.0],
             // phenotype_layers: create_phenotype_layers(genome.clone()),
             phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
             // genotype: genome_entity,
@@ -182,7 +238,7 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
         TextLayout::new_with_justify(JustifyText::Center),
-        RenderLayers::layer( RENDER_LAYER_ALLE_INDIVIDER),
+        RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
         Individ {},
         // RenderLayers::from_layers(&[1]),
     )
@@ -190,9 +246,10 @@ pub fn create_plank_ext_force_env_falling(material_handle: Handle<ColorMaterial>
 
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 
-fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
-              keyboard_input: Res<ButtonInput<KeyCode>>,
-              time: Res<Time>,
+fn move_plank(
+    mut query: Query<&mut Transform, With<PlankPhenotype>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
 ) {
     let mut delta_x = 0.0;
     if keyboard_input.pressed(KeyA) {
@@ -209,8 +266,7 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>,
 }
 
 fn impulse_plank(
-    mut query: Query<
-        &mut LinearVelocity, With<PlankPhenotype>>,
+    mut query: Query<&mut LinearVelocity, With<PlankPhenotype>>,
     // &mut Velocity, With<PlankPhenotype>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -232,17 +288,19 @@ fn impulse_plank(
     }
 }
 
-fn set_ett_hakk_til_vent_på_input(mut next_state: ResMut<NextState<EttHakkState>>,
-                                  mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
+fn set_ett_hakk_til_vent_på_input(
+    mut next_state: ResMut<NextState<EttHakkState>>,
+    mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
 ) {
     next_state.set(EttHakkState::VENTER_PÅ_INPUT);
     next_kjøretistand_state.set(Kjøretilstand::Pause);
 }
 
-fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyCode>>,
-                                           mut next_state: ResMut<NextState<EttHakkState>>,
-                                           mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
-                                           mut physics_time: ResMut<Time<Physics>>,
+fn set_ett_hakk_til_kjør_ett_hakk_if_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<EttHakkState>>,
+    mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
+    mut physics_time: ResMut<Time<Physics>>,
 ) {
     let mut input_exist = false;
     if keyboard_input.pressed(KeyA) {
@@ -263,17 +321,26 @@ fn set_ett_hakk_til_kjør_ett_hakk_if_input(keyboard_input: Res<ButtonInput<KeyC
 
 fn get_observations(transform: Transform) -> MovingPlankObservation {
     // let translation = query.get_single().unwrap().translation.clone();
-    return MovingPlankObservation { x: transform.translation.x, y: transform.translation.y };
+    return MovingPlankObservation {
+        x: transform.translation.x,
+        y: transform.translation.y,
+    };
 }
 
 fn get_simulation_time(query: Query<&Transform, With<PlankPhenotype>>) -> MovingPlankObservation {
     let translation = query.get_single().unwrap().translation.clone();
-    return MovingPlankObservation { x: translation.x, y: translation.y };
+    return MovingPlankObservation {
+        x: translation.x,
+        y: translation.y,
+    };
 }
 
 fn print_environment_observations(query: Query<&Transform, With<PlankPhenotype>>) {
     for transform in query.iter() {
-        println!("Moving plank observations : {:?}", get_observations(transform.clone()));
+        println!(
+            "Moving plank observations : {:?}",
+            get_observations(transform.clone())
+        );
     }
 }
 
@@ -305,7 +372,10 @@ fn print_done_status(query: Query<&Transform, With<PlankPhenotype>>, window: Que
     let window = window.get_single().unwrap().clone();
 
     for transform in query.iter() {
-        println!("Er done ? : {}", check_if_done(transform.clone(), window.clone()));
+        println!(
+            "Er done ? : {}",
+            check_if_done(transform.clone(), window.clone())
+        );
     }
     println!("-------------------------");
 }

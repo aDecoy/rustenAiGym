@@ -1,19 +1,19 @@
 use crate::{Genome, IndividInFocus, IndividInFocusСhangedEvent, NodeGene, WeightGene};
+use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Arc;
-use bevy::color::palettes::basic::PURPLE;
 
-pub fn draw_network_in_genome(
-    commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<&Genome>,
-) {
-    let genome = query.single().unwrap();
-    draw_network_in_genome2(commands, meshes, materials, genome);
-}
+// pub fn draw_network_in_genome(
+//     commands: Commands,
+//     meshes: ResMut<Assets<Mesh>>,
+//     materials: ResMut<Assets<ColorMaterial>>,
+//     query: Query<&Genome>,
+// ) {
+//     let genome = query.single().unwrap();
+//     draw_network_in_genome2(commands, meshes, materials, genome);
+// }
 
 pub fn draw_network_in_genome2(
     mut commands: Commands,
@@ -31,6 +31,8 @@ pub fn draw_network_in_genome2(
     //////////////////////////////
 
     let point_per_node = kordinater_per_node(genome, node_to_layer, layers_ordered_output_to_input);
+
+    println!("tegner opp {} noder", point_per_node.iter().count());
 
     // draw connections
     tegn_forbindelser(
@@ -58,7 +60,9 @@ pub(crate) fn place_in_focus(
         // todo egen osbserver funksjon for farge-endring
         println!("gir gammle fokus tilbake lilla farge");
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
+        commands
+            .entity(old_focus)
+            .insert(MeshMaterial2d(material_handle));
     }
 
     println!("placing entitity in focus");
@@ -460,6 +464,8 @@ pub fn spawn_drawing_of_network_for_individ_in_focus(
 
     if genome.is_ok() {
         draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
+    } else {
+        println!("intet genom i fokus ?!")
     }
 }
 
@@ -504,7 +510,7 @@ pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
 ) {
     // let individ_in_focus_changed_event = event_reader.read().next();
     // if individ_in_focus_changed_event.is_some() {
-    if let Ok(genome) = query_new_in_foscus.single(){
+    if let Ok(genome) = query_new_in_foscus.single() {
         println!("individ in fokus endret seg, så jeg spawner en ny tenging");
         assert!(query_new_in_foscus.iter().count() == 1);
         draw_network_in_genome2(commands, meshes, materials, genome);

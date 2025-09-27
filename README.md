@@ -5,3 +5,9 @@ These technologies should allow for a fast and parallel computation that should 
 
 
 test edit in place on github
+
+
+
+Plan
+
+-

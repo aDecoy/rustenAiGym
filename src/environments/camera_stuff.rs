@@ -395,35 +395,34 @@ pub(crate) fn setup_camera(
                 RENDER_LAYER_NETTVERK,
             );
         });
-    
-     commands
-        .spawn((
-            Camera2d::default(),
-            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
-            Camera {
-                // Renders cameras with different priorities to prevent ambiguities
-                order: 1 as isize,
-                ..default()
-            },
-            CameraPosition {
-                pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
-                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
-            },
-            // AllIndividerCamera{ camera_mode: CameraMode::HALV },
-            AllIndividerCameraTag,
-            CameraViewportSetting {
-                camera_modes: vec![
-                    CameraMode::HALV,
-                    CameraMode::KVART,
-                    CameraMode::AV,
-                    CameraMode::HEL,
-                ],
-                active_camera_mode_index: 3,
-            },
-            RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
-        ));
-    
-     commands
+
+    commands.spawn((
+        Camera2d::default(),
+        // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera {
+            // Renders cameras with different priorities to prevent ambiguities
+            order: 1 as isize,
+            ..default()
+        },
+        CameraPosition {
+            pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
+            // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+        },
+        // AllIndividerCamera{ camera_mode: CameraMode::HALV },
+        AllIndividerCameraTag,
+        CameraViewportSetting {
+            camera_modes: vec![
+                CameraMode::HALV,
+                CameraMode::KVART,
+                CameraMode::AV,
+                CameraMode::HEL,
+            ],
+            active_camera_mode_index: 3,
+        },
+        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
+    ));
+
+    commands
         .spawn((
             Camera2d::default(),
             // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
@@ -449,7 +448,7 @@ pub(crate) fn setup_camera(
             PopulasjonMenyCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
         ))
-        .with_children(|parent_builder : &mut ChildSpawnerCommands<'_>| {
+        .with_children(|parent_builder: &mut ChildSpawnerCommands<'_>| {
             // default values since they will be changed when camera is moved (events)
             spawn_camera_margins(
                 color_material_handle.clone(),
@@ -457,7 +456,7 @@ pub(crate) fn setup_camera(
                 RENDER_LAYER_POPULASJON_MENY,
             );
         });
-    
+
     commands
         .spawn((
             Camera2d::default(),
@@ -576,7 +575,8 @@ fn set_camera_viewports(
             println!("resize_event for secondary window");
 
             // Knapp meny er alltid i andre windu
-            let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut().unwrap();
+            let (knapp_meny_position, mut knapp_meny_camera) =
+                absolutt_kamera_query.single_mut().unwrap();
 
             println!(
                 "knapp_meny_camera er i primary window : {} ,  ",
