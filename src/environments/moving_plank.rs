@@ -1,9 +1,9 @@
 use crate::environments::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::environments::genome_stuff::Genome;
 use crate::environments::simulation_teller::SimulationTotalRuntimeRunningTeller;
+use crate::genome::genome_stuff::Genome;
 use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
-use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
+use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;

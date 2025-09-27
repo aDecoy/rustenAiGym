@@ -1,10 +1,10 @@
-use crate::PlankPhenotype;
-use crate::environments::genome_stuff::{
+use crate::genome::genome_stuff::{
     Genome, InnovationNumberGlobalCounter, NodeGene, WeightGene,
 };
+use crate::PlankPhenotype;
 use bevy::prelude::{Changed, Query, ResMut};
 use rand::random;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
 pub(crate) fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
