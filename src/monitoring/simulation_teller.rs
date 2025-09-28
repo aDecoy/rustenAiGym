@@ -1,7 +1,5 @@
-use crate::monitoring::camera_stuff::{
-    AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY,
-};
-use crate::{Kjøretilstand, increase_generation_counter};
+use crate::Kjøretilstand;
+use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
@@ -21,26 +19,15 @@ impl Plugin for SimulationRunningTellerPlugin {
             .add_systems(Startup, spawn_simulation_timer_tekst)
             .add_systems(
                 Update,
-                (
-                    (
-                        add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
-                        oppdater_bevy_simulation_tellertekst::<
-                            SimulationTotalRuntimeRunningTellerTekst,
-                            SimulationTotalRuntimeRunningTeller,
-                        >,
-                        resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
-                        timer_tick,
-                        oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
-                    )
-                        .chain()
-                        .run_if(in_state(Kjøretilstand::Kjørende)),
-                    (
-                        increase_generation_counter,
-                        // print_pop_conditions,
-                    )
-                        .chain()
-                        .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-                ),
+                ((
+                    add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
+                    oppdater_bevy_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst, SimulationTotalRuntimeRunningTeller>,
+                    resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
+                    timer_tick,
+                    oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::Kjørende)),),
             );
     }
 }
@@ -84,10 +71,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
     }
 }
 
-pub fn spawn_simulation_tellertekst(
-    mut commands: Commands,
-    window: Query<&Window, With<AllIndividerWindowTag>>,
-) {
+pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window.single().unwrap();
 
     // let text_style = TextStyle {
@@ -100,21 +84,14 @@ pub fn spawn_simulation_tellertekst(
         Text2d::new("START"),
         TextLayout::new_with_justify(JustifyText::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
-        Transform::from_xyz(
-            window.width() * 0.5 - 200.0,
-            window.height() * 0.5 - 50.0,
-            0.0,
-        ),
+        Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
         SimulationTotalRuntimeRunningTellerTekst,
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
 
-pub fn spawn_simulation_generation_time_tellertekst(
-    mut commands: Commands,
-    window_query: Query<&Window, With<AllIndividerWindowTag>>,
-) {
+pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window_query: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window_query.single().unwrap();
     // let text_style = TextStyle {
     //     font_size: 30.0,
@@ -126,11 +103,7 @@ pub fn spawn_simulation_generation_time_tellertekst(
         Text2d::new("START"),
         TextLayout::new_with_justify(JustifyText::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
-        Transform::from_xyz(
-            window.width() * 0.5 - 200.0,
-            window.height() * 0.5 - 50.0,
-            0.0,
-        ),
+        Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
         SimulationGenerationRunningTellerTekst,
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
@@ -148,10 +121,7 @@ fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(
     }
 }
 
-pub fn oppdater_bevy_simulation_tellertekst<
-    TellerTekst: bevy::prelude::Component,
-    Teller: CounterResource + bevy::prelude::Resource,
->(
+pub fn oppdater_bevy_simulation_tellertekst<TellerTekst: bevy::prelude::Component, Teller: CounterResource + bevy::prelude::Resource>(
     mut query: Query<&mut Text2d, With<TellerTekst>>,
     teller1: Res<Teller>,
 ) {
@@ -161,9 +131,7 @@ pub fn oppdater_bevy_simulation_tellertekst<
     tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
 }
 
-pub fn add_one_to_simulation_running_teller<Teller: CounterResource + bevy::prelude::Resource>(
-    mut frame_count: ResMut<Teller>,
-) {
+pub fn add_one_to_simulation_running_teller<Teller: CounterResource + bevy::prelude::Resource>(mut frame_count: ResMut<Teller>) {
     frame_count.increment_counter_by_one();
 
     // For fremtiden når jeg kanskje vil se på tid istedenfor frames
@@ -189,10 +157,7 @@ fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>)
     countdown.main_timer.tick(time.delta());
 }
 
-pub fn spawn_simulation_timer_tekst(
-    mut commands: Commands,
-    window: Query<&Window, With<AllIndividerWindowTag>>,
-) {
+pub fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window.single().unwrap();
 
     // let text_style = TextStyle {
@@ -206,21 +171,13 @@ pub fn spawn_simulation_timer_tekst(
         TextLayout::new_with_justify(JustifyText::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
-        Transform::from_xyz(
-            -window.width() * 0.5 + 200.0,
-            window.height() * 0.5 - 25.0,
-            0.0,
-        ),
+        Transform::from_xyz(-window.width() * 0.5 + 200.0, window.height() * 0.5 - 25.0, 0.0),
         SimulationGenerationRunningTimerTekst,
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
-pub fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(
-    mut query: Query<&mut Text2d, With<TellerTekst>>,
-    teller1: Res<SimulationGenerationTimer>,
-) {
+pub fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(mut query: Query<&mut Text2d, With<TellerTekst>>, teller1: Res<SimulationGenerationTimer>) {
     let mut tekst = query.single_mut().unwrap();
     // tekst.sections[0].value = "En fin tekst: ".to_string() + &teller1.0.to_string();
-    tekst.0 =
-        "Simulation timer: ".to_string() + &teller1.main_timer.elapsed_secs().round().to_string();
+    tekst.0 = "Simulation timer: ".to_string() + &teller1.main_timer.elapsed_secs().round().to_string();
 }

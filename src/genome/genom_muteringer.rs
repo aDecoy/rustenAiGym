@@ -17,19 +17,13 @@ pub(crate) fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
     }
 }
 
-pub fn mutate_genomes(
-    mut genomer: Query<&mut Genome>,
-    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-) {
+pub fn mutate_genomes(mut genomer: Query<&mut Genome>, mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>) {
     for mut genom in genomer.iter_mut() {
         // println!("mutating genome with original ancestor {}, if allowed: {} ", gene.original_ancestor_id, gene.allowed_to_change);
         if genom.allowed_to_change {
             mutate_existing_nodes_arc(&mut genom.node_genes);
             mutate_existing_weights_value_and_på_av(&mut genom.weight_genes);
-            mutate_new_node_in_middle_of_connection_mutation(
-                &mut genom,
-                &mut innovation_number_global_counter,
-            )
+            mutate_new_node_in_middle_of_connection_mutation(&mut genom, &mut innovation_number_global_counter)
         }
     }
 }
@@ -93,10 +87,7 @@ pub fn mutate_existing_weights_value_and_på_av(mut weight_genes: &mut Vec<Weigh
     }
 }
 
-pub fn mutate_new_node_in_middle_of_connection_mutation(
-    mut genome: &mut Genome,
-    innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
-) {
+pub fn mutate_new_node_in_middle_of_connection_mutation(mut genome: &mut Genome, innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>) {
     let mut weight_genes: &mut Vec<WeightGene> = &mut genome.weight_genes;
     let mut node_genes: &mut Vec<Arc<NodeGene>> = &mut genome.node_genes;
 
@@ -107,10 +98,7 @@ pub fn mutate_new_node_in_middle_of_connection_mutation(
             // O ------- O  =>  O ----O--- O
             let end_node = Arc::clone(&weight_gene.destinasjonsnode);
             let innovation_number = innovation_number_global_counter.get_number();
-            let new_middle_node = Arc::new(NodeGene::default_for_hidden(
-                innovation_number_global_counter,
-                innovation_number,
-            ));
+            let new_middle_node = Arc::new(NodeGene::default_for_hidden(innovation_number_global_counter, innovation_number));
             weight_gene.destinasjonsnode = Arc::clone(&new_middle_node);
 
             let new_weight = WeightGene::neutral_default_for_hidden(&end_node, &new_middle_node);

@@ -1,10 +1,8 @@
 use crate::environments::moving_plank::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::{PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
-use crate::{
-    IndividFitnessLabelText, IndividFitnessLabelTextTag, MenyTagForIndivid, PhentypeAndGenome,
-    PlankPhenotype, get_population_sorted_from_best_to_worst_v2, place_in_focus_from_meny,
-};
+use crate::populasjon_handlinger::population_sammenligninger::get_population_sorted_from_best_to_worst_v2;
+use crate::{IndividFitnessLabelText, IndividFitnessLabelTextTag, MenyTagForIndivid, PhentypeAndGenome, PlankPhenotype, place_in_focus_from_meny};
 use bevy::app::App;
 use bevy::asset::{Assets, Handle};
 use bevy::color::Color;
@@ -14,12 +12,12 @@ use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 
-struct HyllerepresentasjonPlugin;
+pub struct HyllerepresentasjonPlugin;
 
 impl Plugin for HyllerepresentasjonPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Startup,
+            PostStartup,
             (
                 setup_population_meny, // todo , trengr å oppdatere meny også
             ),
@@ -34,8 +32,7 @@ fn setup_population_meny(
     query: Query<(Entity, &PlankPhenotype, &Genome)>,
     camera_query: Query<(Entity, &Camera), With<PopulasjonMenyCameraTag>>,
 ) {
-    let population: Vec<PhentypeAndGenome> =
-        get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
+    let population: Vec<PhentypeAndGenome> = get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
     let best = population[0].clone();
 
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
@@ -151,9 +148,7 @@ fn setup_population_meny(
                                     parent
                                         .spawn((
                                             // NB: Tekst inside of NODE can not be text2d. Text2d does not care about UI grid stuff
-                                            Text::new(format!(
-                                                "Ancestor_id {ancestor_id}, score:  "
-                                            )),
+                                            Text::new(format!("Ancestor_id {ancestor_id}, score:  ")),
                                             TextFont::from_font_size(10.0),
                                             RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
                                             Pickable::IGNORE,

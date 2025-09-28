@@ -6,7 +6,7 @@ use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::tailwind::RED_800;
 use bevy::prelude::*;
 
-struct KnappMenyPlugin;
+pub struct KnappMenyPlugin;
 
 impl Plugin for KnappMenyPlugin {
     fn build(&self, app: &mut App) {

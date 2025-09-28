@@ -1,65 +1,42 @@
 use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
-use crate::{
-    Genome, Kjøretilstand, NodeGene, WeightGene, agent_action_and_fitness_evaluation,
-    label_plank_with_current_score, label_plank_with_current_score_in_meny,
-};
+use crate::{Genome, Kjøretilstand, NodeGene, WeightGene, agent_action_and_fitness_evaluation, label_plank_with_current_score, label_plank_with_current_score_in_meny};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Arc;
 // use crate::populasjon_handlinger::population_sammenligninger::{add_elite_component_tag_to_best_individ};
-// pub fn draw_network_in_genome(
-//     commands: Commands,
-//     meshes: ResMut<Assets<Mesh>>,
-//     materials: ResMut<Assets<ColorMaterial>>,
-//     query: Query<&Genome>,
-// ) {
-//     let genome = query.single().unwrap();
-//     draw_network_in_genome2(commands, meshes, materials, genome);
-// }
 
-struct TegnNevraltNettverkPlugin;
+pub struct TegnNevraltNettverkPlugin;
 
 impl Plugin for TegnNevraltNettverkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
+        app.add_systems(PostStartup, (spawn_drawing_of_network_for_individ_in_focus_changed_event))
+            .add_systems(
+                Update,
                 (
-                    oppdater_node_tegninger,
-                    // eventer hvis individ i fokus skifter
                     (
-                        remove_drawing_of_network_for_individ_in_focus,
-                        spawn_drawing_of_network_for_changed_individ_in_focus,
+                        oppdater_node_tegninger,
+                        // eventer hvis individ i fokus skifter
+                        (
+                            remove_drawing_of_network_for_previous_individ_in_focus,
+                            spawn_drawing_of_network_for_individ_in_focus_changed_event,
+                        )
+                            .chain(),
                     )
-                        .chain(),
-                )
-                    .chain()
-                    .run_if(in_state(Kjøretilstand::Kjørende)),
-                (
-                    remove_drawing_of_network,
-                    spawn_drawing_of_network_for_individ_in_focus, // bytte til eventbasert så dette gjøres etter at nytt individ havner i fokus .after(add_elite_component_tag_to_best_individ), // todo gjøre dette med eventer?
-                )
-                    .chain()
-                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-            ),
-        );
+                        .chain()
+                        .run_if(in_state(Kjøretilstand::Kjørende)),
+                    remove_drawing_of_network.run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+                ),
+            );
     }
 }
 
-pub fn draw_network_in_genome2(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    genome: &Genome,
-) {
-    let weights_per_desination_node =
-        Genome::få_aktive_vekter_per_aktive_destinasjonsnode(&genome);
+pub fn draw_network_in_genome2(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>, genome: &Genome) {
+    let weights_per_desination_node = Genome::få_aktive_vekter_per_aktive_destinasjonsnode(&genome);
     // let weights_per_kildenode = få_vekter_per_kildenode(genome);
     /////////////////////////////// få_vekter_per_kildenode
-    let (node_to_layer, layers_ordered_output_to_input) =
-        lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
+    let (node_to_layer, layers_ordered_output_to_input) = lag_lag_av_nevroner_sortert_fra_output(genome, &weights_per_desination_node);
     // let (node_to_layer, layers_ordered_output_to_input) = genome.lag_lag_av_nevroner_sortert_fra_output( &weights_per_desination_node);
     //////////////////////////////
 
@@ -68,13 +45,7 @@ pub fn draw_network_in_genome2(
     println!("tegner opp {} noder", point_per_node.iter().count());
 
     // draw connections
-    tegn_forbindelser(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        genome,
-        &point_per_node,
-    );
+    tegn_forbindelser(&mut commands, &mut meshes, &mut materials, genome, &point_per_node);
     tegn_og_spawn_noder(&mut commands, meshes, materials, genome, &point_per_node);
     // commands.spawn((genome));
 }
@@ -93,16 +64,11 @@ pub fn place_in_focus(
         // todo egen osbserver funksjon for farge-endring
         println!("gir gammle fokus tilbake lilla farge");
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-        commands
-            .entity(old_focus)
-            .insert(MeshMaterial2d(material_handle));
+        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
     }
 
     println!("placing entitity in focus");
-    commands
-        .get_entity(focus_trigger_click.target)
-        .unwrap()
-        .insert(IndividInFocus);
+    commands.get_entity(focus_trigger_click.target).unwrap().insert(IndividInFocus);
     commands.send_event(IndividInFocusСhangedEvent {
         entity: focus_trigger_click.target,
     });
@@ -119,11 +85,7 @@ pub struct DrawingTag;
 pub struct NodeValueLabelTag;
 
 pub fn oppdater_node_tegninger(
-    mut query: Query<(
-        &mut MeshMaterial2d<ColorMaterial>,
-        &NodeRefForDrawing,
-        &Children,
-    )>,
+    mut query: Query<(&mut MeshMaterial2d<ColorMaterial>, &NodeRefForDrawing, &Children)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut text_query: Query<&mut Text2d, With<NodeValueLabelTag>>,
 ) {
@@ -208,9 +170,7 @@ fn tegn_og_spawn_noder(
                     // -X_EXTENT / 2. + i as f32 / (num_shapes - 1) as f32 * X_EXTENT,
                     point.x, point.y, 1.0,
                 ),
-                NodeRefForDrawing {
-                    node: Arc::clone(node),
-                },
+                NodeRefForDrawing { node: Arc::clone(node) },
                 DrawingTag,
                 // Text::from_section("START!!!", text_style.clone()).with_justify(text_justification),
             ))
@@ -225,11 +185,7 @@ fn tegn_og_spawn_noder(
                 // IndividLabelText,
                 builder.spawn((
                     Text2d::new(node.label.clone()),
-                    TextLayout::new_with_justify(if node.inputnode {
-                        JustifyText::Left
-                    } else {
-                        JustifyText::Right
-                    }),
+                    TextLayout::new_with_justify(if node.inputnode { JustifyText::Left } else { JustifyText::Right }),
                     Transform::from_xyz(0.0, 30.0, 3.0),
                 ));
             });
@@ -244,11 +200,7 @@ fn get_color_for_node_value(node_value: f32) -> Color {
         // if node_value.abs() > 0.999 { 0.0 } else if  node_value.abs() < 0.1 { 0.2 } else { 0.1 },
         if node_value.abs() > 0.999 { 0.0 } else { 0.1 },
         // 0.1,
-        if node_value < 0.0 {
-            node_value.abs()
-        } else {
-            0.
-        },
+        if node_value < 0.0 { node_value.abs() } else { 0. },
     )
     .with_alpha(1.0);
     a_color
@@ -273,10 +225,7 @@ fn tegn_forbindelser(
             let y_diff = (points[0].y - points[1].y);
             let length = (x_diff.powi(2) + y_diff.powi(2)).sqrt();
             let angle = y_diff.atan2(x_diff);
-            let middle_point = Vec2::new(
-                (points[0].x + points[1].x) * 0.5,
-                (points[0].y + points[1].y) * 0.5,
-            );
+            let middle_point = Vec2::new((points[0].x + points[1].x) * 0.5, (points[0].y + points[1].y) * 0.5);
             // println!("x_diff {},y_diff {},angle {},", x_diff, y_diff, angle);
 
             let vekt_value = genome.weight_genes[0].value.clone();
@@ -284,11 +233,7 @@ fn tegn_forbindelser(
             let mut vekt_color = Color::linear_rgb(
                 if vekt_value > 0.0 { vekt_value } else { 0. },
                 0.1,
-                if vekt_value < 0.0 {
-                    vekt_value.abs()
-                } else {
-                    0.
-                },
+                if vekt_value < 0.0 { vekt_value.abs() } else { 0. },
             );
 
             match weight.enabled.clone() {
@@ -321,16 +266,11 @@ fn tegn_forbindelser(
                         }),
                         TextLayout::new_with_justify(JustifyText::Center),
                         // , text_style.clone())                    .with_justify(text_justification),
-                        Transform::from_xyz(0.0, 0.0, 2.0)
-                            .with_rotation(Quat::from_rotation_z(-angle)),
+                        Transform::from_xyz(0.0, 0.0, 2.0).with_rotation(Quat::from_rotation_z(-angle)),
                         // IndividLabelText,
                     ));
                     builder.spawn((
-                        Mesh2d(meshes.add(Triangle2d::new(
-                            Vec2::Y * 10.0,
-                            Vec2::new(-10.0, -10.0),
-                            Vec2::new(10.0, -10.0),
-                        ))),
+                        Mesh2d(meshes.add(Triangle2d::new(Vec2::Y * 10.0, Vec2::new(-10.0, -10.0), Vec2::new(10.0, -10.0)))),
                         MeshMaterial2d(materials.add(vekt_color)),
                         // , text_style.clone())                    .with_justify(text_justification),
                         Transform::from_xyz(0.0, 0.0, -1.0)
@@ -351,13 +291,7 @@ fn lag_lag_av_nevroner_sortert_fra_output(
     genome: &Genome,
     weights_per_desination_node: &HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>>,
 ) -> (HashMap<Arc<NodeGene>, i32>, Vec<Vec<Arc<NodeGene>>>) {
-    let output_nodes: Vec<Arc<NodeGene>> = genome
-        .node_genes
-        .clone()
-        .iter()
-        .filter(|node| node.outputnode)
-        .map(|node| Arc::clone(node))
-        .collect();
+    let output_nodes: Vec<Arc<NodeGene>> = genome.node_genes.clone().iter().filter(|node| node.outputnode).map(|node| Arc::clone(node)).collect();
 
     // Start on input, and look at what connects.  STARTER PÅ OUTPUT OG BEVEGEWR OSS MOT INPUT
     // Starter på output for å bare inkludere noder og vekter som faktisk påvirker utfallet
@@ -372,10 +306,8 @@ fn lag_lag_av_nevroner_sortert_fra_output(
     // I tilfeller vi har sykler, så vil vi hindre å evig flytte ting bakover i nettet. På et punkt så må vi bare godta en node kan få input som ikke er fra "venstre side". Bygger opp fra høyre side med outputs og jobber oss mot venstre.
     // Dette er løst ved å kun flytte en node en gang per vekt. (dette vil gjøre at sykluser kan gi hidden noder som er til venstre for input noder).
     // Merk at syklus noder vil gjøre litt ekstra forsterkning av sine verdier i forhold til andre vanlige hidden noder om de er til venstre for input noder.  Disse vil "ta inn nåtid data + sin fortid data og gi ut begge"
-    let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> =
-        HashMap::new();
-    let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> =
-        HashMap::new();
+    let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
+    let mut node_to_vekt_som_flyttet_på_noden: HashMap<Arc<NodeGene>, Vec<Arc<WeightGene>>> = HashMap::new();
     // let next_layer = få_neste_lag(&weights_per_desination_node, &mut node_to_layer, &mut layers_ordered_output_to_input, &mut node_to_vekt_som_flyttet_på_noden, 1);
     // layers_ordered_output_to_input.push(next_layer);
 
@@ -423,11 +355,10 @@ fn få_neste_lag<'a>(
         // for node in layers_output_to_input.iter().last().iter() {
         //     let node2 : &Arc<NodeGene> = *node;
         //     for weight in weights_per_desination_node.get(&Arc::clone(node)).expect("burde eksistere") {
-        let mut vekter_allerede_brukt =
-            match node_to_vekt_som_flyttet_på_noden.get_mut(&Arc::clone(node)) {
-                None => Vec::new(),
-                Some(liste) => liste.clone(),
-            };
+        let mut vekter_allerede_brukt = match node_to_vekt_som_flyttet_på_noden.get_mut(&Arc::clone(node)) {
+            None => Vec::new(),
+            Some(liste) => liste.clone(),
+        };
         // dbg!(&node);
         match weights_per_desination_node.get(node) {
             Some(weights) => {
@@ -450,20 +381,14 @@ fn få_neste_lag<'a>(
 fn få_vekter_per_kildenode(genome: &Genome) -> HashMap<Arc<NodeGene>, Vec<&WeightGene>> {
     let mut weights_per_kildenode: HashMap<Arc<NodeGene>, Vec<&WeightGene>> = HashMap::new();
     for weight in genome.weight_genes.iter() {
-        let list = weights_per_kildenode
-            .entry(Arc::clone(&weight.kildenode))
-            .or_insert_with(|| Vec::new());
+        let list = weights_per_kildenode.entry(Arc::clone(&weight.kildenode)).or_insert_with(|| Vec::new());
         // list.push(Arc::clone(&weight));
         list.push(weight);
     }
     weights_per_kildenode
 }
 
-fn kordinater_per_node(
-    genome: &Genome,
-    layer_per_node: HashMap<Arc<NodeGene>, i32>,
-    layers_output_to_input: Vec<Vec<Arc<NodeGene>>>,
-) -> HashMap<Arc<NodeGene>, Vec2> {
+fn kordinater_per_node(genome: &Genome, layer_per_node: HashMap<Arc<NodeGene>, i32>, layers_output_to_input: Vec<Vec<Arc<NodeGene>>>) -> HashMap<Arc<NodeGene>, Vec2> {
     let mut point_per_node = HashMap::new();
 
     let mut x_output_layer = 0.0;
@@ -471,10 +396,7 @@ fn kordinater_per_node(
     for node in genome.node_genes.iter() {
         match (layer_per_node.get(node)) {
             Some(layer) => {
-                let index = layers_output_to_input[*layer as usize]
-                    .iter()
-                    .position(|n| n == node)
-                    .expect("skal finnes");
+                let index = layers_output_to_input[*layer as usize].iter().position(|n| n == node).expect("skal finnes");
                 let y = index * 100;
                 let x = x_output_layer + *layer as f32 * distanc_x;
                 point_per_node.insert(Arc::clone(node), Vec2::new(x.clone(), y as f32));
@@ -486,26 +408,27 @@ fn kordinater_per_node(
     point_per_node
 }
 
-pub fn spawn_drawing_of_network_for_individ_in_focus(
+pub fn spawn_drawing_of_network_for_individ_in_focus_changed_event(
     // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
     mut commands: Commands,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(&Genome), With<IndividInFocus>>,
+    mut changed_focus_eventer: EventReader<IndividInFocusСhangedEvent>,
 ) {
-    let genome = query.get_single();
+    if changed_focus_eventer.read().next().is_some() {
+        let genome = query.single();
 
-    if genome.is_ok() {
-        draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
-    } else {
-        println!("intet genom i fokus ?!")
+        if genome.is_ok() {
+            println!("Spawning drawing of network for_individ_in_focus_changed_event");
+            draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
+        } else {
+            println!("intet genom i fokus ?!, (eller flere samtidig...)")
+        }
     }
 }
 
-pub fn remove_drawing_of_network(
-    mut commands: Commands,
-    mut query: Query<Entity, With<DrawingTag>>,
-) {
+pub fn remove_drawing_of_network(mut commands: Commands, mut query: Query<Entity, With<DrawingTag>>) {
     println!("inne i remove_drawing_of_network_for_best_individ");
     for (entity) in query.iter_mut() {
         // dbg!(entity);
@@ -514,7 +437,7 @@ pub fn remove_drawing_of_network(
     // println!("ut av remove_drawing_of_network_for_best_individ");
 }
 
-pub fn remove_drawing_of_network_for_individ_in_focus(
+pub fn remove_drawing_of_network_for_previous_individ_in_focus(
     mut event_reader: EventReader<IndividInFocusСhangedEvent>,
     mut query: Query<Entity, With<DrawingTag>>,
     mut commands: Commands,
@@ -528,27 +451,4 @@ pub fn remove_drawing_of_network_for_individ_in_focus(
             commands.entity(entity).despawn_recursive();
         }
     }
-}
-
-//  todo til neste gang. Bugfix for node tegninger når det endres fokus
-
-pub fn spawn_drawing_of_network_for_changed_individ_in_focus(
-    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
-    commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    // mut event_reader: EventReader<IndividInFocusСhangedEvent>,
-    // mut query_new_in_foscus: Query<&Genome, With<IndividInFocus>, Added<IndividInFocus>>,
-    mut query_new_in_foscus: Query<(&Genome), Added<IndividInFocus>>,
-) {
-    // let individ_in_focus_changed_event = event_reader.read().next();
-    // if individ_in_focus_changed_event.is_some() {
-    if let Ok(genome) = query_new_in_foscus.single() {
-        println!("individ in fokus endret seg, så jeg spawner en ny tenging");
-        assert!(query_new_in_foscus.iter().count() == 1);
-        draw_network_in_genome2(commands, meshes, materials, genome);
-    }
-    // let genome = query_new_in_foscus
-    //     .get(individ_in_focus_changed_event.unwrap().entity)
-    //     .unwrap();
 }

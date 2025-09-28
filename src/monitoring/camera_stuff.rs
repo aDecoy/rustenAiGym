@@ -12,7 +12,9 @@ use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
 
-pub struct MinCameraPlugin;
+pub struct MinCameraPlugin {
+    pub(crate) debug: bool,
+}
 
 impl Plugin for MinCameraPlugin {
     fn build(&self, app: &mut App) {
@@ -23,10 +25,7 @@ impl Plugin for MinCameraPlugin {
             .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
-            .add_systems(
-                Startup,
-                spawn_camera_move_on_screen_button_for_neuron_camera,
-            )
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
@@ -39,11 +38,7 @@ impl Plugin for MinCameraPlugin {
                     adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement,
                 ),
             )
-            .add_systems(
-                Update,
-                (juster_camera_størrelse_dragning_retning
-                    .run_if(in_state(CameraDragningJustering::PÅ)),),
-            );
+            .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),));
     }
 }
 
@@ -72,8 +67,7 @@ pub struct CameraViewportSetting {
 
 impl CameraViewportSetting {
     fn next_camera_mode_index(&mut self) {
-        self.active_camera_mode_index =
-            (self.active_camera_mode_index + 1) % self.camera_modes.len();
+        self.active_camera_mode_index = (self.active_camera_mode_index + 1) % self.camera_modes.len();
     }
     fn get_camera_mode(&self) -> CameraMode {
         self.camera_modes[self.active_camera_mode_index].clone()
@@ -162,10 +156,7 @@ fn juster_camera_størrelse_dragning_retning(
     input: Res<ButtonInput<KeyCode>>,
 ) {
     if input.just_pressed(KeyCode::KeyS) {
-        dir.0 = dir
-            .0
-            .checked_sub(1)
-            .unwrap_or(DIRECTIONS.len().saturating_sub(1));
+        dir.0 = dir.0.checked_sub(1).unwrap_or(DIRECTIONS.len().saturating_sub(1));
     }
     if input.just_pressed(KeyCode::KeyD) {
         dir.0 = (dir.0 + 1) % DIRECTIONS.len();
@@ -243,9 +234,7 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera(
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
-    kamera_query
-        .get_single()
-        .expect("Kamera eksisterer ikke :(");
+    kamera_query.get_single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity) in kamera_query.iter() {
         let mut parent_kamera = commands.get_entity(kamera_entity);
 
@@ -270,11 +259,7 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
     kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(BLUE));
-    let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(
-        Vec2::new(-15., 0.),
-        Vec2::new(15., 0.),
-        Vec2::new(0., 15.),
-    ));
+    let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(Vec2::new(-15., 0.), Vec2::new(15., 0.), Vec2::new(0., 15.)));
 
     kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity) in kamera_query.iter() {
@@ -305,9 +290,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
     // let top_left_corner = UVec2::default();
     // let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(top_left_corner.x as f32, top_left_corner.y as f32));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
-    kamera_query
-        .get_single()
-        .expect("Kamera eksisterer ikke :(");
+    kamera_query.get_single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity, kamera) in kamera_query.iter() {
         let viewport = kamera.clone().viewport.unwrap().clone();
         // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera.
@@ -342,9 +325,7 @@ pub fn setup_camera(
     // let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(CYAN_950));
     // commands.spawn(Camera2d::default());
-    commands
-        .entity(query.single().unwrap())
-        .insert((AllIndividerWindowTag));
+    commands.entity(query.single().unwrap()).insert((AllIndividerWindowTag));
 
     // Spawn a second window
     let second_window = commands
@@ -377,23 +358,14 @@ pub fn setup_camera(
                 // pos: UVec2::new((0 % 2) as u32, (0) as u32),
             },
             CameraViewportSetting {
-                camera_modes: vec![
-                    CameraMode::HALV,
-                    CameraMode::KVART,
-                    CameraMode::AV,
-                    CameraMode::HEL,
-                ],
+                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
                 active_camera_mode_index: 1,
             },
             NetverkInFokusCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
         ))
         .with_children(|spawner| {
-            spawn_camera_margins(
-                color_material_handle.clone(),
-                spawner,
-                RENDER_LAYER_NETTVERK,
-            );
+            spawn_camera_margins(color_material_handle.clone(), spawner, RENDER_LAYER_NETTVERK);
         });
 
     commands.spawn((
@@ -411,12 +383,7 @@ pub fn setup_camera(
         // AllIndividerCamera{ camera_mode: CameraMode::HALV },
         AllIndividerCameraTag,
         CameraViewportSetting {
-            camera_modes: vec![
-                CameraMode::HALV,
-                CameraMode::KVART,
-                CameraMode::AV,
-                CameraMode::HEL,
-            ],
+            camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
             active_camera_mode_index: 3,
         },
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
@@ -433,12 +400,7 @@ pub fn setup_camera(
                 ..default()
             },
             CameraViewportSetting {
-                camera_modes: vec![
-                    CameraMode::HALV,
-                    CameraMode::KVART,
-                    CameraMode::AV,
-                    CameraMode::HEL,
-                ],
+                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
                 active_camera_mode_index: 1,
             },
             CameraPosition {
@@ -450,11 +412,7 @@ pub fn setup_camera(
         ))
         .with_children(|parent_builder: &mut ChildSpawnerCommands<'_>| {
             // default values since they will be changed when camera is moved (events)
-            spawn_camera_margins(
-                color_material_handle.clone(),
-                parent_builder,
-                RENDER_LAYER_POPULASJON_MENY,
-            );
+            spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_POPULASJON_MENY);
         });
 
     commands
@@ -475,19 +433,11 @@ pub fn setup_camera(
         ))
         .with_children(|parent_builder| {
             // default values since they will be changed when camera is moved (events)
-            spawn_camera_margins(
-                color_material_handle.clone(),
-                parent_builder,
-                RENDER_LAYER_TOP_BUTTON_MENY,
-            );
+            spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_TOP_BUTTON_MENY);
         });
 }
 
-fn spawn_camera_margins(
-    color_material_handle: Handle<ColorMaterial>,
-    spawner: &mut RelatedSpawnerCommands<ChildOf>,
-    render_target: usize,
-) {
+fn spawn_camera_margins(color_material_handle: Handle<ColorMaterial>, spawner: &mut RelatedSpawnerCommands<ChildOf>, render_target: usize) {
     // default values since they will be changed when camera is moved (events)
     spawner.spawn((
         CameraMarginDirection::TOPP,
@@ -523,18 +473,8 @@ fn set_camera_viewports(
     primary_window: Query<&Window, With<PrimaryWindow>>,
     secondary_windows: Query<&Window, Without<PrimaryWindow>>,
     mut resize_events: EventReader<WindowResized>,
-    mut absolutt_kamera_query: Query<
-        (&CameraAbsolutePosition, &mut Camera),
-        (
-            With<KnapperMenyCameraTag>,
-            Without<CameraPosition>,
-            Without<AllIndividerCameraTag>,
-        ),
-    >,
-    mut kamera_med_størrelse_og_posisjon_settings_query: Query<
-        (&CameraPosition, &mut Camera, &CameraViewportSetting),
-        (Without<CameraAbsolutePosition>),
-    >,
+    mut absolutt_kamera_query: Query<(&CameraAbsolutePosition, &mut Camera), (With<KnapperMenyCameraTag>, Without<CameraPosition>, Without<AllIndividerCameraTag>)>,
+    mut kamera_med_størrelse_og_posisjon_settings_query: Query<(&CameraPosition, &mut Camera, &CameraViewportSetting), (Without<CameraAbsolutePosition>)>,
 ) {
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
@@ -544,20 +484,16 @@ fn set_camera_viewports(
 
         if let Ok(window) = primary_window.get(resize_event.window) {
             // Only main camera nees to be resized
-            println!("resize_event for PRIMARY window");
+            // dbg!("resize_event for PRIMARY window");
 
             let window_size = window.physical_size();
             let kvart_skjerm_størrelse = window_size / 2;
             let halv_skjerm_størrelse = UVec2::new(window_size.x / 2, window_size.y);
 
-            println!("------------");
-            for (camera_position, mut camera, viewport_settings) in
-                &mut kamera_med_størrelse_og_posisjon_settings_query
-            {
+            // dbg!("------------");
+            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
                 if !camera.target.is_window_target_primary() {
-                    println!(
-                        "camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg"
-                    );
+                    // dbg!("camera er ikke i primary window, og trenger ikke å resize når primary vinduer endrer seg");
                     continue;
                 }
                 adjust_camera_viewport_according_to_settings(
@@ -572,43 +508,35 @@ fn set_camera_viewports(
         };
         if let Ok(window) = secondary_windows.get(resize_event.window) {
             // Only cameras in secondary windows needs to be resized
-            println!("resize_event for secondary window");
+            // println!("resize_event for secondary window");
 
             // Knapp meny er alltid i andre windu
-            let (knapp_meny_position, mut knapp_meny_camera) =
-                absolutt_kamera_query.single_mut().unwrap();
+            let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut().unwrap();
 
-            println!(
-                "knapp_meny_camera er i primary window : {} ,  ",
-                knapp_meny_camera.target.is_window_target_primary(),
-                // knapp_meny_camera.target.get_window_target_entity().unwrap()
-            );
+            // println!(
+            //     // "knapp_meny_camera er i primary window : {} ,  ",
+            //     knapp_meny_camera.target.is_window_target_primary(),
+            //     // knapp_meny_camera.target.get_window_target_entity().unwrap()
+            // );
             let window_without_meny_size = window.physical_size()
                 - UVec2 {
                     x: 0,
                     y: knapp_meny_position.y_høyde,
                 };
             let kvart_skjerm_størrelse = window_without_meny_size / 2;
-            let halv_skjerm_størrelse =
-                UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
+            let halv_skjerm_størrelse = UVec2::new(window_without_meny_size.x / 2, window_without_meny_size.y);
 
             // TODO FINN HVILKE KAMERASER SOM ER I WINDOW
 
-            println!("------------");
-            for (camera_position, mut camera, viewport_settings) in
-                &mut kamera_med_størrelse_og_posisjon_settings_query
-            {
+            // println!("------------");
+            for (camera_position, mut camera, viewport_settings) in &mut kamera_med_størrelse_og_posisjon_settings_query {
                 if camera.target.is_window_target_primary() {
-                    println!(
-                        "camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg"
-                    );
+                    // println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
                     continue;
                 }
                 if let Some(entity) = camera.target.get_window_target_entity() {
                     if entity != resize_event.window {
-                        println!(
-                            "camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg"
-                        );
+                        // println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
                         continue;
                     }
                 }
@@ -688,14 +616,8 @@ fn adjust_camera_margines(
     // mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
-    kamera_query: Query<
-        (Entity, &Camera, &Transform, &Children),
-        (Changed<Camera>, Without<CameraMarginDirection>),
-    >,
-    mut margin_query: Query<
-        (&CameraMarginDirection, &mut Mesh2d, &mut Transform),
-        With<CameraMarginDirection>,
-    >,
+    kamera_query: Query<(Entity, &Camera, &Transform, &Children), (Changed<Camera>, Without<CameraMarginDirection>)>,
+    mut margin_query: Query<(&CameraMarginDirection, &mut Mesh2d, &mut Transform), With<CameraMarginDirection>>,
 ) {
     for (kamera_entity, camera, camera_transform, barn_marginer) in kamera_query.iter() {
         if let Some(viewport) = &camera.viewport {
@@ -704,10 +626,8 @@ fn adjust_camera_margines(
                 y: viewport.physical_size.y as f32,
             };
 
-            let bredde_rectangle_mesh_handle: Handle<Mesh> =
-                meshes.add(Rectangle::new(view_dimensions.x, 10.0));
-            let høyde_rectangle_mesh_handle: Handle<Mesh> =
-                meshes.add(Rectangle::new(10.0, view_dimensions.y));
+            let bredde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(view_dimensions.x, 10.0));
+            let høyde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, view_dimensions.y));
             // let color_material_handle = materials.add(Color::from(RED));
             // let color_material_handle = materials.add(Color::from(CYAN_950));
 
@@ -719,9 +639,7 @@ fn adjust_camera_margines(
             let top_side_y = (view_dimensions.y * 0.5) - padding;
             let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
             for barn_margin_ref in barn_marginer {
-                if let Ok((direction, mut mesh, mut transform)) =
-                    margin_query.get_mut(*barn_margin_ref)
-                {
+                if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref) {
                     match direction {
                         CameraMarginDirection::TOPP => {
                             mesh.0 = bredde_rectangle_mesh_handle.clone();
@@ -751,10 +669,7 @@ fn adjust_camera_margines(
 }
 
 fn adjust_camera_drag_resize_button_transform_on_camera_movement(
-    kamera_query: Query<
-        (&Camera, &Children),
-        (Changed<Camera>, Without<KameraEdgeResizeDragButton>),
-    >,
+    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeResizeDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
@@ -783,13 +698,7 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
 }
 
 fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
-    kamera_query: Query<
-        (&Camera, &Children),
-        (
-            Changed<Camera>,
-            Without<KameraEdgeMoveCameraInTheWorldDragButton>,
-        ),
-    >,
+    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWorldDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
@@ -818,13 +727,7 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
 }
 
 fn adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement(
-    kamera_query: Query<
-        (&Camera, &Children),
-        (
-            Changed<Camera>,
-            Without<KameraEdgeMoveCameraInTheWindowDragButton>,
-        ),
-    >,
+    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWindowDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWindowDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
@@ -860,16 +763,16 @@ fn adjust_camera_viewport_according_to_settings(
     camera: &mut Mut<Camera>,
     viewport_settings: &CameraViewportSetting,
 ) {
-    println!("variabel-kamera er i vindu som ble endret og vil bli justert");
+    // println!("variabel-kamera er i vindu som ble endret og vil bli justert");
     let camera_viewport_size_setting = viewport_settings.get_camera_mode();
     // dbg!(&camera_viewport_size_setting);
     // dbg!(&camera_position.pos);
-
-    println!(
-        "variabel_kamera_query er i primary window : {}  ",
-        camera.target.is_window_target_primary(),
-        // camera.target.get_window_target_entity().unwrap()
-    );
+    //
+    // println!(
+    //     "variabel_kamera_query er i primary window : {}  ",
+    //     camera.target.is_window_target_primary(),
+    //     // camera.target.get_window_target_entity().unwrap()
+    // );
 
     if camera_viewport_size_setting != CameraMode::AV {
         camera.viewport = Some(Viewport {
@@ -899,10 +802,7 @@ fn adjust_camera_viewport_according_to_settings(
 pub fn resize_alle_individer_camera(
     trigger: Trigger<Pointer<Click>>,
     // mut cameras: Query<&mut Camera &AllIndividerCamera, With<AllIndividerCamera>>,
-    mut cameras: Query<
-        (Entity, &mut Camera, &mut CameraViewportSetting),
-        With<AllIndividerCameraTag>,
-    >,
+    mut cameras: Query<(Entity, &mut Camera, &mut CameraViewportSetting), With<AllIndividerCameraTag>>,
     // TENKE TENKE... KAN HA HVILKE KAMERAER SOM ER AKTIVE I EN RES. ELLER JEG KAN GI DE EN KOMPENENT MED BOLEAN AKTIVE INAKTIVE VERDI, OG LYTTE PÅ CHAGES
     //     // kANSKJE OGSÅ TRIGGRE WINDOW RESIZE EVENT, SLIK AT DE BLIR TILPASSET PÅ NYTT....
     //     // iSTEDENFOR ON OFF. Kvart skjer, halv skjerm, hel skjerm, av.
@@ -922,20 +822,14 @@ pub fn resize_alle_individer_camera(
     }
 }
 
-fn camera_drag_to_resize(
-    drag: Trigger<Pointer<Drag>>,
-    mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
-    window_query: Query<&Window>,
-) {
+fn camera_drag_to_resize(drag: Trigger<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>, window_query: Query<&Window>) {
     // println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut camera) = kamera_query.get_single_mut() {
         println!("resizing camera2");
 
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
-        let window = window_query
-            .get(camera.target.get_window_target_entity().unwrap())
-            .unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
+        let window = window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
         let window_size = window.physical_size();
 
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
@@ -952,10 +846,7 @@ fn camera_drag_to_resize(
     }
 }
 
-fn drag_u32_vektor_med_potensielt_negative_i32_verdier(
-    drag: Trigger<Pointer<Drag>>,
-    u32_vektor: &mut UVec2,
-) {
+fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: Trigger<Pointer<Drag>>, u32_vektor: &mut UVec2) {
     let mut new_x_value = u32_vektor.x as i32;
     new_x_value += drag.delta.x as i32;
     u32_vektor.x = max(0, new_x_value) as u32;
@@ -965,10 +856,7 @@ fn drag_u32_vektor_med_potensielt_negative_i32_verdier(
     u32_vektor.y = max(0, new_y_value) as u32;
 }
 
-fn camera_drag_to_move_camera_in_the_world(
-    drag: Trigger<Pointer<Drag>>,
-    mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>,
-) {
+fn camera_drag_to_move_camera_in_the_world(drag: Trigger<Pointer<Drag>>, mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>) {
     println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut transform) = query.get_single_mut() {
@@ -989,9 +877,7 @@ fn camera_drag_to_move_camera_in_the_window(
     if let Ok(mut camera) = kamera_query.single_mut() {
         // println!("moving camera in window");
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
-        let window = window_query
-            .get(camera.target.get_window_target_entity().unwrap())
-            .unwrap();
+        let window = window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap();
         let window_size = window.physical_size();
 
         // move viewport

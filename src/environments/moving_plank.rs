@@ -50,10 +50,8 @@ impl Plugin for MovingPlankPlugin {
                         // print_environment_observations
                     )
                         .run_if(in_state(Kjøretilstand::Kjørende)),
-                    (set_ett_hakk_til_kjør_ett_hakk_if_input)
-                        .run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
-                    (set_ett_hakk_til_vent_på_input)
-                        .run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
+                    (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),
+                    (set_ett_hakk_til_vent_på_input).run_if(in_state(EttHakkState::KJØRER_ETT_HAKK)),
                 )
                     .chain(),
             );
@@ -67,11 +65,7 @@ pub struct MovingPlankObservation {
     y: f32,
 }
 
-const PLANK_STARTING_POSITION: Vec3 = Vec3 {
-    x: 0.0,
-    y: -150.0,
-    z: 0.0,
-};
+const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 0.0 };
 pub const PLANK_LENGTH: f32 = 9.0 * PIXELS_PER_METER; // in meters
 pub const PLANK_HIGHT: f32 = 3.0 * PIXELS_PER_METER; // in meters
 const PLANK_POSITION_CHANGE_MOVEMENT_SPEED: f32 = 1133.0;
@@ -79,10 +73,7 @@ const PLANK_POSITION_VELOCITY_MOVEMENT_SPEED: f32 = 1133.0;
 
 const PLANK_COLOR: Color = Color::srgb(1.0, 0.5, 0.5);
 
-fn set_physics_time_to_paused_or_unpaused(
-    kjøretistand_state: Res<State<Kjøretilstand>>,
-    mut physics_time: ResMut<Time<Physics>>,
-) {
+fn set_physics_time_to_paused_or_unpaused(kjøretistand_state: Res<State<Kjøretilstand>>, mut physics_time: ResMut<Time<Physics>>) {
     match kjøretistand_state.get() {
         Kjøretilstand::Pause => physics_time.pause(),
         Kjøretilstand::Kjørende => physics_time.unpause(),
@@ -128,9 +119,7 @@ pub fn create_plank_env_moving_right(
         //     linvel: Vec2::new(0.0, 0.0),
         //     angvel: 0.0,
         // },
-        LinearVelocity {
-            0: Vec2::new(0.0, 0.0),
-        },
+        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
     )
 }
 
@@ -152,13 +141,7 @@ pub fn create_plank_env_falling(
 ) {
     (
         Mesh2d(mesh2d_handle),
-        Transform::from_translation(start_position).with_scale(
-            Vec2 {
-                x: PLANK_LENGTH,
-                y: PLANK_HIGHT,
-            }
-            .extend(1.),
-        ),
+        Transform::from_translation(start_position).with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
         MeshMaterial2d(material_handle),
         PlankPhenotype {
             score: 0.0,
@@ -186,9 +169,7 @@ pub fn create_plank_env_falling(
         //     linvel: Vec2::new(0.0, 0.0),
         //     angvel: 0.0,
         // },
-        LinearVelocity {
-            0: Vec2::new(0.0, 0.0),
-        },
+        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
     )
 }
 pub fn create_plank_ext_force_env_falling(
@@ -232,9 +213,7 @@ pub fn create_plank_ext_force_env_falling(
         Collider::rectangle(PLANK_LENGTH, PLANK_HIGHT),
         RigidBody::Dynamic,
         CollisionLayers::new(0b0001, 0b0010),
-        LinearVelocity {
-            0: Vec2::new(0.0, 0.0),
-        },
+        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
         // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
         ExternalForce::new(Vec2::X).with_persistence(false),
         TextLayout::new_with_justify(JustifyText::Center),
@@ -246,11 +225,7 @@ pub fn create_plank_ext_force_env_falling(
 
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 
-fn move_plank(
-    mut query: Query<&mut Transform, With<PlankPhenotype>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-) {
+fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>, keyboard_input: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
     let mut delta_x = 0.0;
     if keyboard_input.pressed(KeyA) {
         delta_x -= PLANK_POSITION_CHANGE_MOVEMENT_SPEED;
@@ -288,10 +263,7 @@ fn impulse_plank(
     }
 }
 
-fn set_ett_hakk_til_vent_på_input(
-    mut next_state: ResMut<NextState<EttHakkState>>,
-    mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>,
-) {
+fn set_ett_hakk_til_vent_på_input(mut next_state: ResMut<NextState<EttHakkState>>, mut next_kjøretistand_state: ResMut<NextState<Kjøretilstand>>) {
     next_state.set(EttHakkState::VENTER_PÅ_INPUT);
     next_kjøretistand_state.set(Kjøretilstand::Pause);
 }
@@ -337,10 +309,7 @@ fn get_simulation_time(query: Query<&Transform, With<PlankPhenotype>>) -> Moving
 
 fn print_environment_observations(query: Query<&Transform, With<PlankPhenotype>>) {
     for transform in query.iter() {
-        println!(
-            "Moving plank observations : {:?}",
-            get_observations(transform.clone())
-        );
+        println!("Moving plank observations : {:?}", get_observations(transform.clone()));
     }
 }
 
@@ -372,10 +341,7 @@ fn print_done_status(query: Query<&Transform, With<PlankPhenotype>>, window: Que
     let window = window.get_single().unwrap().clone();
 
     for transform in query.iter() {
-        println!(
-            "Er done ? : {}",
-            check_if_done(transform.clone(), window.clone())
-        );
+        println!("Er done ? : {}", check_if_done(transform.clone(), window.clone()));
     }
     println!("-------------------------");
 }
