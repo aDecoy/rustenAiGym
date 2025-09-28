@@ -1,7 +1,7 @@
 use crate::monitoring::camera_stuff::{
     AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY,
 };
-use crate::Kjøretilstand;
+use crate::{Kjøretilstand, increase_generation_counter};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
@@ -21,18 +21,26 @@ impl Plugin for SimulationRunningTellerPlugin {
             .add_systems(Startup, spawn_simulation_timer_tekst)
             .add_systems(
                 Update,
-                ((
-                    add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
-                    oppdater_bevy_simulation_tellertekst::<
-                        SimulationTotalRuntimeRunningTellerTekst,
-                        SimulationTotalRuntimeRunningTeller,
-                    >,
-                    resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
-                    timer_tick,
-                    oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
-                )
-                    .chain())
-                .run_if(in_state(Kjøretilstand::Kjørende)),
+                (
+                    (
+                        add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
+                        oppdater_bevy_simulation_tellertekst::<
+                            SimulationTotalRuntimeRunningTellerTekst,
+                            SimulationTotalRuntimeRunningTeller,
+                        >,
+                        resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
+                        timer_tick,
+                        oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
+                    )
+                        .chain()
+                        .run_if(in_state(Kjøretilstand::Kjørende)),
+                    (
+                        increase_generation_counter,
+                        // print_pop_conditions,
+                    )
+                        .chain()
+                        .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+                ),
             );
     }
 }
@@ -153,9 +161,7 @@ pub fn oppdater_bevy_simulation_tellertekst<
     tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
 }
 
-pub fn add_one_to_simulation_running_teller<
-    Teller: CounterResource + bevy::prelude::Resource,
->(
+pub fn add_one_to_simulation_running_teller<Teller: CounterResource + bevy::prelude::Resource>(
     mut frame_count: ResMut<Teller>,
 ) {
     frame_count.increment_counter_by_one();

@@ -1,10 +1,14 @@
-use crate::{Genome, IndividInFocus, IndividInFocusСhangedEvent, NodeGene, WeightGene};
+use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
+use crate::{
+    Genome, Kjøretilstand, NodeGene, WeightGene, agent_action_and_fitness_evaluation,
+    label_plank_with_current_score, label_plank_with_current_score_in_meny,
+};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::Arc;
-
+// use crate::populasjon_handlinger::population_sammenligninger::{add_elite_component_tag_to_best_individ};
 // pub fn draw_network_in_genome(
 //     commands: Commands,
 //     meshes: ResMut<Assets<Mesh>>,
@@ -14,6 +18,35 @@ use std::sync::Arc;
 //     let genome = query.single().unwrap();
 //     draw_network_in_genome2(commands, meshes, materials, genome);
 // }
+
+struct TegnNevraltNettverkPlugin;
+
+impl Plugin for TegnNevraltNettverkPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                (
+                    oppdater_node_tegninger,
+                    // eventer hvis individ i fokus skifter
+                    (
+                        remove_drawing_of_network_for_individ_in_focus,
+                        spawn_drawing_of_network_for_changed_individ_in_focus,
+                    )
+                        .chain(),
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::Kjørende)),
+                (
+                    remove_drawing_of_network,
+                    spawn_drawing_of_network_for_individ_in_focus, // bytte til eventbasert så dette gjøres etter at nytt individ havner i fokus .after(add_elite_component_tag_to_best_individ), // todo gjøre dette med eventer?
+                )
+                    .chain()
+                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+            ),
+        );
+    }
+}
 
 pub fn draw_network_in_genome2(
     mut commands: Commands,

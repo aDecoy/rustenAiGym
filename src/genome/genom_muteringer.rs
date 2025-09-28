@@ -1,7 +1,5 @@
-use crate::genome::genome_stuff::{
-    Genome, InnovationNumberGlobalCounter, NodeGene, WeightGene,
-};
 use crate::PlankPhenotype;
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, NodeGene, WeightGene};
 use bevy::prelude::{Changed, Query, ResMut};
 use rand::random;
 use std::sync::Arc;

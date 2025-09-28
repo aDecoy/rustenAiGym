@@ -1,20 +1,20 @@
 use crate::environments::lunar_lander_environment::{
-    spawn_ground, spawn_landing_target, spawn_roof, LANDING_SITE,
+    LANDING_SITE, spawn_ground, spawn_landing_target, spawn_roof,
 };
 use crate::environments::moving_plank::{
-    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER,
-    PLANK_HIGHT, PLANK_LENGTH,
+    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling,
+    create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
 use crate::genome::genom_muteringer::lock_mutation_stability;
 use crate::genome::genom_muteringer::mutate_genomes;
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
-use crate::monitoring::camera_stuff::{
-    resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin,
-};
 use crate::monitoring::camera_stuff::{
     AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag,
     RENDER_LAYER_POPULASJON_MENY,
+};
+use crate::monitoring::camera_stuff::{
+    KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera,
 };
 use crate::monitoring::draw_network::{
     oppdater_node_tegninger, place_in_focus, remove_drawing_of_network,
@@ -22,9 +22,11 @@ use crate::monitoring::draw_network::{
     spawn_drawing_of_network_for_changed_individ_in_focus,
     spawn_drawing_of_network_for_individ_in_focus,
 };
+use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
 use crate::monitoring::simulation_teller::{
     SimulationGenerationTimer, SimulationRunningTellerPlugin,
 };
+use crate::populasjon_handlinger::population_sammenligninger::EliteTag;
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
 use bevy::asset::AsyncWriteExt;
@@ -35,9 +37,9 @@ use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
+use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
-use bevy::render::RenderPlugin;
 use bevy_egui::UiRenderOrder;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
@@ -45,8 +47,8 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
-use std::cmp::{max, min, Ordering, PartialEq};
+use rand::{Rng, thread_rng};
+use std::cmp::{Ordering, PartialEq, max, min};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -57,6 +59,7 @@ use std::vec::Vec;
 mod environments;
 mod genome;
 mod monitoring;
+mod populasjon_handlinger;
 
 struct Environment {
     app: App,
@@ -93,13 +96,10 @@ fn main() {
                 (
                     spawn_start_population,
                     add_observers_to_individuals.after(spawn_start_population),
-                    setup_population_meny, // todo , trengr å oppdatere meny også
-                    setup_knapp_meny,
                     reset_to_star_pos,
-                    add_elite_component_tag_to_best_individ,
-                    set_best_individ_in_focus,
-                    color_elite_red,
-                    spawn_drawing_of_network_for_individ_in_focus,
+                    spawn_drawing_of_network_for_individ_in_focus, // todo
+                                                                   //
+                                                                   // frakoble drawning og finn beste med eventer
                 )
                     .chain(),
                 spawn_ground,
@@ -120,29 +120,16 @@ fn main() {
                     agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
                     label_plank_with_current_score,
                     label_plank_with_current_score_in_meny,
-                    oppdater_node_tegninger,
                     // eventer hvis individ i fokus skifter
-                    (
-                        remove_drawing_of_network_for_individ_in_focus,
-                        spawn_drawing_of_network_for_changed_individ_in_focus,
-                    )
-                        .chain(),
                 )
                     .chain()
                     .run_if(in_state(Kjøretilstand::Kjørende)),
                 check_if_done,
                 // check_if_done.run_if(every_time_if_stop_on_right_window()),
                 (
-                    // print_pop_conditions,
-                    increase_generation_counter,
                     lock_mutation_stability,
-                    add_elite_component_tag_to_best_individ,
-                    set_best_individ_in_focus,
-                    color_elite_red,
                     // save_best_to_history,
                     kill_worst_individuals,
-                    remove_drawing_of_network,
-                    spawn_drawing_of_network_for_individ_in_focus,
                     create_new_children,
                     add_observers_to_individuals.after(create_new_children),
                     // spawn_a_random_new_individual2,
@@ -162,7 +149,6 @@ fn main() {
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
         .add_plugins(SimulationRunningTellerPlugin);
-
     app.run();
 }
 
@@ -458,18 +444,15 @@ fn spawn_a_random_new_individual(
 
 fn add_observers_to_individuals(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     individ_query: Query<Entity, With<PlankPhenotype>>,
 ) {
-    let hover_matl = materials.add(Color::from(CYAN_300));
     for individ_entity in individ_query.iter() {
         commands
             .get_entity(individ_entity)
             .unwrap()
-            .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
-            .observe(pointer_out_of_individ)
-            .observe(rotate_on_drag)
-            .observe(place_in_focus);
+            // .observe(pointer_out_of_individ)
+            .observe(rotate_on_drag);
+        // .observe(place_in_focus);
     }
 }
 
@@ -549,136 +532,6 @@ fn extinction_on_t(
         )
     }
 }
-
-fn add_elite_component_tag_to_best_individ(
-    mut commands: Commands,
-    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
-    old_elite_query: Query<(Entity), With<EliteTag>>,
-) {
-    // remove old one
-    if let Ok(old_elite_entity) = old_elite_query.get_single() {
-        commands.entity(old_elite_entity).remove::<EliteTag>();
-    }
-    // find new elite
-    let elite = get_best_elite(query.iter());
-    commands.entity(elite.entity).insert((EliteTag));
-}
-
-fn color_elite_red(
-    mut commands: Commands,
-    mut elite_query: Query<Entity, With<EliteTag>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    if let Ok(elite_entity) = elite_query.get_single() {
-        let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
-        commands
-            .entity(elite_entity)
-            .insert(MeshMaterial2d(elite_material_handle));
-    }
-}
-
-fn color_focus_green(
-    mut commands: Commands,
-    mut elite_query: Query<Entity, With<IndividInFocus>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    if let Ok(elite_entity) = elite_query.get_single() {
-        let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(GREEN));
-        commands
-            .entity(elite_entity)
-            .insert(MeshMaterial2d(elite_material_handle));
-    }
-}
-
-#[derive(Debug, Component)]
-struct EliteTag;
-
-#[derive(Debug, Component)]
-struct IndividInFocus;
-
-#[derive(Event, Debug)]
-struct IndividInFocusСhangedEvent {
-    entity: Entity,
-}
-
-fn set_best_individ_in_focus<'a>(
-    // query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>){
-    mut commands: Commands,
-    query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
-) {
-    // query: Query<'a, 'a, (Entity, &'a PlankPhenotype, &'a Genome), With<PlankPhenotype>>) {
-    // let population = get_population_sorted_from_best_to_worst(query.iter());
-    let elite = get_best_elite(query.iter());
-    commands
-        .get_entity(elite.entity)
-        .unwrap()
-        .insert(IndividInFocus);
-}
-
-fn sort_best_to_worst<'a>(
-    iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
-) -> Vec<PhentypeAndGenome<'a>> {
-    let mut population = Vec::new();
-    //sort_individuals
-    for (entity, plank, genome) in iteratior {
-        population.push(PhentypeAndGenome {
-            phenotype: plank,
-            genome: genome,
-            entity_index: entity.index(),
-            entity: entity,
-            entity_bevy_generation: entity.generation(),
-        })
-    }
-    // sort desc
-    population.sort_by(|a, b| {
-        if a.phenotype.score > b.phenotype.score {
-            Ordering::Less
-        } else if a.phenotype.score < b.phenotype.score {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    });
-    // println!("parents after sort:  {:?}", population);
-    population
-}
-fn get_best_elite<'a>(
-    iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype, &'_ Genome), With<PlankPhenotype>>,
-) -> PhentypeAndGenome<'a> {
-    let mut population = Vec::new();
-    //sort_individuals
-    for (entity, plank, genome) in iteratior {
-        population.push(PhentypeAndGenome {
-            phenotype: plank,
-            genome: genome,
-            entity_index: entity.index(),
-            entity: entity,
-            entity_bevy_generation: entity.generation(),
-        })
-    }
-    // sort desc
-    population.sort_by(|a, b| {
-        if a.phenotype.score > b.phenotype.score {
-            Ordering::Less
-        } else if a.phenotype.score < b.phenotype.score {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    });
-    // println!("parents after sort:  {:?}", population);
-    let elite = population.get(0).unwrap();
-    return elite.clone();
-    return PhentypeAndGenome {
-        genome: elite.genome,
-        entity_index: elite.entity_index,
-        entity: elite.entity,
-        phenotype: elite.phenotype,
-        entity_bevy_generation: elite.entity_bevy_generation,
-    };
-    return elite.clone(); // KAN DET VÆRE AT DETTE LAGER EN NY GENOME`?
-}
-// fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &crate::PlankPhenotype, ()>) -> Vec<&'lifetime_a crate::PlankPhenotype> {
 
 fn kill_worst_individuals(
     mut commands: Commands,
@@ -861,38 +714,6 @@ fn create_new_children(
     }
 }
 
-fn pointer_out_of_individ(
-    entity_som_forlates: Trigger<Pointer<Out>>,
-    mut query: Query<
-        (
-            Entity,
-            &mut MeshMaterial2d<ColorMaterial>,
-            Option<&EliteTag>,
-            Option<&IndividInFocus>,
-        ),
-        // With<(Individ, PlankPhenotype)>,
-        With<(PlankPhenotype)>,
-    >,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    let material_default: Handle<ColorMaterial> =
-        materials.add(Color::from(PURPLE).with_alpha(0.5));
-    let material_elite = materials.add(Color::from(RED));
-    let material_in_focus = materials.add(Color::from(GREEN));
-
-    if let Ok((entity, mut material_handle, elite, in_focus)) =
-        query.get_mut(entity_som_forlates.target)
-    {
-        if elite.is_some() {
-            material_handle.0 = material_elite.clone();
-        } else if in_focus.is_some() {
-            material_handle.0 = material_in_focus.clone();
-        } else {
-            material_handle.0 = material_default.clone();
-        }
-    }
-}
-
 #[derive(Component)]
 struct IndividFitnessLabelTextTag;
 
@@ -962,219 +783,6 @@ fn check_if_done(
 #[derive(Component, Debug)]
 struct MenyTagForIndivid {
     individ_entity: Entity,
-}
-
-fn setup_knapp_meny(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut camera_query: Query<(Entity, &Camera), With<KnapperMenyCameraTag>>,
-) {
-    let (camera_entity, camera) = camera_query.single().unwrap();
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                justify_content: JustifyContent::SpaceAround,
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-            UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Node {
-                        // width: Val::Px(100.),
-                        height: Val::Px(50.),
-                        // border: UiRect::all(Val::Px(100.)),
-                        // margin: UiRect::all(Val::Px(10.)),
-                        overflow: Overflow::scroll_y(),
-                        ..default()
-                    },
-                    TextFont::default(),
-                    Text::new("Environment camera on/off"),
-                    BackgroundColor(Color::from(RED_800)),
-                ))
-                .observe(resize_alle_individer_camera);
-
-            // knapp 2
-            parent.spawn((
-                Node {
-                    height: Val::Px(50.),
-                    // border: UiRect::all(Val::Px(100.)),
-                    // margin: UiRect::all(Val::Px(10.)),
-                    overflow: Overflow::scroll_y(),
-                    ..default()
-                },
-                TextFont::default(),
-                Text::new("Node tegning på/av"),
-                BackgroundColor(Color::from(RED_800)),
-            ));
-        });
-}
-
-fn setup_population_meny(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<(Entity, &PlankPhenotype, &Genome)>,
-    camera_query: Query<(Entity, &Camera), With<PopulasjonMenyCameraTag>>,
-) {
-    let population: Vec<PhentypeAndGenome> =
-        get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
-    let best = population[0].clone();
-
-    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
-    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-    // commands.spawn((
-    //     Mesh2d(rectangle_mesh_handle),
-    //     MeshMaterial2d(material_handle),
-    //     RenderLayers::layer(RENDER_LAYER_POPULASJON),
-    // ));
-    if let Ok((camera_entity, camera)) = camera_query.single() {
-        // root node
-        commands
-            .spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    // justify_content: JustifyContent::SpaceBetween,
-                    // justify_content: JustifyContent::Stretch,
-                    justify_content: JustifyContent::SpaceEvenly,
-                    flex_direction: FlexDirection::Column,
-                    // justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
-            ))
-            .with_children(|parent| {
-                // kolonner som fyller hele veien ned
-                // todo kanskje trenger en knapp rad i et eget vindu. Vil jo kanskje minimere vekk menyen og neruron tegning
-                // meny knapper div
-                parent
-                    .spawn(Node {
-                        flex_direction: FlexDirection::Row,
-                        flex_wrap: FlexWrap::Wrap,
-                        // justify_content: JustifyContent::SpaceEvenly,
-                        justify_content: JustifyContent::SpaceBetween,
-                        // align_items: AlignItems::Center,
-                        // width: Val::Px(700.),
-                        ..default()
-                    })
-                    .with_children(|parent| {
-                        // knapp 1
-                        parent.spawn((
-                            Node {
-                                width: Val::Px(100.),
-                                height: Val::Px(50.),
-                                // border: UiRect::all(Val::Px(100.)),
-                                // margin: UiRect::all(Val::Px(10.)),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            },
-                            TextFont::default(),
-                            Text::new("en knapp"),
-                            BackgroundColor(Color::from(RED_300)),
-                            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                            // UiTargetCamera(camera_entity),  // Target camera brukes for UI ting
-                        ));
-                        // knapp 2
-                        parent.spawn((
-                            Node {
-                                width: Val::Px(100.),
-                                height: Val::Px(50.),
-                                // border: UiRect::all(Val::Px(100.)),
-                                // margin: UiRect::all(Val::Px(10.)),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            },
-                            TextFont::default(),
-                            Text::new("en knapp til"),
-                            BackgroundColor(Color::from(RED_300)),
-                            // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                            // UiTargetCamera(camera_entity),
-                        ));
-                    });
-
-                // populasjon grid
-                parent
-                    .spawn(Node {
-                        flex_direction: FlexDirection::Row,
-                        flex_wrap: FlexWrap::Wrap,
-                        // justify_content: JustifyContent::SpaceEvenly,
-                        justify_content: JustifyContent::SpaceBetween,
-                        // align_items: AlignItems::Center,
-                        // width: Val::Px(700.),
-                        ..default()
-                    })
-                    .with_children(|parent| {
-                        // EN BOKS PER INDIVID
-                        for phenotype_and_genome in population {
-                            let ancestor_id = phenotype_and_genome.genome.original_ancestor_id;
-                            let fitness_score = phenotype_and_genome.phenotype.score;
-                            parent
-                                .spawn((
-                                    Node {
-                                        width: Val::Px(100.),
-                                        height: Val::Px(100.),
-                                        // border: UiRect::all(Val::Px(100.)),
-                                        margin: UiRect::all(Val::Px(10.)),
-                                        overflow: Overflow::scroll_y(),
-                                        ..default()
-                                    },
-                                    TextFont::default(),
-                                    BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                                    RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                    MenyTagForIndivid {
-                                        individ_entity: phenotype_and_genome.entity,
-                                    },
-                                ))
-                                .observe(place_in_focus_from_meny)
-                                // Tekst som er inne i den grå bokksen
-                                .with_children(|parent| {
-                                    parent
-                                        .spawn((
-                                            // NB: Tekst inside of NODE can not be text2d. Text2d does not care about UI grid stuff
-                                            Text::new(format!(
-                                                "Ancestor_id {ancestor_id}, score:  "
-                                            )),
-                                            TextFont::from_font_size(10.0),
-                                            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                            Pickable::IGNORE,
-                                        ))
-                                        .with_child((
-                                            TextFont::from_font_size(15.0),
-                                            TextSpan::default(), // tekst er inne i textSpan når den er en child, og ting blir tullete om det er inne i en text
-                                            IndividFitnessLabelTextTag,
-                                            IndividFitnessLabelText {
-                                                entity: phenotype_and_genome.entity,
-                                            },
-                                            RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                                            Pickable::IGNORE,
-                                        ));
-                                });
-                        }
-                    });
-
-                // en annen kolonne
-
-                // parent
-                //     .spawn((
-                //         Node {
-                //             width: Val::Px(20.),
-                //             border: UiRect::all(Val::Px(2.)),
-                //             ..default()
-                //         },
-                //         BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
-                //         RenderLayers::layer(RENDER_LAYER_POPULASJON),
-                //     ));
-            });
-    }
 }
 
 fn endre_kjøretilstand_ved_input(
