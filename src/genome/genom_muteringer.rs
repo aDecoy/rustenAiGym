@@ -1,8 +1,10 @@
-use crate::PlankPhenotype;
+use crate::{MutasjonerErAktive, PlankPhenotype};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, NodeGene, WeightGene};
-use bevy::prelude::{Changed, Query, ResMut};
+use bevy::prelude::{Changed, KeyCode, NextState, Query, Res, ResMut, States};
 use rand::random;
 use std::sync::Arc;
+use bevy::input::ButtonInput;
+use bevy::prelude::KeyCode::{KeyM, KeyN};
 
 // lock and unlock mutation to lock parents/Elites. Still not decided if i want a 100% lock or allow some small genetic drift also in elites
 pub(crate) fn lock_mutation_stability(mut genome_query: Query<&mut Genome>) {
@@ -108,4 +110,20 @@ pub fn mutate_new_node_in_middle_of_connection_mutation(mut genome: &mut Genome,
         }
     }
     genome.weight_genes.append(&mut weight_genes_to_add);
+}
+
+fn endre_om_mutasjoner_er_aktive_ved_input(mut next_state: ResMut<NextState<MutasjonerErAktive>>, user_input: Res<ButtonInput<KeyCode>>) {
+    if user_input.pressed(KeyM) {
+        next_state.set(MutasjonerErAktive::Ja);
+    }
+    if user_input.pressed(KeyN) {
+        next_state.set(MutasjonerErAktive::Nei);
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+enum MutasjonerErAktive {
+    #[default]
+    Ja,
+    Nei,
 }

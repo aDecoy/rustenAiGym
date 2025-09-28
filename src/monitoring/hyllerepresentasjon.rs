@@ -2,7 +2,7 @@ use crate::environments::moving_plank::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::{PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
 use crate::populasjon_handlinger::population_sammenligninger::get_population_sorted_from_best_to_worst_v2;
-use crate::{IndividFitnessLabelText, IndividFitnessLabelTextTag, MenyTagForIndivid, PhentypeAndGenome, PlankPhenotype, place_in_focus_from_meny};
+use crate::{IndividFitnessLabelText, IndividFitnessLabelTextTag, MenyTagForIndivid, PhentypeAndGenome, PlankPhenotype, place_in_focus_from_meny, Kjøretilstand};
 use bevy::app::App;
 use bevy::asset::{Assets, Handle};
 use bevy::color::Color;
@@ -11,19 +11,68 @@ use bevy::color::palettes::tailwind::RED_300;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
+use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
 
 pub struct HyllerepresentasjonPlugin;
 
 impl Plugin for HyllerepresentasjonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app
+            .add_systems(
             PostStartup,
             (
                 setup_population_meny, // todo , trengr å oppdatere meny også
             ),
-        );
+            
+        )
+            .add_systems(
+                Update,
+                (
+        label_plank_with_current_score_in_meny,
+        // eventer hvis individ i fokus skifter
+        )
+        .chain()
+            .run_if(in_state(Kjøretilstand::Kjørende));
     }
 }
+
+fn place_in_focus_from_meny(
+    focus_trigger_click: Trigger<Pointer<Click>>,
+    mut commands: Commands,
+    old_focus_query: Query<Entity, With<IndividInFocus>>,
+    // mut individ_query: Query<Entity, With<Genome>>,
+    meny_individ_box_query: Query<(Entity, &MenyTagForIndivid)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
+    if let Ok(old_focus) = old_focus_query.get_single() {
+        commands.entity(old_focus).remove::<IndividInFocus>();
+        // back to default color
+        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+        commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
+    }
+
+    let meny_bokks_for_individ_entity = meny_individ_box_query.get(focus_trigger_click.target).unwrap();
+    let individ_entity = meny_bokks_for_individ_entity.1.individ_entity;
+
+    if let Ok(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {
+        invidiv_entity_commandering.insert(IndividInFocus);
+        commands.send_event(IndividInFocusСhangedEvent { entity: individ_entity });
+    }
+}
+#[derive(Component, Debug)]
+struct MenyTagForIndivid {
+    individ_entity: Entity,
+}
+
+fn label_plank_with_current_score_in_meny(mut query: Query<(&mut TextSpan, &IndividFitnessLabelText)>, phenotype_query: Query<&PlankPhenotype>) {
+    for (mut span, individ_fitness_label_text) in query.iter_mut() {
+        if let Ok(pheontype) = phenotype_query.get(individ_fitness_label_text.entity) {
+            **span = format!("{:.5}", pheontype.score);
+        }
+    }
+}
+
 
 fn setup_population_meny(
     mut commands: Commands,
