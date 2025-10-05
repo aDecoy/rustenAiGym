@@ -1,20 +1,15 @@
+use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::genome::genome_stuff::Genome;
 use avian2d::prelude::AngularVelocity;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 
 struct FenotypePlugin;
 
 impl Plugin for FenotypePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            ((
-                label_plank_with_current_score,
-            )),
-        );
+        app.add_systems(Update, ((label_plank_with_current_score,)));
     }
 }
 

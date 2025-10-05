@@ -1,54 +1,59 @@
-use std::cmp::{max, min, Ordering};
-use std::collections::HashMap;
+use crate::environments::lunar_lander_environment::LANDING_SITE;
+use crate::environments::moving_plank::{PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
+use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
+use crate::evolusjon::phenotype_plugin::{
+    IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
+};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, mutate_genomes};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter};
+use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
+use crate::monitoring::simulation_teller::SimulationGenerationTimer;
+use crate::{
+    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand, START_POPULATION_SIZE, spawn_start_population,
+};
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::{AngularVelocity, ExternalForce, LinearVelocity};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::prelude::*;
 use bevy::prelude::KeyCode::{KeyR, KeyT};
+use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype};
-use crate::genome::genom_muteringer::{mutate_genomes, MutasjonerErAktive};
-use crate::{spawn_start_population, EnvValg, Kjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE};
-use crate::environments::lunar_lander_environment::LANDING_SITE;
-use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, PLANK_HIGHT, PLANK_LENGTH};
-use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter};
-use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
-use crate::monitoring::simulation_teller::SimulationGenerationTimer;
+use std::cmp::{Ordering, max, min};
+use std::collections::HashMap;
 
-struct EvolusjonStegPlugin;
+pub struct EvolusjonStegPlugin;
 
 impl Plugin for EvolusjonStegPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_event::<ResetToStartPositionsEvent>()
-
+        app.add_event::<ResetToStartPositionsEvent>()
             .add_systems(
-                Update,
+                Startup,
                 (
-                    reset_event_ved_input,
-                    reset_to_star_pos_on_event,
-                    check_if_done,
-
-                    (
-                        kill_worst_individuals,
-                        reset_to_star_pos,
-                        mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                        // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                        update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                        nullstill_nettverk_verdier_til_0,
-                        create_new_children,
-                        add_observers_to_individuals.after(create_new_children),
-
-                    )
+                    (spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),
+                ))
+            .add_systems(
+            Update,
+            (
+                reset_event_ved_input,
+                reset_to_star_pos_on_event,
+                check_if_done,
+                (
+                    kill_worst_individuals,
+                    reset_to_star_pos,
+                    mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                    update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                    nullstill_nettverk_verdier_til_0,
+                    create_new_children,
+                    add_observers_to_individuals.after(create_new_children),
+                )
                     .chain()
                     .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-                    )
-            );
+            ),
+        );
     }
 }
 
@@ -205,15 +210,15 @@ fn create_new_children(
                 new_genome,
             )),
         }
-            .with_children(|builder| {
-                builder.spawn((
-                    Text2d::new("Fitness label"),
-                    TextLayout::new_with_justify(JustifyText::Center),
-                    Transform::from_xyz(0.0, 0.0, 2.0),
-                    IndividFitnessLabelTextTag,
-                    RenderLayers::layer(1),
-                ));
-            });
+        .with_children(|builder| {
+            builder.spawn((
+                Text2d::new("Fitness label"),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+                IndividFitnessLabelTextTag,
+                RenderLayers::layer(1),
+            ));
+        });
     }
 }
 
@@ -342,7 +347,6 @@ fn agent_action_and_fitness_evaluation(
     }
 }
 
-
 lazy_static! {
      static ref START_POSITION_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
  HashMap::from([
@@ -385,4 +389,3 @@ fn reset_to_star_pos(
         }
     }
 }
-

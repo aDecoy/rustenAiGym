@@ -1,15 +1,16 @@
-use crate::environments::lunar_lander_environment::{LANDING_SITE, spawn_ground, spawn_landing_target, spawn_roof};
+use crate::environments::lunar_lander_environment::{LunarLanderEnvironment, LANDING_SITE};
 use crate::environments::moving_plank::{
-    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
+    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
 };
+use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, IndividFitnessLabelTextTag, PlankPhenotype};
 use crate::genome::genom_muteringer::mutate_genomes;
-use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
+use crate::genome::genom_muteringer::{lock_mutation_stability, MutasjonerErAktive};
+use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
+use crate::monitoring::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
-use crate::monitoring::camera_stuff::{KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera};
 use crate::monitoring::draw_network::{
-    TegnNevraltNettverkPlugin, oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus,
+    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus, TegnNevraltNettverkPlugin,
 };
 use crate::monitoring::hyllerepresentasjon::HyllerepresentasjonPlugin;
 use crate::monitoring::in_focus_stuff::{InFocusPlugin, IndividInFocus, IndividInFocusСhangedEvent};
@@ -26,9 +27,9 @@ use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
+use bevy::render::RenderPlugin;
 use bevy_egui::UiRenderOrder;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
@@ -36,15 +37,15 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
-use std::cmp::{Ordering, PartialEq, max, min};
+use rand::{thread_rng, Rng};
+use std::cmp::{max, min, Ordering, PartialEq};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
-use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, IndividFitnessLabelTextTag, PlankPhenotype};
+use crate::evolusjon::evolusjon_steg_plugin::EvolusjonStegPlugin;
 
 mod environments;
 mod evolusjon;
@@ -80,10 +81,7 @@ fn main() {
         // .add_systems(
         //     Startup,
         //     (
-        //         (spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),
-        //         spawn_ground,
-        //         spawn_roof,
-        //         spawn_landing_target,
+        //       
         //     ),
         // )
         // .add_systems(
@@ -104,7 +102,7 @@ fn main() {
         //         (
         //             lock_mutation_stability,
         //             // save_best_to_history,
-        // 
+        //
         //             // spawn_a_random_new_individual2,
         //             // mutate_planks,
         //             set_to_kjørende_state,
@@ -121,7 +119,10 @@ fn main() {
         .add_plugins(ElitePlugin)
         .add_plugins(HyllerepresentasjonPlugin)
         .add_plugins(KnappMenyPlugin)
-        .add_plugins(TegnNevraltNettverkPlugin);
+        .add_plugins(TegnNevraltNettverkPlugin)
+        .add_plugins(EvolusjonStegPlugin)
+    .add_plugins(LunarLanderEnvironment);
+
     app.run();
 }
 

@@ -1,40 +1,38 @@
+use crate::Kjøretilstand;
 use crate::environments::moving_plank::{PLANK_HIGHT, PLANK_LENGTH};
+use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelText, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::{PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
 use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
 use crate::populasjon_handlinger::population_sammenligninger::get_population_sorted_from_best_to_worst_v2;
-use crate::{ Kjøretilstand};
 use bevy::app::App;
 use bevy::asset::{Assets, Handle};
+use bevy::color::Color;
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::tailwind::RED_300;
-use bevy::color::Color;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
-use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelText, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype};
 
 pub struct HyllerepresentasjonPlugin;
 
 impl Plugin for HyllerepresentasjonPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
+        app.add_systems(
             PostStartup,
             (
                 setup_population_meny, // todo , trengr å oppdatere meny også
             ),
-            
         )
-            .add_systems(
-                Update,
-                (
-        label_plank_with_current_score_in_meny,
-        // eventer hvis individ i fokus skifter
-        )
-        .chain()
-            .run_if(in_state(Kjøretilstand::Kjørende))
-            );
+        .add_systems(
+            Update,
+            (
+                label_plank_with_current_score_in_meny,
+                // eventer hvis individ i fokus skifter
+            )
+                .chain()
+                .run_if(in_state(Kjøretilstand::Kjørende)),
+        );
     }
 }
 
@@ -74,7 +72,6 @@ fn label_plank_with_current_score_in_meny(mut query: Query<(&mut TextSpan, &Indi
         }
     }
 }
-
 
 fn setup_population_meny(
     mut commands: Commands,

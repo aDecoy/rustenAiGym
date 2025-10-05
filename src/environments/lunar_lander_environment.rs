@@ -2,7 +2,7 @@ use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::color::Color;
 use bevy::math::Vec3;
-use bevy::prelude::{Assets, Circle, ColorMaterial, Commands, Mesh, Mesh2d, MeshMaterial2d, Rectangle, ResMut, Transform, Vec2};
+use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -14,6 +14,14 @@ const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };
 // const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
+
+pub struct LunarLanderEnvironment;
+
+impl Plugin for LunarLanderEnvironment {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, (spawn_ground, spawn_roof, spawn_landing_target));
+    }
+}
 
 lazy_static! {
     static ref LANDING_SITE_PER_ENVIRONMENT: HashMap<EnvValg, Vec2> = {
@@ -38,7 +46,7 @@ lazy_static! {
     pub static ref LANDING_SITE: Vec2 = LANDING_SITE_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];
 }
 
-pub(crate) fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn((
         RigidBody::Static,
         Mesh2d(meshes.add(Rectangle::default()).into()),
@@ -59,7 +67,7 @@ pub(crate) fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mes
     ));
 }
 
-pub(crate) fn spawn_landing_target(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn spawn_landing_target(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn((
         RigidBody::Static,
         Mesh2d(meshes.add(Circle::default()).into()),

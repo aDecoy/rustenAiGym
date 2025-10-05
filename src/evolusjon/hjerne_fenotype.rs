@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use bevy::prelude::Query;
 use crate::environments::moving_plank::PIXELS_PER_METER;
 use crate::genome::genome_stuff::{Genome, NodeGene, WeightGene};
+use bevy::prelude::Query;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PhenotypeNeuralNetwork {
@@ -247,7 +247,6 @@ impl PhenotypeNeuralNetwork {
         next_layer
     }
 }
-
 
 // NB : Dette fjerner potensielt opplærte feedbackloops i nettverket i tilfeller det eksisterer en "barndom" for individet.
 // Men denne er nyttig for å se om resten er deterministisk
