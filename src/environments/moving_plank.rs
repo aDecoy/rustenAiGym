@@ -1,13 +1,15 @@
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use crate::{EttHakkState, Individ, Kjøretilstand, PhenotypeNeuralNetwork, PlankPhenotype};
-use avian2d::PhysicsPlugins;
+use crate::{EttHakkState,  Kjøretilstand};
 use avian2d::prelude::*;
+use avian2d::PhysicsPlugins;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use std::vec;
+use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
+use crate::evolusjon::phenotype_plugin::{Individ, PlankPhenotype};
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 

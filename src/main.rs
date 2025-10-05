@@ -2,8 +2,8 @@ use crate::environments::lunar_lander_environment::{LANDING_SITE, spawn_ground, 
 use crate::environments::moving_plank::{
     MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
-use crate::genome::genom_muteringer::lock_mutation_stability;
 use crate::genome::genom_muteringer::mutate_genomes;
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
@@ -44,8 +44,10 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
+use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, IndividFitnessLabelTextTag, PlankPhenotype};
 
 mod environments;
+mod evolusjon;
 mod genome;
 mod monitoring;
 mod populasjon_handlinger;
@@ -75,45 +77,42 @@ fn main() {
         .insert_state(EttHakkState::DISABLED)
         .insert_resource(InnovationNumberGlobalCounter { count: 0 })
         // .init_resource(     EnvValg { Homing} )
-        .add_systems(
-            Startup,
-            (
-                (spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),
-                spawn_ground,
-                spawn_roof,
-                spawn_landing_target,
-            ),
-        )
-        .add_systems(
-            Update,
-            (
-                endre_kjøretilstand_ved_input,
-
-                endre_om_mutasjoner_er_aktive_ved_input,
-                extinction_on_t,
-                (
-                    // print_pois_velocity_and_force,
-                    agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-                    label_plank_with_current_score,
-                    // eventer hvis individ i fokus skifter
-                )
-                    .chain()
-                    .run_if(in_state(Kjøretilstand::Kjørende)),
-              
-                // check_if_done.run_if(every_time_if_stop_on_right_window()),
-                (
-                    lock_mutation_stability,
-                    // save_best_to_history,
-
-                    // spawn_a_random_new_individual2,
-                    // mutate_planks,
-                 
-                    set_to_kjørende_state,
-                )
-                    .chain()
-                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-            ),
-        )
+        // .add_systems(
+        //     Startup,
+        //     (
+        //         (spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),
+        //         spawn_ground,
+        //         spawn_roof,
+        //         spawn_landing_target,
+        //     ),
+        // )
+        // .add_systems(
+        //     Update,
+        //     (
+        //         endre_kjøretilstand_ved_input,
+        //         endre_om_mutasjoner_er_aktive_ved_input,
+        //         extinction_on_t,
+        //         (
+        //             // print_pois_velocity_and_force,
+        //             agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
+        //             label_plank_with_current_score,
+        //             // eventer hvis individ i fokus skifter
+        //         )
+        //             .chain()
+        //             .run_if(in_state(Kjøretilstand::Kjørende)),
+        //         // check_if_done.run_if(every_time_if_stop_on_right_window()),
+        //         (
+        //             lock_mutation_stability,
+        //             // save_best_to_history,
+        // 
+        //             // spawn_a_random_new_individual2,
+        //             // mutate_planks,
+        //             set_to_kjørende_state,
+        //         )
+        //             .chain()
+        //             .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+        //     ),
+        // )
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
         .add_plugins(SimulationRunningTellerPlugin)
@@ -132,8 +131,6 @@ fn main() {
 //         *flag
 //     })
 // }
-
-
 
 fn every_time_if_stop_on_right_window() -> impl Condition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
@@ -265,7 +262,6 @@ fn spawn_a_random_new_individual(
     });
 }
 
-
 /// Returns an observer that updates the entity's material to the one specified.
 fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
     // An observer closure that captures `new_material`. We do this to avoid needing to write four
@@ -278,11 +274,6 @@ fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger
     }
 }
 
-
-
-
-
-
 // #[derive(Clone)]
 // struct PhentypeGenome<'lifetime_a> {
 //     phenotype: &'lifetime_a PlankPhenotype<'lifetime_a>,
@@ -290,8 +281,6 @@ fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger
 //     entity_index: u32,
 //     entity_bevy_generation: u32,
 // }
-
-
 
 #[derive(PartialEq, Resource, Eq, Hash)]
 enum EnvValg {
@@ -320,7 +309,6 @@ fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
     next_state.set(Kjøretilstand::Kjørende);
 }
 
-
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
     mut next_ett_hakk_state: ResMut<NextState<EttHakkState>>,
@@ -340,10 +328,7 @@ fn endre_kjøretilstand_ved_input(
     }
 }
 
-
 // fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>) {
-
-
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum Kjøretilstand {
@@ -357,7 +342,6 @@ enum Kjøretilstand {
     // ParentSelection,
     // SurvivorSelection,
 }
-
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum EttHakkState {
@@ -375,10 +359,6 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
         println!("----------------------------")
     }
 }
-
-
-
-
 
 // not used abstraction ideas for/from ai gym
 

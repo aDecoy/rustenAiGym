@@ -1,5 +1,5 @@
 use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
-use crate::{Genome, Kjøretilstand, NodeGene, WeightGene, agent_action_and_fitness_evaluation, label_plank_with_current_score, label_plank_with_current_score_in_meny};
+use crate::{Genome, Kjøretilstand, NodeGene, WeightGene};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use std::collections::HashMap;

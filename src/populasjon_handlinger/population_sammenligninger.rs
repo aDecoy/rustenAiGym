@@ -1,5 +1,5 @@
 use crate::genome::genome_stuff::Genome;
-use crate::{Kjøretilstand, PhentypeAndGenome, PlankPhenotype};
+use crate::{Kjøretilstand};
 use bevy::asset::{Assets, Handle};
 use bevy::color::Color;
 use bevy::color::palettes::basic::RED;
@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::Write;
+use crate::evolusjon::phenotype_plugin::{PhentypeAndGenome, PlankPhenotype};
 
 #[derive(Debug, Component)]
 pub struct EliteTag;

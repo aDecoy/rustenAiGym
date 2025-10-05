@@ -1,4 +1,24 @@
 use std::cmp::{max, min, Ordering};
+use std::collections::HashMap;
+use avian2d::math::{AdjustPrecision, Vector};
+use avian2d::prelude::{AngularVelocity, ExternalForce, LinearVelocity};
+use bevy::color::palettes::basic::PURPLE;
+use bevy::color::palettes::tailwind::CYAN_300;
+use bevy::prelude::*;
+use bevy::prelude::KeyCode::{KeyR, KeyT};
+use bevy::render::view::RenderLayers;
+use lazy_static::lazy_static;
+use rand::prelude::IndexedRandom;
+use rand::thread_rng;
+use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype};
+use crate::genome::genom_muteringer::{mutate_genomes, MutasjonerErAktive};
+use crate::{spawn_start_population, EnvValg, Kjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE};
+use crate::environments::lunar_lander_environment::LANDING_SITE;
+use crate::environments::moving_plank::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, PLANK_HIGHT, PLANK_LENGTH};
+use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter};
+use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
+use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 
 struct EvolusjonStegPlugin;
 
@@ -28,7 +48,7 @@ impl Plugin for EvolusjonStegPlugin {
                     .chain()
                     .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
                     )
-            )
+            );
     }
 }
 
@@ -235,7 +255,7 @@ fn reset_to_star_pos_on_event(
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
     query: Query<(
         &mut Transform,
-        &mut crate::PlankPhenotype,
+        &mut PlankPhenotype,
         &mut LinearVelocity,
         &mut AngularVelocity,
         Option<&mut ExternalForce>,

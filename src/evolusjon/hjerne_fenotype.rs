@@ -1,5 +1,11 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+use bevy::prelude::Query;
+use crate::environments::moving_plank::PIXELS_PER_METER;
+use crate::genome::genome_stuff::{Genome, NodeGene, WeightGene};
+
 #[derive(Debug)]
-struct PhenotypeNeuralNetwork {
+pub struct PhenotypeNeuralNetwork {
     ant_layers: usize,
     // Holder på objektene
     // alleNoder: Vec<NodeGene>,
@@ -246,7 +252,7 @@ impl PhenotypeNeuralNetwork {
 // NB : Dette fjerner potensielt opplærte feedbackloops i nettverket i tilfeller det eksisterer en "barndom" for individet.
 // Men denne er nyttig for å se om resten er deterministisk
 // En annen ting som kan tenkes å være nyttig er å gi random verdier, slik at vi trener at individer kan hente seg inn fra dårlig init inputs
-fn nullstill_nettverk_verdier_til_0(mut query: Query<&mut Genome>) {
+pub fn nullstill_nettverk_verdier_til_0(mut query: Query<&mut Genome>) {
     for mut genome in query.iter_mut() {
         for node_gen in genome.node_genes.iter_mut() {
             let mut verdi = node_gen.value.write().unwrap();
