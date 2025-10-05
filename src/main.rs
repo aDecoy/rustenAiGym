@@ -1,16 +1,17 @@
-use crate::environments::lunar_lander_environment::{LunarLanderEnvironment, LANDING_SITE};
+use crate::environments::lunar_lander_environment::{LANDING_SITE, LunarLanderEnvironment};
 use crate::environments::moving_plank::{
-    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
+    MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
-use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, IndividFitnessLabelTextTag, PlankPhenotype};
+use crate::evolusjon::evolusjon_steg_plugin::EvolusjonStegPlugin;
+use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype, add_observers_to_individuals, FenotypePlugin};
 use crate::genome::genom_muteringer::mutate_genomes;
-use crate::genome::genom_muteringer::{lock_mutation_stability, MutasjonerErAktive};
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
-use crate::monitoring::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
+use crate::monitoring::camera_stuff::{KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera};
 use crate::monitoring::draw_network::{
-    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus, TegnNevraltNettverkPlugin,
+    TegnNevraltNettverkPlugin, oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus,
 };
 use crate::monitoring::hyllerepresentasjon::HyllerepresentasjonPlugin;
 use crate::monitoring::in_focus_stuff::{InFocusPlugin, IndividInFocus, IndividInFocusСhangedEvent};
@@ -27,9 +28,9 @@ use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
+use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::view::RenderLayers;
-use bevy::render::RenderPlugin;
 use bevy_egui::UiRenderOrder;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
@@ -37,15 +38,14 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
-use std::cmp::{max, min, Ordering, PartialEq};
+use rand::{Rng, thread_rng};
+use std::cmp::{Ordering, PartialEq, max, min};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::Arc;
 use std::vec::Vec;
-use crate::evolusjon::evolusjon_steg_plugin::EvolusjonStegPlugin;
 
 mod environments;
 mod evolusjon;
@@ -65,8 +65,7 @@ fn main() {
 
     app.add_plugins(DefaultPlugins)
         // .add_plugins(MinimalPlugins)
-        .insert_state(Kjøretilstand::Kjørende)
-        .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
+    
         .add_plugins((
             EguiPlugin {
                 enable_multipass_for_primary_context: true,
@@ -77,40 +76,12 @@ fn main() {
         .add_plugins(MeshPickingPlugin)
         .insert_state(EttHakkState::DISABLED)
         .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-        // .init_resource(     EnvValg { Homing} )
-        // .add_systems(
-        //     Startup,
-        //     (
-        //       
-        //     ),
-        // )
-        // .add_systems(
-        //     Update,
-        //     (
-        //         endre_kjøretilstand_ved_input,
-        //         endre_om_mutasjoner_er_aktive_ved_input,
-        //         extinction_on_t,
-        //         (
-        //             // print_pois_velocity_and_force,
-        //             agent_action_and_fitness_evaluation.run_if(in_state(Kjøretilstand::Kjørende)),
-        //             label_plank_with_current_score,
-        //             // eventer hvis individ i fokus skifter
-        //         )
-        //             .chain()
-        //             .run_if(in_state(Kjøretilstand::Kjørende)),
-        //         // check_if_done.run_if(every_time_if_stop_on_right_window()),
-        //         (
-        //             lock_mutation_stability,
-        //             // save_best_to_history,
-        //
-        //             // spawn_a_random_new_individual2,
-        //             // mutate_planks,
-        //             set_to_kjørende_state,
-        //         )
-        //             .chain()
-        //             .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-        //     ),
-        // )
+        .add_systems(
+            Update,
+            (
+                endre_kjøretilstand_ved_input,
+            )
+        )
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
         .add_plugins(SimulationRunningTellerPlugin)
@@ -121,7 +92,8 @@ fn main() {
         .add_plugins(KnappMenyPlugin)
         .add_plugins(TegnNevraltNettverkPlugin)
         .add_plugins(EvolusjonStegPlugin)
-    .add_plugins(LunarLanderEnvironment);
+        .add_plugins(LunarLanderEnvironment)
+        .add_plugins(FenotypePlugin);
 
     app.run();
 }
@@ -191,16 +163,6 @@ fn spawn_start_population(
 //     };
 // }
 
-// Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
-fn spawn_a_random_new_individual2(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-) {
-    let n: i32 = 1;
-    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n)
-}
 
 fn spawn_a_random_new_individual(
     commands: &mut Commands,

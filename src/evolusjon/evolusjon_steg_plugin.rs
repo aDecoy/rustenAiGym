@@ -4,13 +4,11 @@ use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
     IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
 };
-use crate::genome::genom_muteringer::{MutasjonerErAktive, mutate_genomes};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, mutate_genomes, lock_mutation_stability};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{
-    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand, START_POPULATION_SIZE, spawn_start_population,
-};
+use crate::{ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand, START_POPULATION_SIZE, spawn_start_population, spawn_a_random_new_individual, set_to_kjørende_state};
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::{AngularVelocity, ExternalForce, LinearVelocity};
 use bevy::color::palettes::basic::PURPLE;
@@ -29,31 +27,39 @@ pub struct EvolusjonStegPlugin;
 impl Plugin for EvolusjonStegPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<ResetToStartPositionsEvent>()
+            .insert_state(Kjøretilstand::Kjørende)
+            .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
             .add_systems(
                 Startup,
-                (
-                    (spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),
-                ))
+                ((spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),),
+            )
             .add_systems(
-            Update,
-            (
-                reset_event_ved_input,
-                reset_to_star_pos_on_event,
-                check_if_done,
+                Update,
                 (
-                    kill_worst_individuals,
-                    reset_to_star_pos,
-                    mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                    // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
-                    update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
-                    nullstill_nettverk_verdier_til_0,
-                    create_new_children,
-                    add_observers_to_individuals.after(create_new_children),
-                )
-                    .chain()
-                    .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-            ),
-        );
+                    extinction_on_t,
+                    reset_event_ved_input,
+                    reset_to_star_pos_on_event,
+                    (check_if_done,
+                     //         // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
+
+                     agent_action_and_fitness_evaluation).run_if(in_state(Kjøretilstand::Kjørende)),
+                    (
+                        kill_worst_individuals,
+                        reset_to_star_pos,
+                        mutate_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                        // updatePhenotypeNetwork for entities with mutated genomes .run_if(in_state(MutasjonerErAktive::Ja)),
+                        update_phenotype_network_for_changed_genomes.run_if(in_state(MutasjonerErAktive::Ja)),
+                        nullstill_nettverk_verdier_til_0,
+                        create_new_children,
+                        spawn_a_random_new_individual2,
+                        lock_mutation_stability,
+                        add_observers_to_individuals.after(create_new_children),
+                        set_to_kjørende_state,
+                    )
+                        .chain()
+                        .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+                ),
+            );
     }
 }
 
@@ -89,6 +95,18 @@ fn kill_worst_individuals(mut commands: Commands, query: Query<(Entity, &PlankPh
         commands.entity(*entity).despawn_recursive();
     }
 }
+
+// Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
+fn spawn_a_random_new_individual2(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+) {
+    let n: i32 = 1;
+    spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n)
+}
+
 
 fn extinction_on_t(
     mut commands: Commands,

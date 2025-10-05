@@ -28,6 +28,7 @@ impl Plugin for ElitePlugin {
                     (
                         increase_generation_counter,
                         // print_pop_conditions,
+                        save_best_to_history
                     )
                         .chain()
                         .run_if(in_state(Kjøretilstand::EvolutionOverhead)),

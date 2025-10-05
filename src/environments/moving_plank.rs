@@ -22,19 +22,7 @@ pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
 
 impl Plugin for MovingPlankPlugin {
     fn build(&self, app: &mut App) {
-        app
-            // .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(PIXELS_PER_METER)
-            //     // To spesify my won runing conditions, so that i can pause the sim, or run it one timestep at a time
-            //     .with_default_system_setup(false))
-            // .add_plugins(RapierDebugRenderPlugin::default())
-            // .add_systems(Update, (
-            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend).in_set(PhysicsSet::SyncBackend),
-            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation).in_set(PhysicsSet::StepSimulation),
-            //     RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback).in_set(PhysicsSet::Writeback),
-            // ).chain() // overasknede viktig. uten den så lagger ting
-            //     .run_if(in_state(Kjøretilstand::Kjørende)),
-            // )
-            .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+        app.add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
@@ -50,6 +38,7 @@ impl Plugin for MovingPlankPlugin {
                         // print_done_status,
                         // print_score,
                         // print_environment_observations
+                        // print_pois_velocity_and_force,
                     )
                         .run_if(in_state(Kjøretilstand::Kjørende)),
                     (set_ett_hakk_til_kjør_ett_hakk_if_input).run_if(in_state(EttHakkState::VENTER_PÅ_INPUT)),

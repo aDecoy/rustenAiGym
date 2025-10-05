@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-struct FenotypePlugin;
+pub struct FenotypePlugin;
 
 impl Plugin for FenotypePlugin {
     fn build(&self, app: &mut App) {
