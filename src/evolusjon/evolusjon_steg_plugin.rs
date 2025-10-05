@@ -4,11 +4,13 @@ use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
     IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
 };
-use crate::genome::genom_muteringer::{MutasjonerErAktive, mutate_genomes, lock_mutation_stability};
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand, START_POPULATION_SIZE, spawn_start_population, spawn_a_random_new_individual, set_to_kjørende_state};
+use crate::{
+    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
+};
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::{AngularVelocity, ExternalForce, LinearVelocity};
 use bevy::color::palettes::basic::PURPLE;
@@ -39,10 +41,12 @@ impl Plugin for EvolusjonStegPlugin {
                     extinction_on_t,
                     reset_event_ved_input,
                     reset_to_star_pos_on_event,
-                    (check_if_done,
-                     //         // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
-
-                     agent_action_and_fitness_evaluation).run_if(in_state(Kjøretilstand::Kjørende)),
+                    (
+                        check_if_done,
+                        //         // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
+                        agent_action_and_fitness_evaluation,
+                    )
+                        .run_if(in_state(Kjøretilstand::Kjørende)),
                     (
                         kill_worst_individuals,
                         reset_to_star_pos,
@@ -60,6 +64,31 @@ impl Plugin for EvolusjonStegPlugin {
                         .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
                 ),
             );
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+pub enum Kjøretilstand {
+    #[default]
+    Pause,
+    Kjørende,
+
+    EvolutionOverhead,
+    // FitnessEvaluation,
+    // Mutation,
+    // ParentSelection,
+    // SurvivorSelection,
+}
+
+fn spawn_start_population(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+) {
+    for n in 0i32..START_POPULATION_SIZE {
+        // for n in 0i32..1 {
+        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n);
     }
 }
 
@@ -107,6 +136,9 @@ fn spawn_a_random_new_individual2(
     spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n)
 }
 
+fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
+    next_state.set(Kjøretilstand::Kjørende);
+}
 
 fn extinction_on_t(
     mut commands: Commands,
@@ -406,4 +438,65 @@ fn reset_to_star_pos(
             force.apply_force(Vector::ZERO);
         }
     }
+}
+
+fn spawn_a_random_new_individual(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
+    n: i32,
+) {
+    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
+    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
+
+    let hover_matl = materials.add(Color::from(CYAN_300));
+    // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
+    // let text_style = TextStyle {
+    //     font_size: 20.0,
+    //     color: Color::WHITE,
+    //     ..default()
+    // };
+    let genome = match ACTIVE_ENVIROMENT {
+        EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
+        _ => new_random_genome(2, 2, innovation_number_global_counter),
+    };
+
+    match ACTIVE_ENVIROMENT {
+        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
+            material_handle.clone(),
+            rectangle_mesh_handle.into(),
+            Vec3 {
+                x: 0.0,
+                y: -150.0 + n as f32 * 50.0,
+                z: 1.0,
+            },
+            genome,
+        )),
+        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
+            material_handle.clone(),
+            rectangle_mesh_handle.into(),
+            Vec3 {
+                x: 0.0,
+                y: -150.0 + (n as f32 * 15.0),
+                z: 1.0,
+            },
+            genome,
+        )),
+        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
+            material_handle.clone(),
+            rectangle_mesh_handle.into(),
+            Vec3 { x: 30.0, y: 100.0, z: 1.0 },
+            genome,
+        )),
+    }
+    .with_children(|builder| {
+        builder.spawn((
+            Text2d::new("translation"),
+            TextLayout::new_with_justify(JustifyText::Center),
+            Transform::from_xyz(0.0, 0.0, 2.0),
+            IndividFitnessLabelTextTag,
+            RenderLayers::layer(1),
+        ));
+    });
 }

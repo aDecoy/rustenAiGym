@@ -2,8 +2,8 @@ use crate::environments::lunar_lander_environment::{LANDING_SITE, LunarLanderEnv
 use crate::environments::moving_plank::{
     MovingPlankPlugin, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
-use crate::evolusjon::evolusjon_steg_plugin::EvolusjonStegPlugin;
-use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype, add_observers_to_individuals, FenotypePlugin};
+use crate::evolusjon::evolusjon_steg_plugin::{EvolusjonStegPlugin, Kjøretilstand};
+use crate::evolusjon::phenotype_plugin::{FenotypePlugin, IndividFitnessLabelTextTag, PlankPhenotype, add_observers_to_individuals};
 use crate::genome::genom_muteringer::mutate_genomes;
 use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
@@ -65,7 +65,6 @@ fn main() {
 
     app.add_plugins(DefaultPlugins)
         // .add_plugins(MinimalPlugins)
-    
         .add_plugins((
             EguiPlugin {
                 enable_multipass_for_primary_context: true,
@@ -76,12 +75,7 @@ fn main() {
         .add_plugins(MeshPickingPlugin)
         .insert_state(EttHakkState::DISABLED)
         .insert_resource(InnovationNumberGlobalCounter { count: 0 })
-        .add_systems(
-            Update,
-            (
-                endre_kjøretilstand_ved_input,
-            )
-        )
+        .add_systems(Update, (endre_kjøretilstand_ved_input,))
         // Environment spesific : Later changed
         .add_plugins(MovingPlankPlugin)
         .add_plugins(SimulationRunningTellerPlugin)
@@ -105,22 +99,7 @@ fn main() {
 //     })
 // }
 
-fn every_time_if_stop_on_right_window() -> impl Condition<()> {
-    IntoSystem::into_system(|mut flag: Local<bool>| {
-        *flag = match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => true,
-            _ => false,
-        };
-        *flag
-    })
-}
-
 //////////////
-
-#[derive(Resource, Default, Debug)]
-struct SimulationTimer {
-    count: i32,
-}
 
 /////////////////// create/kill/develop  new individuals
 
@@ -130,120 +109,6 @@ static ANT_PARENTS_HVER_GENERASJON: usize = 3;
 
 // todo. legg på label på input og output i tegninger, slik at det er enkelt å se hva som er x og y
 // todo , også legg på elite ID på tenging, slik at vi ser at den er den samme hele tiden.
-
-fn spawn_start_population(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-) {
-    for n in 0i32..START_POPULATION_SIZE {
-        // for n in 0i32..1 {
-        spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n);
-    }
-}
-
-// fn spawn_a_new_random_individual_2(commands: &mut Commands, meshes: &mut ResMut<Assets<Mesh>>, materials: &mut ResMut<Assets<ColorMaterial>>) {
-//     let n: i32;
-//
-//     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
-//
-//     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-//
-//     let mut genome = new_random_genome(2, 2);
-//     // let genome_entity = commands.spawn(genome).id(); // todo kanksje det samme om inne i en bundle eller direkte?
-//     // let genome2 :Genome = genome_entity.get::<Genome>().unwrap();
-//
-//     // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
-//
-//     match ACTIVE_ENVIROMENT {
-//         EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + n as f32 * 50.0, z: 1.0 }, new_random_genome(2, 2))),
-//         EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + (n as f32 * 15.0), z: 1.0 }, new_random_genome(2, 2))),
-//         EnvValg::FallExternalForcesHøyre | EnvValg::Homing => { commands.spawn(create_plank_ext_force_env_falling(material_handle, rectangle_mesh_handle.into(), Vec3 { x: 0.0, y: -150.0 + 3.3 * 50.0, z: 1.0 }, new_random_genome(2, 2))) }
-//     };
-// }
-
-
-fn spawn_a_random_new_individual(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
-    innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
-    n: i32,
-) {
-    let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
-    let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
-
-    let hover_matl = materials.add(Color::from(CYAN_300));
-    // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
-    // let text_style = TextStyle {
-    //     font_size: 20.0,
-    //     color: Color::WHITE,
-    //     ..default()
-    // };
-    let genome = match ACTIVE_ENVIROMENT {
-        EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
-        _ => new_random_genome(2, 2, innovation_number_global_counter),
-    };
-
-    match ACTIVE_ENVIROMENT {
-        EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
-            material_handle.clone(),
-            rectangle_mesh_handle.into(),
-            Vec3 {
-                x: 0.0,
-                y: -150.0 + n as f32 * 50.0,
-                z: 1.0,
-            },
-            genome,
-        )),
-        EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
-            material_handle.clone(),
-            rectangle_mesh_handle.into(),
-            Vec3 {
-                x: 0.0,
-                y: -150.0 + (n as f32 * 15.0),
-                z: 1.0,
-            },
-            genome,
-        )),
-        EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
-            material_handle.clone(),
-            rectangle_mesh_handle.into(),
-            Vec3 { x: 30.0, y: 100.0, z: 1.0 },
-            genome,
-        )),
-    }
-    .with_children(|builder| {
-        builder.spawn((
-            Text2d::new("translation"),
-            TextLayout::new_with_justify(JustifyText::Center),
-            Transform::from_xyz(0.0, 0.0, 2.0),
-            IndividFitnessLabelTextTag,
-            RenderLayers::layer(1),
-        ));
-    });
-}
-
-/// Returns an observer that updates the entity's material to the one specified.
-fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
-    // An observer closure that captures `new_material`. We do this to avoid needing to write four
-    // versions of this observer, each triggered by a different event and with a different hardcoded
-    // material. Instead, the event type is a generic, and the material is passed in.
-    move |trigger, mut query| {
-        if let Ok(mut material) = query.get_mut(trigger.target().entity()) {
-            material.0 = new_material.clone();
-        }
-    }
-}
-
-// #[derive(Clone)]
-// struct PhentypeGenome<'lifetime_a> {
-//     phenotype: &'lifetime_a PlankPhenotype<'lifetime_a>,
-//     genome: &'lifetime_a Genome<'lifetime_a>,
-//     entity_index: u32,
-//     entity_bevy_generation: u32,
-// }
 
 #[derive(PartialEq, Resource, Eq, Hash)]
 enum EnvValg {
@@ -268,10 +133,6 @@ static ACTIVE_ENVIROMENT: EnvValg = EnvValg::HomingGroud;
 
 // state control
 
-fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
-    next_state.set(Kjøretilstand::Kjørende);
-}
-
 fn endre_kjøretilstand_ved_input(
     mut next_state: ResMut<NextState<Kjøretilstand>>,
     mut next_ett_hakk_state: ResMut<NextState<EttHakkState>>,
@@ -294,33 +155,11 @@ fn endre_kjøretilstand_ved_input(
 // fn reset_to_star_pos(mut query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>) {
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
-enum Kjøretilstand {
-    #[default]
-    Pause,
-    Kjørende,
-
-    EvolutionOverhead,
-    // FitnessEvaluation,
-    // Mutation,
-    // ParentSelection,
-    // SurvivorSelection,
-}
-
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum EttHakkState {
     #[default]
     DISABLED,
     VENTER_PÅ_INPUT,
     KJØRER_ETT_HAKK,
-}
-
-fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, &LinearVelocity, &ExternalForce), (With<crate::PlankPhenotype>)>) {
-    for (translation, plank, linvel, external_force) in query.iter_mut() {
-        println!("translation {:#?}", translation);
-        println!("linvel {:#?}", linvel);
-        println!("external_force {:#?}", external_force);
-        println!("----------------------------")
-    }
 }
 
 // not used abstraction ideas for/from ai gym

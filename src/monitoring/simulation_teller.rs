@@ -32,6 +32,11 @@ impl Plugin for SimulationRunningTellerPlugin {
     }
 }
 
+#[derive(Resource, Default, Debug)]
+struct SimulationTimer {
+    count: i32,
+}
+
 static GENERATION_TIME: f32 = 10.0;
 // static GENERATION_TIME: f32 = 5.0;
 

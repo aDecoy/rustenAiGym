@@ -78,7 +78,7 @@ fn spawn_landing_target(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>
     ));
 }
 
-pub(crate) fn spawn_roof(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn spawn_roof(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn((
         RigidBody::Static,
         Mesh2d(meshes.add(Rectangle::default()).into()),
@@ -91,4 +91,14 @@ pub(crate) fn spawn_roof(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>
         CollisionLayers::new(0b0010, LayerMask::ALL),
         RenderLayers::layer(1),
     ));
+}
+
+fn every_time_if_stop_on_right_window() -> impl Condition<()> {
+    IntoSystem::into_system(|mut flag: Local<bool>| {
+        *flag = match ACTIVE_ENVIROMENT {
+            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => true,
+            _ => false,
+        };
+        *flag
+    })
 }

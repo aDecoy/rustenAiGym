@@ -2,7 +2,6 @@ use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::draw_network::place_in_focus;
 use crate::populasjon_handlinger::population_sammenligninger::{EliteTag, get_best_elite};
-use crate::update_material_on;
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{Assets, Handle};
 use bevy::color::palettes::basic::{GREEN, PURPLE, RED};
@@ -57,6 +56,18 @@ fn color_change_on_pointer_out_of_individ(
             material_handle.0 = material_in_focus.clone();
         } else {
             material_handle.0 = material_default.clone();
+        }
+    }
+}
+
+/// Returns an observer that updates the entity's material to the one specified.
+fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
+    // An observer closure that captures `new_material`. We do this to avoid needing to write four
+    // versions of this observer, each triggered by a different event and with a different hardcoded
+    // material. Instead, the event type is a generic, and the material is passed in.
+    move |trigger, mut query| {
+        if let Ok(mut material) = query.get_mut(trigger.target().entity()) {
+            material.0 = new_material.clone();
         }
     }
 }
