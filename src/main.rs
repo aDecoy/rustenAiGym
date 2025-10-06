@@ -92,15 +92,6 @@ fn main() {
     app.run();
 }
 
-// fn every_time() -> impl Condition<()> {
-//     IntoSystem::into_system(|mut flag: Local<bool>| {
-//         *flag = true;
-//         *flag
-//     })
-// }
-
-//////////////
-
 /////////////////// create/kill/develop  new individuals
 
 static START_POPULATION_SIZE: i32 = 3;
