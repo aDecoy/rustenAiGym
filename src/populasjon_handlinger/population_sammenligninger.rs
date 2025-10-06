@@ -46,7 +46,7 @@ pub fn get_best_elite<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype,
             genome: genome,
             entity_index: entity.index(),
             entity: entity,
-            entity_bevy_generation: entity.generation(),
+            entity_bevy_generation: entity.generation().to_bits(),
         })
     }
     // sort desc
@@ -93,7 +93,7 @@ pub(crate) fn add_elite_component_tag_to_best_individ(
 }
 
 fn color_elite_red(mut commands: Commands, mut elite_query: Query<Entity, With<EliteTag>>, mut materials: ResMut<Assets<ColorMaterial>>) {
-    if let Ok(elite_entity) = elite_query.get_single() {
+    if let Ok(elite_entity) = elite_query.single() {
         let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
         commands.entity(elite_entity).insert(MeshMaterial2d(elite_material_handle));
     }
@@ -108,7 +108,7 @@ fn sort_best_to_worst<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype,
             genome: genome,
             entity_index: entity.index(),
             entity: entity,
-            entity_bevy_generation: entity.generation(),
+            entity_bevy_generation: entity.generation().to_bits(),
         })
     }
     // sort desc
@@ -146,7 +146,7 @@ fn save_best_to_history(query: Query<&PlankPhenotype, With<EliteTag>>, generatio
 
     // let population = get_population_sorted_from_best_to_worst(query.iter());
     // let best = population[0];
-    let best = query.get_single().unwrap();
+    let best = query.single().unwrap();
 
     let best_score = best.score;
     // let best_id = best;
@@ -192,7 +192,7 @@ pub fn get_population_sorted_from_best_to_worst_v2<'lifetime_a>(
             genome: genome,
             entity_index: entity.index(),
             entity: entity,
-            entity_bevy_generation: entity.generation(),
+            entity_bevy_generation: entity.generation().to_bits(),
         });
     }
 

@@ -9,8 +9,8 @@ use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
 use std::vec;
+use bevy::camera::visibility::RenderLayers;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
@@ -28,6 +28,8 @@ impl Plugin for MovingPlankPlugin {
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
             .insert_resource(Gravity::ZERO)
+
+
             // .add_systems(Startup, spawn_plank)
             .add_systems(
                 Update,
@@ -73,7 +75,13 @@ fn set_physics_time_to_paused_or_unpaused(kjøretistand_state: Res<State<Kjøret
     }
 }
 
-fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, &LinearVelocity, &ExternalForce), (With<crate::PlankPhenotype>)>) {
+// Docs for avian froce rework  https://github.com/Jondolf/avian/pull/770
+// todo tyngdekraft kan endres til
+// // Apply a constant force of 10 N in the positive Y direction.
+// ConstantForce::new(0.0, 10.0, 0.0),
+// The forces are only constant in the sense that they persist across time steps. They can still be modified in systems like normal.
+
+fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, &LinearVelocity, Forces), (With<PlankPhenotype>)>) {
     for (translation, plank, linvel, external_force) in query.iter_mut() {
         println!("translation {:#?}", translation);
         println!("linvel {:#?}", linvel);
@@ -188,14 +196,14 @@ pub fn create_plank_ext_force_env_falling(
     RigidBody,
     CollisionLayers,
     LinearVelocity,
-    ExternalForce,
+    Forces,
     TextLayout,
     RenderLayers,
     Individ,
 ) {
     // let text_style = TextStyle {
     //     font_size: 30.0,
-    //     color: Color::WHITE,
+    //     color: Color::   WHITE,
     //     ..default()
     // };
     (
@@ -215,9 +223,9 @@ pub fn create_plank_ext_force_env_falling(
         RigidBody::Dynamic,
         CollisionLayers::new(0b0001, 0b0010),
         LinearVelocity { 0: Vec2::new(0.0, 0.0) },
-        // ExternalForce { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
-        ExternalForce::new(Vec2::X).with_persistence(false),
-        TextLayout::new_with_justify(JustifyText::Center),
+        // Forces { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
+        Forces::new(Vec2::X).with_persistence(false),
+        TextLayout::new_with_justify(Justify::Center),
         RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
         Individ {},
         // RenderLayers::from_layers(&[1]),
@@ -293,7 +301,7 @@ fn set_ett_hakk_til_kjør_ett_hakk_if_input(
 }
 
 fn get_observations(transform: Transform) -> MovingPlankObservation {
-    // let translation = query.get_single().unwrap().translation.clone();
+    // let translation = query.single().unwrap().translation.clone();
     return MovingPlankObservation {
         x: transform.translation.x,
         y: transform.translation.y,
@@ -301,7 +309,7 @@ fn get_observations(transform: Transform) -> MovingPlankObservation {
 }
 
 fn get_simulation_time(query: Query<&Transform, With<PlankPhenotype>>) -> MovingPlankObservation {
-    let translation = query.get_single().unwrap().translation.clone();
+    let translation = query.single().unwrap().translation.clone();
     return MovingPlankObservation {
         x: translation.x,
         y: translation.y,
@@ -339,7 +347,7 @@ fn check_if_done(transform: Transform, window: Window) -> bool {
 
 fn print_done_status(query: Query<&Transform, With<PlankPhenotype>>, window: Query<&Window>) {
     println!("------All done statues -------------------");
-    let window = window.get_single().unwrap().clone();
+    let window = window.single().unwrap().clone();
 
     for transform in query.iter() {
         println!("Er done ? : {}", check_if_done(transform.clone(), window.clone()));

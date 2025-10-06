@@ -13,10 +13,10 @@ edition = "2024"
 [dependencies]
 #bevy = "0.13.2"
 #bevy = "0.14.0"
-bevy = { version = "0.16.1", features = ["dynamic_linking", "wayland"] }
+bevy = { version = "0.17.2", features = ["dynamic_linking", "wayland"] }
 #bevy = { version = "0.16.1", features = ["dynamic_linking", "wayland"] }
 #bevy = { git = "https://github.com/bevyengine/bevy.git", features = ["dynamic_linking", "wayland"] }
-rand = "0.9.1"
+rand = "0.9.2"
 #log = "0.4.22"
 
 #only needed for environments
@@ -25,12 +25,14 @@ rand = "0.9.1"
 
 # For 2D applications:
 #avian2d = { version = "0.2.1", features = ["2d"] }
-avian2d = { git = "https://github.com/Jondolf/avian.git", features = ["2d"] }
+avian2d = { git = "https://github.com/Jondolf/avian.git"   , features = ["2d"] }
+#avian2d = { git = "https://github.com/Jondolf/avian.git", branch = "bevy-0.17-stable"   , features = ["2d"] }
+#avian2d = { git = "https://github.com/Jondolf/avian/tree/bevy-0.17-stable.git", features = ["2d"] }
 
 
 #bevy-inspector-egui = "0.25.2"
-bevy-inspector-egui = "0.33.1"
-bevy_egui = "0.36.0"
+bevy-inspector-egui = "0.34.0"
+bevy_egui = "0.37.0"
 lazy_static = "1.5.0"
 
 #

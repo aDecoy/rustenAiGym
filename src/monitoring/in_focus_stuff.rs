@@ -15,7 +15,7 @@ use std::cmp::Ordering;
 #[derive(Debug, Component)]
 pub struct IndividInFocus;
 
-#[derive(Event, Debug)]
+#[derive(Message, Debug)]
 pub struct IndividInFocusСhangedEvent {
     pub(crate) entity: Entity,
 }
@@ -37,7 +37,7 @@ impl Plugin for InFocusPlugin {
     }
 }
 fn color_change_on_pointer_out_of_individ(
-    entity_som_forlates: Trigger<Pointer<Out>>,
+    entity_som_forlates: On<Pointer<Out>>,
     mut query: Query<
         (Entity, &mut MeshMaterial2d<ColorMaterial>, Option<&EliteTag>, Option<&IndividInFocus>),
         // With<(Individ, PlankPhenotype)>,
@@ -49,7 +49,7 @@ fn color_change_on_pointer_out_of_individ(
     let material_elite = materials.add(Color::from(RED));
     let material_in_focus = materials.add(Color::from(GREEN));
 
-    if let Ok((entity, mut material_handle, elite, in_focus)) = query.get_mut(entity_som_forlates.target) {
+    if let Ok((entity, mut material_handle, elite, in_focus)) = query.get_mut(entity_som_forlates.target()) {
         if elite.is_some() {
             material_handle.0 = material_elite.clone();
         } else if in_focus.is_some() {
@@ -61,12 +61,12 @@ fn color_change_on_pointer_out_of_individ(
 }
 
 /// Returns an observer that updates the entity's material to the one specified.
-fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
+fn update_material_on<E>(new_material: Handle<ColorMaterial>) -> impl Fn(On<E>, Query<&mut MeshMaterial2d<ColorMaterial>>) {
     // An observer closure that captures `new_material`. We do this to avoid needing to write four
     // versions of this observer, each triggered by a different event and with a different hardcoded
     // material. Instead, the event type is a generic, and the material is passed in.
     move |trigger, mut query| {
-        if let Ok(mut material) = query.get_mut(trigger.target().entity()) {
+        if let Ok(mut material) = query.get_mut(trigger.observer()) {
             material.0 = new_material.clone();
         }
     }
@@ -90,14 +90,14 @@ fn fjern_fokus_fra_gammel_elite(mut mistet_elite_status_query: RemovedComponents
     }
 }
 
-fn publiser_event_for_ny_individ_i_fokus(query: Query<(Entity), Added<IndividInFocus>>, mut event_writer: EventWriter<IndividInFocusСhangedEvent>) {
+fn publiser_event_for_ny_individ_i_fokus(query: Query<(Entity), Added<IndividInFocus>>, mut event_writer: MessageWriter<IndividInFocusСhangedEvent>) {
     for entity in query.iter() {
         event_writer.write(IndividInFocusСhangedEvent { entity: entity });
     }
 }
 
 fn color_focus_green(mut commands: Commands, mut elite_query: Query<Entity, With<IndividInFocus>>, mut materials: ResMut<Assets<ColorMaterial>>) {
-    if let Ok(elite_entity) = elite_query.get_single() {
+    if let Ok(elite_entity) = elite_query.single() {
         let elite_material_handle: Handle<ColorMaterial> = materials.add(Color::from(GREEN));
         commands.entity(elite_entity).insert(MeshMaterial2d(elite_material_handle));
     }

@@ -12,12 +12,12 @@ use crate::{
     ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
-use avian2d::prelude::{AngularVelocity, ExternalForce, LinearVelocity};
+use avian2d::prelude::{AngularVelocity, LinearVelocity , Forces};
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::prelude::KeyCode::{KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
+use bevy::camera::visibility::RenderLayers;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
@@ -263,7 +263,7 @@ fn create_new_children(
         .with_children(|builder| {
             builder.spawn((
                 Text2d::new("Fitness label"),
-                TextLayout::new_with_justify(JustifyText::Center),
+                TextLayout::new_with_justify(Justify::Center),
                 Transform::from_xyz(0.0, 0.0, 2.0),
                 IndividFitnessLabelTextTag,
                 RenderLayers::layer(1),
@@ -301,11 +301,11 @@ fn check_if_done(
     }
 }
 
-#[derive(Event, Debug, Default)]
+#[derive(Message, Debug, Default)]
 struct ResetToStartPositionsEvent;
 
 fn reset_to_star_pos_on_event(
-    mut reset_events: EventReader<ResetToStartPositionsEvent>,
+    mut reset_events: MessageReader<ResetToStartPositionsEvent>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
     // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
     query: Query<(
@@ -313,7 +313,7 @@ fn reset_to_star_pos_on_event(
         &mut PlankPhenotype,
         &mut LinearVelocity,
         &mut AngularVelocity,
-        Option<&mut ExternalForce>,
+        Option<Forces>,
     )>,
 ) {
     if reset_events.read().next().is_some() {
@@ -321,7 +321,7 @@ fn reset_to_star_pos_on_event(
     }
 }
 
-fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: EventWriter<ResetToStartPositionsEvent>) {
+fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
     if user_input.pressed(KeyR) {
         reset_events.send_default();
     }
@@ -329,7 +329,7 @@ fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action_and_fitness_evaluation(
-    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>, Entity), (With<PlankPhenotype>)>,
+    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
     time: Res<Time>,
 ) {
     // Precision is adjusted so that the example works with
@@ -416,7 +416,7 @@ fn reset_to_star_pos(
         &mut PlankPhenotype,
         &mut LinearVelocity,
         &mut AngularVelocity,
-        Option<&mut ExternalForce>,
+        Option<Forces>,
     )>,
 ) {
     for (mut transform, mut plank, mut linvel, mut angular_velocity, option_force) in query.iter_mut() {
@@ -435,7 +435,7 @@ fn reset_to_star_pos(
         angular_velocity.0 = 0.0;
 
         if let Some(mut force) = option_force {
-            force.apply_force(Vector::ZERO);
+            force.apply_local_force(Vector::ZERO); // kanskje ikke lenger nødvendig? dette burde jo teknisk sett ikke gjøre noe, Jeg tror forces ikke persiteres lenger etter avian sin 0.4 milestone
         }
     }
 }
@@ -493,7 +493,7 @@ fn spawn_a_random_new_individual(
     .with_children(|builder| {
         builder.spawn((
             Text2d::new("translation"),
-            TextLayout::new_with_justify(JustifyText::Center),
+            TextLayout::new_with_justify(Justify::Center),
             Transform::from_xyz(0.0, 0.0, 2.0),
             IndividFitnessLabelTextTag,
             RenderLayers::layer(1),

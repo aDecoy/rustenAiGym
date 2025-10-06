@@ -1,8 +1,7 @@
+use bevy::camera::visibility::RenderLayers;
 use crate::Kjøretilstand;
 use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
 use bevy::prelude::*;
-use bevy::render::camera::RenderTarget;
-use bevy::render::view::RenderLayers;
 use bevy::window::WindowResized;
 
 pub struct SimulationRunningTellerPlugin;
@@ -84,10 +83,10 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
     //     color: Color::WHITE,
     //     ..default()
     // };
-    let text_justification = JustifyText::Center;
+    let text_justification = Justify::Center;
     commands.spawn((
         Text2d::new("START"),
-        TextLayout::new_with_justify(JustifyText::Center),
+        TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
@@ -103,10 +102,10 @@ pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, wind
     //     color: Color::WHITE,
     //     ..default()
     // };
-    let text_justification = JustifyText::Center;
+    let text_justification = Justify::Center;
     commands.spawn((
         Text2d::new("START"),
-        TextLayout::new_with_justify(JustifyText::Center),
+        TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
@@ -116,7 +115,7 @@ pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, wind
 }
 
 fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(
-    mut resize_events: EventReader<WindowResized>,
+    mut resize_events: MessageReader<WindowResized>,
     mut query: Query<&mut Transform, With<TellerTekst>>,
 ) {
     for e in resize_events.read() {
@@ -170,10 +169,10 @@ pub fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Windo
     //     color: Color::WHITE,
     //     ..default()
     // };
-    let text_justification = JustifyText::Center;
+    let text_justification = Justify::Center;
     commands.spawn((
         Text2d::new("START"),
-        TextLayout::new_with_justify(JustifyText::Center),
+        TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         Transform::from_xyz(-window.width() * 0.5 + 200.0, window.height() * 0.5 - 25.0, 0.0),

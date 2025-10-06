@@ -3,9 +3,9 @@ use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restituti
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use bevy::camera::visibility::RenderLayers;
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
@@ -93,7 +93,7 @@ fn spawn_roof(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mate
     ));
 }
 
-fn every_time_if_stop_on_right_window() -> impl Condition<()> {
+fn every_time_if_stop_on_right_window() -> impl SystemCondition<()> {
     IntoSystem::into_system(|mut flag: Local<bool>| {
         *flag = match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => true,

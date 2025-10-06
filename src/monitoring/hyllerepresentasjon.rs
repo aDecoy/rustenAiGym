@@ -12,7 +12,7 @@ use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::tailwind::RED_300;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
+use bevy::camera::visibility::RenderLayers;
 
 pub struct HyllerepresentasjonPlugin;
 
@@ -37,7 +37,7 @@ impl Plugin for HyllerepresentasjonPlugin {
 }
 
 fn place_in_focus_from_meny(
-    focus_trigger_click: Trigger<Pointer<Click>>,
+    focus_trigger_click: On<Pointer<Click>>,
     mut commands: Commands,
     old_focus_query: Query<Entity, With<IndividInFocus>>,
     // mut individ_query: Query<Entity, With<Genome>>,
@@ -45,14 +45,14 @@ fn place_in_focus_from_meny(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
-    if let Ok(old_focus) = old_focus_query.get_single() {
+    if let Ok(old_focus) = old_focus_query.single() {
         commands.entity(old_focus).remove::<IndividInFocus>();
         // back to default color
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
         commands.entity(old_focus).insert(MeshMaterial2d(material_handle));
     }
 
-    let meny_bokks_for_individ_entity = meny_individ_box_query.get(focus_trigger_click.target).unwrap();
+    let meny_bokks_for_individ_entity = meny_individ_box_query.get(focus_trigger_click.target()).unwrap();
     let individ_entity = meny_bokks_for_individ_entity.1.individ_entity;
 
     if let Ok(mut invidiv_entity_commandering) = commands.get_entity(individ_entity) {

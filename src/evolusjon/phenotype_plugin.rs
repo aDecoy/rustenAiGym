@@ -24,10 +24,10 @@ pub fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &
 }
 
 /// An observer to rotate an entity when it is dragged
-// fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
-fn rotate_on_drag(drag: Trigger<Pointer<Drag>>, mut angular_velocities: Query<&mut AngularVelocity>) {
+// fn rotate_on_drag(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn rotate_on_drag(drag: On<Pointer<Drag>>, mut angular_velocities: Query<&mut AngularVelocity>) {
     println!("dragging");
-    let mut angular_velocitiy = angular_velocities.get_mut(drag.target.entity()).unwrap();
+    let mut angular_velocitiy = angular_velocities.get_mut(drag.target().entity()).unwrap();
     angular_velocitiy.0 += 0.1;
 }
 

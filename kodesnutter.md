@@ -55,7 +55,7 @@ fn vis_tekst(mut commands: Commands) {
         color: Color::WHITE,
         ..default()
     };
-    let text_justification = JustifyText::Center;
+    let text_justification = Justify::Center;
     commands.spawn((
         Text2dBundle {
             text: Text::from_section("En fin tekst: 0", text_style.clone())
@@ -105,7 +105,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..default()
             },
         ) // Set the justification of the Text
-            .with_text_justify(JustifyText::Center)
+            .with_text_justify(Justify::Center)
             // Set the style of the TextBundle itself.
             .with_style(Style {
                 position_type: PositionType::Absolute,
@@ -487,7 +487,7 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
         color: Color::WHITE,
         ..default()
     };
-    let text_justification = JustifyText::Center;
+    let text_justification = Justify::Center;
     commands.spawn((
         Text2dBundle {
             text: Text::from_section("START", text_style.clone()).with_justify(text_justification),
@@ -500,7 +500,7 @@ pub(crate) fn spawn_simulation_tellertekst(mut commands: Commands, window: Query
     ));
 }
 
-fn resize_simulation_tellertekst(resize_events: EventReader<WindowResized>, mut query: Query<&mut Transform, With<SimulationRunningTellerTekst>>) {
+fn resize_simulation_tellertekst(resize_events: MessageReader<WindowResized>, mut query: Query<&mut Transform, With<SimulationRunningTellerTekst>>) {
     for e in resize_events.read() {
         let mut transform = query.single_mut().unwrap();
         println!("old translation {}", transform.translation);

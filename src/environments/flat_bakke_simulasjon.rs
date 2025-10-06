@@ -3,7 +3,7 @@ use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restituti
 use bevy::asset::Assets;
 use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
+use bevy::camera::visibility::RenderLayers;
 
 pub struct FlatBakkeSimulasjonPlugin;
 

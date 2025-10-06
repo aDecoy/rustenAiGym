@@ -24,13 +24,11 @@ use bevy::asset::AsyncWriteExt;
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::css::GREEN;
 use bevy::color::palettes::tailwind::{CYAN_300, RED_300, RED_800};
-use bevy::ecs::observer::TriggerTargets;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
-use bevy::render::view::RenderLayers;
 use bevy_egui::UiRenderOrder;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
@@ -69,6 +67,7 @@ fn main() {
             EguiPlugin {
                 enable_multipass_for_primary_context: true,
                 ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+                bindless_mode_array_size: None,
             },
             WorldInspectorPlugin::new(),
         ))

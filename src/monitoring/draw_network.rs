@@ -51,13 +51,13 @@ pub fn draw_network_in_genome2(mut commands: Commands, mut meshes: ResMut<Assets
 }
 
 pub fn place_in_focus(
-    focus_trigger_click: Trigger<Pointer<Click>>,
+    focus_trigger_click: On<Pointer<Click>>,
     mut commands: Commands,
     old_focus_query: Query<Entity, With<IndividInFocus>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Hvis jeg kan få X        fra Y                         => { Gjør dette med  X }
-    if let Ok(old_focus) = old_focus_query.get_single() {
+    if let Ok(old_focus) = old_focus_query.single() {
         dbg!(old_focus);
         commands.entity(old_focus).remove::<IndividInFocus>();
 
@@ -68,9 +68,9 @@ pub fn place_in_focus(
     }
 
     println!("placing entitity in focus");
-    commands.get_entity(focus_trigger_click.target).unwrap().insert(IndividInFocus);
+    commands.get_entity(focus_trigger_click.target()).unwrap().insert(IndividInFocus);
     commands.send_event(IndividInFocusСhangedEvent {
-        entity: focus_trigger_click.target,
+        entity: focus_trigger_click.target(),
     });
 }
 
@@ -177,7 +177,7 @@ fn tegn_og_spawn_noder(
             .with_children(|builder| {
                 builder.spawn((
                     Text2d::new({ node_value.round_to_decimal(3).to_string() }),
-                    TextLayout::new_with_justify(JustifyText::Center),
+                    TextLayout::new_with_justify(Justify::Center),
                     // , text_style.clone())                        .with_justify(text_justification),
                     Transform::from_xyz(0.0, 0.0, 2.0),
                     NodeValueLabelTag,
@@ -185,7 +185,7 @@ fn tegn_og_spawn_noder(
                 // IndividLabelText,
                 builder.spawn((
                     Text2d::new(node.label.clone()),
-                    TextLayout::new_with_justify(if node.inputnode { JustifyText::Left } else { JustifyText::Right }),
+                    TextLayout::new_with_justify(if node.inputnode { Justify::Left } else { Justify::Right }),
                     Transform::from_xyz(0.0, 30.0, 3.0),
                 ));
             });
@@ -264,7 +264,7 @@ fn tegn_forbindelser(
                             // a_b_vekt.weight_value.clone().to_string()
                             weight.value.clone().round_to_decimal(3).to_string()
                         }),
-                        TextLayout::new_with_justify(JustifyText::Center),
+                        TextLayout::new_with_justify(Justify::Center),
                         // , text_style.clone())                    .with_justify(text_justification),
                         Transform::from_xyz(0.0, 0.0, 2.0).with_rotation(Quat::from_rotation_z(-angle)),
                         // IndividLabelText,
@@ -414,7 +414,7 @@ pub fn spawn_drawing_of_network_for_individ_in_focus_changed_event(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(&Genome), With<IndividInFocus>>,
-    mut changed_focus_eventer: EventReader<IndividInFocusСhangedEvent>,
+    mut changed_focus_eventer: MessageReader<IndividInFocusСhangedEvent>,
 ) {
     if changed_focus_eventer.read().next().is_some() {
         let genome = query.single();
@@ -438,7 +438,7 @@ pub fn remove_drawing_of_network(mut commands: Commands, mut query: Query<Entity
 }
 
 pub fn remove_drawing_of_network_for_previous_individ_in_focus(
-    mut event_reader: EventReader<IndividInFocusСhangedEvent>,
+    mut event_reader: MessageReader<IndividInFocusСhangedEvent>,
     mut query: Query<Entity, With<DrawingTag>>,
     mut commands: Commands,
 ) {
@@ -448,7 +448,8 @@ pub fn remove_drawing_of_network_for_previous_individ_in_focus(
 
         for (entity) in query.iter_mut() {
             // dbg!(entity);
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn_children();
+            commands.entity(entity).despawn();
         }
     }
 }

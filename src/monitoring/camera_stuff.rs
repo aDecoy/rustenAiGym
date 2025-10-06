@@ -4,13 +4,13 @@ use bevy::color::palettes::tailwind::CYAN_950;
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
-use bevy::render::camera::{RenderTarget, Viewport};
-use bevy::render::view::RenderLayers;
+use bevy::camera::visibility::RenderLayers;
 // use bevy::utils::dbg;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
+use bevy::camera::{RenderTarget, Viewport};
 
 pub struct MinCameraPlugin {
     pub(crate) debug: bool,
@@ -234,7 +234,7 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera(
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
-    kamera_query.get_single().expect("Kamera eksisterer ikke :(");
+    kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity) in kamera_query.iter() {
         let mut parent_kamera = commands.get_entity(kamera_entity);
 
@@ -290,7 +290,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
     // let top_left_corner = UVec2::default();
     // let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(top_left_corner.x as f32, top_left_corner.y as f32));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
-    kamera_query.get_single().expect("Kamera eksisterer ikke :(");
+    kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity, kamera) in kamera_query.iter() {
         let viewport = kamera.clone().viewport.unwrap().clone();
         // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera.
@@ -472,7 +472,7 @@ fn spawn_camera_margins(color_material_handle: Handle<ColorMaterial>, spawner: &
 fn set_camera_viewports(
     primary_window: Query<&Window, With<PrimaryWindow>>,
     secondary_windows: Query<&Window, Without<PrimaryWindow>>,
-    mut resize_events: EventReader<WindowResized>,
+    mut resize_events: MessageReader<WindowResized>,
     mut absolutt_kamera_query: Query<(&CameraAbsolutePosition, &mut Camera), (With<KnapperMenyCameraTag>, Without<CameraPosition>, Without<AllIndividerCameraTag>)>,
     mut kamera_med_størrelse_og_posisjon_settings_query: Query<(&CameraPosition, &mut Camera, &CameraViewportSetting), (Without<CameraAbsolutePosition>)>,
 ) {
@@ -800,20 +800,20 @@ fn adjust_camera_viewport_according_to_settings(
 }
 
 pub fn resize_alle_individer_camera(
-    trigger: Trigger<Pointer<Click>>,
+    trigger: On<Pointer<Click>>,
     // mut cameras: Query<&mut Camera &AllIndividerCamera, With<AllIndividerCamera>>,
     mut cameras: Query<(Entity, &mut Camera, &mut CameraViewportSetting), With<AllIndividerCameraTag>>,
     // TENKE TENKE... KAN HA HVILKE KAMERAER SOM ER AKTIVE I EN RES. ELLER JEG KAN GI DE EN KOMPENENT MED BOLEAN AKTIVE INAKTIVE VERDI, OG LYTTE PÅ CHAGES
     //     // kANSKJE OGSÅ TRIGGRE WINDOW RESIZE EVENT, SLIK AT DE BLIR TILPASSET PÅ NYTT....
     //     // iSTEDENFOR ON OFF. Kvart skjer, halv skjerm, hel skjerm, av.
-    mut resize_camera_windows: EventWriter<WindowResized>,
+    mut resize_camera_windows: MessageWriter<WindowResized>,
     mut commands: Commands,
     windows: Query<(Entity, &Window), With<AllIndividerWindowTag>>,
 ) {
     if let Ok((entity, camera, mut camera_viewport_settings)) = cameras.single_mut() {
         camera_viewport_settings.next_camera_mode_index();
         // Trigger event to make system that handles viewport changes to run
-        let (window_entity, window) = windows.get_single().unwrap();
+        let (window_entity, window) = windows.single().unwrap();
         resize_camera_windows.send(WindowResized {
             window: window_entity,
             width: window.size().x,
@@ -822,10 +822,10 @@ pub fn resize_alle_individer_camera(
     }
 }
 
-fn camera_drag_to_resize(drag: Trigger<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>, window_query: Query<&Window>) {
+fn camera_drag_to_resize(drag: On<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>, window_query: Query<&Window>) {
     // println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
-    if let Ok(mut camera) = kamera_query.get_single_mut() {
+    if let Ok(mut camera) = kamera_query.single_mut() {
         println!("resizing camera2");
 
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
@@ -846,7 +846,7 @@ fn camera_drag_to_resize(drag: Trigger<Pointer<Drag>>, mut kamera_query: Query<(
     }
 }
 
-fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: Trigger<Pointer<Drag>>, u32_vektor: &mut UVec2) {
+fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: On<Pointer<Drag>>, u32_vektor: &mut UVec2) {
     let mut new_x_value = u32_vektor.x as i32;
     new_x_value += drag.delta.x as i32;
     u32_vektor.x = max(0, new_x_value) as u32;
@@ -856,10 +856,10 @@ fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: Trigger<Pointer<Dra
     u32_vektor.y = max(0, new_y_value) as u32;
 }
 
-fn camera_drag_to_move_camera_in_the_world(drag: Trigger<Pointer<Drag>>, mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>) {
+fn camera_drag_to_move_camera_in_the_world(drag: On<Pointer<Drag>>, mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>) {
     println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
-    if let Ok(mut transform) = query.get_single_mut() {
+    if let Ok(mut transform) = query.single_mut() {
         println!("moving camera2");
         // more intuiative to invert
         transform.translation.x -= drag.delta.x;
@@ -868,7 +868,7 @@ fn camera_drag_to_move_camera_in_the_world(drag: Trigger<Pointer<Drag>>, mut que
 }
 
 fn camera_drag_to_move_camera_in_the_window(
-    drag: Trigger<Pointer<Drag>>,
+    drag: On<Pointer<Drag>>,
     mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
     window_query: Query<&Window>,
 ) {
