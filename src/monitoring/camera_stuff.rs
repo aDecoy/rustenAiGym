@@ -1,16 +1,16 @@
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::css::BLUE;
 use bevy::color::palettes::tailwind::CYAN_950;
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
-use bevy::camera::visibility::RenderLayers;
 // use bevy::utils::dbg;
+use bevy::camera::{RenderTarget, Viewport};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
-use bevy::camera::{RenderTarget, Viewport};
 
 pub struct MinCameraPlugin {
     pub(crate) debug: bool,
@@ -814,7 +814,7 @@ pub fn resize_alle_individer_camera(
         camera_viewport_settings.next_camera_mode_index();
         // Trigger event to make system that handles viewport changes to run
         let (window_entity, window) = windows.single().unwrap();
-        resize_camera_windows.send(WindowResized {
+        resize_camera_windows.write(WindowResized {
             window: window_entity,
             width: window.size().x,
             height: window.size().y,

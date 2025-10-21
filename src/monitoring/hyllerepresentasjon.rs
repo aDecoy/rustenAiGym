@@ -7,12 +7,12 @@ use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEv
 use crate::populasjon_handlinger::population_sammenligninger::get_population_sorted_from_best_to_worst_v2;
 use bevy::app::App;
 use bevy::asset::{Assets, Handle};
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
 use bevy::color::palettes::basic::{PURPLE, RED};
 use bevy::color::palettes::tailwind::RED_300;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
-use bevy::camera::visibility::RenderLayers;
 
 pub struct HyllerepresentasjonPlugin;
 

@@ -1,9 +1,9 @@
 use crate::environments::lunar_lander_environment::LunarLanderEnvironment;
 use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::asset::Assets;
+use bevy::camera::visibility::RenderLayers;
 use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::camera::visibility::RenderLayers;
 
 pub struct FlatBakkeSimulasjonPlugin;
 
@@ -23,13 +23,11 @@ fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut ma
         RigidBody::Static,
         Mesh3d(meshes.add(Rectangle::default()).into()),
         MeshMaterial2d(materials.add(GROUND_COLOR)),
-        Transform::from_translation(GROUND_STARTING_POSITION).with_scale(
-            Vec3 {
-                x: GROUND_LENGTH,
-                y: GROUND_LENGTH,
-                z: GROUND_HEIGHT
-            }
-        ),
+        Transform::from_translation(GROUND_STARTING_POSITION).with_scale(Vec3 {
+            x: GROUND_LENGTH,
+            y: GROUND_LENGTH,
+            z: GROUND_HEIGHT,
+        }),
         // Sleeping::disabled(),
         // Collider::c(1.0, 1.0),
         Restitution::new(0.0),

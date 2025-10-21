@@ -36,9 +36,7 @@ pub fn add_observers_to_individuals(mut commands: Commands, individ_query: Query
         commands
             .get_entity(individ_entity)
             .unwrap()
-            // .observe(pointer_out_of_individ)
             .observe(rotate_on_drag);
-        // .observe(place_in_focus);
     }
 }
 

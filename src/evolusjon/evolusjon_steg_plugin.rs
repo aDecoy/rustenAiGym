@@ -12,17 +12,18 @@ use crate::{
     ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
-use avian2d::prelude::{AngularVelocity, LinearVelocity , Forces};
+use avian2d::prelude::*;
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::prelude::KeyCode::{KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::camera::visibility::RenderLayers;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
 use std::cmp::{Ordering, max, min};
 use std::collections::HashMap;
+use std::ops::Mul;
 
 pub struct EvolusjonStegPlugin;
 
@@ -66,6 +67,8 @@ impl Plugin for EvolusjonStegPlugin {
             );
     }
 }
+
+// todo kanksje inatrodusere configure_sets og SystemSets for de ulike stegene i evolusjon?
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum Kjøretilstand {
@@ -121,7 +124,8 @@ fn kill_worst_individuals(mut commands: Commands, query: Query<(Entity, &PlankPh
     println!("killing of {} entities", number_of_individuals_to_kill);
     for (entity, _) in &population[0..number_of_individuals_to_kill] {
         // println!("despawning entity {} ", entity.index());
-        commands.entity(*entity).despawn_recursive();
+        commands.entity(*entity).despawn_children();
+        commands.entity(*entity).despawn();
     }
 }
 
@@ -171,7 +175,7 @@ fn create_new_children(
             genome: genome,
             entity_index: entity.index(),
             entity: entity,
-            entity_bevy_generation: entity.generation(),
+            entity_bevy_generation: entity.generation().to_bits(),
         })
     }
     // println!("population size when making new individuals: {}", population.len() );
@@ -313,7 +317,7 @@ fn reset_to_star_pos_on_event(
         &mut PlankPhenotype,
         &mut LinearVelocity,
         &mut AngularVelocity,
-        Option<Forces>,
+        // Forces,
     )>,
 ) {
     if reset_events.read().next().is_some() {
@@ -323,20 +327,26 @@ fn reset_to_star_pos_on_event(
 
 fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
     if user_input.pressed(KeyR) {
-        reset_events.send_default();
+        reset_events.write_default();
     }
 }
 
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action_and_fitness_evaluation(
-    mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
+    // mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
+    mut query: Query<(&mut Transform, &mut PlankPhenotype,
+                      // &mut LinearVelocity,
+                      Forces,
+                      Entity), (With<PlankPhenotype>)>,
     time: Res<Time>,
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_secs_f64().adjust_precision();
 
-    for (mut transform, mut plank, mut velocity, option_force, entity) in query.iter_mut() {
+    for (mut transform, mut plank, 
+        // mut velocity,
+        mut forces, entity) in query.iter_mut() {
         plank.obseravations = match ACTIVE_ENVIROMENT {
             EnvValg::HomingGroudY => vec![transform.translation.y.clone()],
             _ => vec![transform.translation.x.clone(), transform.translation.y.clone()],
@@ -349,17 +359,21 @@ fn agent_action_and_fitness_evaluation(
         // dbg!(&action);
         // individual.translation.x += random::<f32>() * action * 5.0;
         // println!("action : {action}");
-        let mut a = option_force.expect("did not have forces on individ!!? :( ");
+        // let mut forces : Forces = option_force.expect("did not have forces on individ!!? :( ");
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
-            EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
+            // EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
+            EnvValg::FallVelocityHøyre => forces.apply_local_linear_impulse(vec2(action[0],0.0)),
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
                 // a.x = 100.0 * action[0] * delta_time;
                 // a.y = 100.0 * action[1] * delta_time;
-                a.x = 10.0 * action[0];
-                a.y = 10.0 * action[1];
+                let x = 10.0 * action[0];
+                let y = 10.0 * action[1];
+                // forces.non_waking().apply_force(vec2(x, y).mul(100.0));
+                forces.apply_force(vec2(x, y).mul(1.0));
+                // forces.non_waking().apply_linear_acceleration(Vec2::new(x,y));
 
                 // a.y = action;
                 // NB: expternal force can be persitencte, or not. If not, then applyForce function must be called to do anything
@@ -367,7 +381,8 @@ fn agent_action_and_fitness_evaluation(
                 // a.apply_force(Vector::ZERO);
             }
             EnvValg::HomingGroudY => {
-                a.y = 10.0 * action[0];
+                let y = 10.0 * action[0];
+                forces.non_waking().apply_linear_acceleration(Vec2::new(0.0,y));
             }
         }
         // println!("option force {:#?}", a.clone());
@@ -416,10 +431,16 @@ fn reset_to_star_pos(
         &mut PlankPhenotype,
         &mut LinearVelocity,
         &mut AngularVelocity,
-        Option<Forces>,
+        // Forces,
     )>,
 ) {
-    for (mut transform, mut plank, mut linvel, mut angular_velocity, option_force) in query.iter_mut() {
+    for (
+        mut transform,
+        mut plank,
+        mut linvel,
+        mut angular_velocity, // , forces
+    ) in query.iter_mut()
+    {
         transform.translation.x = START_POSITION.x;
         if ACTIVE_ENVIROMENT != EnvValg::Høyre {
             transform.translation.y = START_POSITION.y;
@@ -434,9 +455,9 @@ fn reset_to_star_pos(
 
         angular_velocity.0 = 0.0;
 
-        if let Some(mut force) = option_force {
-            force.apply_local_force(Vector::ZERO); // kanskje ikke lenger nødvendig? dette burde jo teknisk sett ikke gjøre noe, Jeg tror forces ikke persiteres lenger etter avian sin 0.4 milestone
-        }
+        // if let Some(mut force) = forces {
+        //     force.apply_local_force(Vector::ZERO); // kanskje ikke lenger nødvendig? dette burde jo teknisk sett ikke gjøre noe, Jeg tror forces ikke persiteres lenger etter avian sin 0.4 milestone
+        // }
     }
 }
 

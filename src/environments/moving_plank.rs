@@ -7,10 +7,10 @@ use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use avian2d::PhysicsPlugins;
 use avian2d::prelude::*;
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
-use bevy::camera::visibility::RenderLayers;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
@@ -28,16 +28,14 @@ impl Plugin for MovingPlankPlugin {
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
             .insert_resource(Gravity::ZERO)
-
-
             // .add_systems(Startup, spawn_plank)
             .add_systems(
                 Update,
                 (
                     (set_physics_time_to_paused_or_unpaused).run_if(state_changed::<Kjøretilstand>),
                     (
-                        move_plank,
-                        impulse_plank,
+                        move_plank_with_keyboard_inputs,
+                        impulse_plank_with_keyboard_inputs,
                         // print_done_status,
                         // print_score,
                         // print_environment_observations
@@ -85,7 +83,7 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
     for (translation, plank, linvel, external_force) in query.iter_mut() {
         println!("translation {:#?}", translation);
         println!("linvel {:#?}", linvel);
-        println!("external_force {:#?}", external_force);
+        // println!("external_force {:#?}", external_force);
         println!("----------------------------")
     }
 }
@@ -196,7 +194,7 @@ pub fn create_plank_ext_force_env_falling(
     RigidBody,
     CollisionLayers,
     LinearVelocity,
-    Forces,
+    // Forces,
     TextLayout,
     RenderLayers,
     Individ,
@@ -224,7 +222,7 @@ pub fn create_plank_ext_force_env_falling(
         CollisionLayers::new(0b0001, 0b0010),
         LinearVelocity { 0: Vec2::new(0.0, 0.0) },
         // Forces { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
-        Forces::new(Vec2::X).with_persistence(false),
+        // Forces::new(Vec2::X).with_persistence(false),
         TextLayout::new_with_justify(Justify::Center),
         RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
         Individ {},
@@ -234,7 +232,7 @@ pub fn create_plank_ext_force_env_falling(
 
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 
-fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>, keyboard_input: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
+fn move_plank_with_keyboard_inputs(mut query: Query<&mut Transform, With<PlankPhenotype>>, keyboard_input: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
     let mut delta_x = 0.0;
     if keyboard_input.pressed(KeyA) {
         delta_x -= PLANK_POSITION_CHANGE_MOVEMENT_SPEED;
@@ -249,7 +247,7 @@ fn move_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>, keyboard_i
     }
 }
 
-fn impulse_plank(
+fn impulse_plank_with_keyboard_inputs(
     mut query: Query<&mut LinearVelocity, With<PlankPhenotype>>,
     // &mut Velocity, With<PlankPhenotype>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,

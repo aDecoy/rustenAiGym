@@ -1,11 +1,11 @@
 use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use bevy::camera::visibility::RenderLayers;
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
