@@ -1,0 +1,41 @@
+use bevy::prelude::*;
+use crate::environments::tre_d::individ_watching_3d_camera::IndividWatching3dCameraPlugin;
+
+pub(crate) struct LunarLanderEnvironment3d;
+
+impl Plugin for LunarLanderEnvironment3d {
+    fn build(&self, app: &mut App) {
+        app
+            .add_plugins(IndividWatching3dCameraPlugin)
+            .add_systems(Startup, (spawn_ground));
+    }
+}
+
+fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+    // plane
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(5.0, 5.0))),
+        MeshMaterial3d(materials.add(Color::srgb(0.1, 0.2, 0.1))),
+    ));
+    // cube
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::default())),
+        MeshMaterial3d(materials.add(Color::srgb(0.5, 0.4, 0.3))),
+        Transform::from_xyz(0.0, 0.5, 0.0),
+    ));
+    // sphere
+    commands.spawn((
+        Mesh3d(meshes.add(Sphere::new(0.5).mesh().ico(4).unwrap())),
+        MeshMaterial3d(materials.add(Color::srgb(0.1, 0.4, 0.8))),
+        Transform::from_xyz(1.5, 1.5, 1.5),
+    ));
+    // light
+    commands.spawn((
+        PointLight {
+            intensity: 1_000_000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
+}

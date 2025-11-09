@@ -1,13 +1,13 @@
 use bevy::camera::visibility::RenderLayers;
+// use bevy::utils::dbg;
+use bevy::camera::{RenderTarget, Viewport};
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::css::BLUE;
 use bevy::color::palettes::tailwind::CYAN_950;
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
-// use bevy::utils::dbg;
-use bevy::camera::{RenderTarget, Viewport};
-use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
@@ -22,7 +22,7 @@ impl Plugin for MinCameraPlugin {
         app.insert_state(CameraDragningJustering::PÅ)
             .insert_resource(LeftClickAction::Resize)
             .insert_resource(ResizeDir(7))
-            .add_systems(PreStartup, ((setup_camera, set_camera_viewports).chain()))
+            .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
@@ -316,7 +316,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
     }
 }
 
-pub fn setup_camera(
+pub fn setup_extra_monitor_cameras(
     mut commands: Commands,
     query: Query<Entity, With<Window>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -325,8 +325,6 @@ pub fn setup_camera(
     // let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let color_material_handle: Handle<ColorMaterial> = materials.add(Color::from(CYAN_950));
     // commands.spawn(Camera2d::default());
-    commands.entity(query.single().unwrap()).insert((AllIndividerWindowTag));
-
     // Spawn a second window
     let second_window = commands
         .spawn((
@@ -367,27 +365,6 @@ pub fn setup_camera(
         .with_children(|spawner| {
             spawn_camera_margins(color_material_handle.clone(), spawner, RENDER_LAYER_NETTVERK);
         });
-
-    commands.spawn((
-        Camera2d::default(),
-        // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
-        Camera {
-            // Renders cameras with different priorities to prevent ambiguities
-            order: 1 as isize,
-            ..default()
-        },
-        CameraPosition {
-            pos: UVec2::new((1 % 2) as u32, (1 / 2) as u32),
-            // pos: UVec2::new((1 % 2) as u32, (1) as u32),
-        },
-        // AllIndividerCamera{ camera_mode: CameraMode::HALV },
-        AllIndividerCameraTag,
-        CameraViewportSetting {
-            camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
-            active_camera_mode_index: 3,
-        },
-        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
-    ));
 
     commands
         .spawn((

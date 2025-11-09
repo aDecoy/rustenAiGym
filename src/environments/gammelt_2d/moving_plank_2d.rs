@@ -1,12 +1,13 @@
-use crate::EttHakkState;
+use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
 use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::{Individ, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use avian2d::PhysicsPlugins;
+use crate::EttHakkState;
 use avian2d::prelude::*;
+use avian2d::PhysicsPlugins;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
@@ -14,14 +15,14 @@ use std::vec;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
-pub struct MovingPlankPlugin;
+pub struct MovingPlankPlugin2d;
 
-impl MovingPlankPlugin {}
+impl MovingPlankPlugin2d {}
 
 pub const PIXELS_PER_METER: f32 = 10.0;
 pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
 
-impl Plugin for MovingPlankPlugin {
+impl Plugin for MovingPlankPlugin2d {
     fn build(&self, app: &mut App) {
         app.add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå

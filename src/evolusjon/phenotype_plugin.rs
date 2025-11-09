@@ -33,10 +33,7 @@ fn rotate_on_drag(drag: On<Pointer<Drag>>, mut angular_velocities: Query<&mut An
 
 pub fn add_observers_to_individuals(mut commands: Commands, individ_query: Query<Entity, With<PlankPhenotype>>) {
     for individ_entity in individ_query.iter() {
-        commands
-            .get_entity(individ_entity)
-            .unwrap()
-            .observe(rotate_on_drag);
+        commands.get_entity(individ_entity).unwrap().observe(rotate_on_drag);
     }
 }
 

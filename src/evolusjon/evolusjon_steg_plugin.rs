@@ -1,15 +1,17 @@
-use crate::environments::lunar_lander_environment::LANDING_SITE;
-use crate::environments::moving_plank::{PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
+use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
+use crate::environments::gammelt_2d::moving_plank_2d::{
+    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, PLANK_HIGHT, PLANK_LENGTH,
+};
 use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
-    IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
+    add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype,
 };
-use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
+use crate::genome::genom_muteringer::{lock_mutation_stability, mutate_genomes, MutasjonerErAktive};
+use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{
-    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
+    EnvValg, Kjøretilstand as OtherKjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
@@ -21,7 +23,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use std::cmp::{Ordering, max, min};
+use std::cmp::{max, min, Ordering};
 use std::collections::HashMap;
 use std::ops::Mul;
 
@@ -334,19 +336,30 @@ fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events
 // fn agent_action(query: Query<Transform, With<Individual>>) {
 fn agent_action_and_fitness_evaluation(
     // mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
-    mut query: Query<(&mut Transform, &mut PlankPhenotype,
-                      // &mut LinearVelocity,
-                      Forces,
-                      Entity), (With<PlankPhenotype>)>,
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut PlankPhenotype,
+            // &mut LinearVelocity,
+            Forces,
+            Entity,
+        ),
+        (With<PlankPhenotype>),
+    >,
     time: Res<Time>,
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_secs_f64().adjust_precision();
 
-    for (mut transform, mut plank, 
+    for (
+        mut transform,
+        mut plank,
         // mut velocity,
-        mut forces, entity) in query.iter_mut() {
+        mut forces,
+        entity,
+    ) in query.iter_mut()
+    {
         plank.obseravations = match ACTIVE_ENVIROMENT {
             EnvValg::HomingGroudY => vec![transform.translation.y.clone()],
             _ => vec![transform.translation.x.clone(), transform.translation.y.clone()],
@@ -363,7 +376,7 @@ fn agent_action_and_fitness_evaluation(
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre | EnvValg::Fall => transform.translation.x += action[0] * 2.0,
             // EnvValg::FallVelocityHøyre => velocity.0.x += action[0],
-            EnvValg::FallVelocityHøyre => forces.apply_local_linear_impulse(vec2(action[0],0.0)),
+            EnvValg::FallVelocityHøyre => forces.apply_local_linear_impulse(vec2(action[0], 0.0)),
             // EnvValg::FallGlideBomb => velocity.0 += action,
             // EnvValg::FallExternalForcesHøyre => option_force.expect("did not have forces on individ!!? :( ").x = action,
             EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud => {
@@ -382,7 +395,7 @@ fn agent_action_and_fitness_evaluation(
             }
             EnvValg::HomingGroudY => {
                 let y = 10.0 * action[0];
-                forces.non_waking().apply_linear_acceleration(Vec2::new(0.0,y));
+                forces.non_waking().apply_linear_acceleration(Vec2::new(0.0, y));
             }
         }
         // println!("option force {:#?}", a.clone());

@@ -1,15 +1,16 @@
-use crate::environments::lunar_lander_environment::LunarLanderEnvironment;
-use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
+use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
+use avian2d::prelude::{CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::asset::Assets;
 use bevy::camera::visibility::RenderLayers;
-use bevy::math::Vec2;
 use bevy::prelude::*;
 
 pub struct FlatBakkeSimulasjonPlugin;
 
 impl Plugin for FlatBakkeSimulasjonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (spawn_ground));
+        app
+            .add_plugins(IndividWatching2dCameraPlugin)
+            .add_systems(Startup, (spawn_ground));
     }
 }
 

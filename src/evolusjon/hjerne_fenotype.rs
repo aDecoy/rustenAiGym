@@ -1,4 +1,4 @@
-use crate::environments::moving_plank::PIXELS_PER_METER;
+use crate::environments::gammelt_2d::moving_plank_2d::PIXELS_PER_METER;
 use crate::genome::genome_stuff::{Genome, NodeGene, WeightGene};
 use bevy::prelude::Query;
 use std::collections::HashMap;

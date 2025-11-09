@@ -1,3 +1,2 @@
-mod flat_bakke_simulasjon;
-pub mod lunar_lander_environment;
-pub mod moving_plank;
+pub mod gammelt_2d;
+pub mod tre_d;

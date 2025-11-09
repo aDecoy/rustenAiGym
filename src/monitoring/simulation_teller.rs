@@ -1,5 +1,5 @@
-use crate::Kjøretilstand;
 use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
+use crate::Kjøretilstand;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
@@ -76,7 +76,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
 }
 
 pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
-    let window = window.single().unwrap();
+    let window = window.single().expect("finner ikke noe hovedvindu!?!?! :O ");;
 
     // let text_style = TextStyle {
     //     font_size: 30.0,
@@ -96,7 +96,7 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
 }
 
 pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window_query: Query<&Window, With<AllIndividerWindowTag>>) {
-    let window = window_query.single().unwrap();
+    let window = window_query.single().expect("finner ikke noe hovedvindu!?!?! :O ");
     // let text_style = TextStyle {
     //     font_size: 30.0,
     //     color: Color::WHITE,
