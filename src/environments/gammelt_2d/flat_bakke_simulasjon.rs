@@ -8,9 +8,7 @@ pub struct FlatBakkeSimulasjonPlugin;
 
 impl Plugin for FlatBakkeSimulasjonPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(IndividWatching2dCameraPlugin)
-            .add_systems(Startup, (spawn_ground));
+        app.add_plugins(IndividWatching2dCameraPlugin).add_systems(Startup, (spawn_ground));
     }
 }
 

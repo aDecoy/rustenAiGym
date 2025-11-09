@@ -1,18 +1,18 @@
-use crate::environments::gammelt_2d::lunar_lander_environment2d::{LunarLanderEnvironment2d, LANDING_SITE};
+use crate::environments::gammelt_2d::lunar_lander_environment2d::{LANDING_SITE, LunarLanderEnvironment2d};
 use crate::environments::gammelt_2d::moving_plank_2d::{
-    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, MovingPlankPlugin2d, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH,
+    MovingPlankPlugin2d, PIXELS_PER_METER, PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
 use crate::environments::tre_d::lunar_lander_environment_3d::LunarLanderEnvironment3d;
 use crate::evolusjon::evolusjon_steg_plugin::{EvolusjonStegPlugin, Kjøretilstand};
-use crate::evolusjon::phenotype_plugin::{add_observers_to_individuals, FenotypePlugin, IndividFitnessLabelTextTag, PlankPhenotype};
+use crate::evolusjon::phenotype_plugin::{FenotypePlugin, IndividFitnessLabelTextTag, PlankPhenotype, add_observers_to_individuals};
 use crate::genome::genom_muteringer::mutate_genomes;
-use crate::genome::genom_muteringer::{lock_mutation_stability, MutasjonerErAktive};
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
-use crate::monitoring::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag, MinCameraPlugin};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
+use crate::monitoring::camera_stuff::{KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera};
 use crate::monitoring::draw_network::{
-    oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus, TegnNevraltNettverkPlugin,
+    TegnNevraltNettverkPlugin, oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus,
 };
 use crate::monitoring::hyllerepresentasjon::HyllerepresentasjonPlugin;
 use crate::monitoring::in_focus_stuff::{InFocusPlugin, IndividInFocus, IndividInFocusСhangedEvent};
@@ -28,8 +28,8 @@ use bevy::color::palettes::tailwind::{CYAN_300, RED_300, RED_800};
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::KeyCode::{KeyE, KeyK, KeyM, KeyN, KeyP, KeyR, KeyT};
 use bevy::prelude::*;
-use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::RenderPlugin;
+use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy_egui::UiRenderOrder;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::egui::emath::Numeric;
@@ -37,8 +37,8 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
-use std::cmp::{max, min, Ordering, PartialEq};
+use rand::{Rng, thread_rng};
+use std::cmp::{Ordering, PartialEq, max, min};
 use std::collections::HashMap;
 use std::fs::File;
 use std::hash::{Hash, Hasher};

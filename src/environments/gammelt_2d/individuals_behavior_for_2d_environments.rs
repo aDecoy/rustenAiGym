@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
 use crate::environments::gammelt_2d::moving_plank_2d::{
     PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
@@ -10,7 +10,6 @@ use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::*;
-use bevy::prelude::*;
 use bevy::asset::{Assets, Handle};
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
@@ -18,43 +17,9 @@ use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::math::{Vec2, Vec3, vec2};
 use bevy::mesh::Mesh;
+use bevy::prelude::*;
 use bevy::prelude::{ColorMaterial, Commands, Entity, Justify, NextState, Query, Rectangle, Res, ResMut, Text2d, TextLayout, Time, Transform, Window, With};
-
-pub trait EnvironmentSpesificIndividStuff {
-    fn spawn_a_random_new_individual(
-        commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-        innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
-        n: i32,
-    ); // fn agent_action(query: Query<Transform, With<Individual>>) {
-    fn agent_action_and_fitness_evaluation(
-        // mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
-        query: Query<
-            (
-                &mut Transform,
-                &mut PlankPhenotype,
-                // &mut LinearVelocity,
-                Forces,
-                Entity,
-            ),
-            (With<PlankPhenotype>),
-        >,
-        time: Res<Time>,
-    ); // Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
-    fn spawn_a_random_new_individual2(
-        commands: Commands,
-        meshes: ResMut<Assets<Mesh>>,
-        materials: ResMut<Assets<ColorMaterial>>,
-        innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-    );
-    fn check_if_done(
-        query: Query<(&mut Transform, &mut PlankPhenotype), (With<PlankPhenotype>)>,
-        next_state: ResMut<NextState<Kjøretilstand>>,
-        simulation_timer: Res<SimulationGenerationTimer>,
-        window: Query<&Window, With<AllIndividerWindowTag>>,
-    );
-}
+use std::ops::Mul;
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
@@ -221,7 +186,13 @@ impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOp
         mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
     ) {
         let n: i32 = 1;
-        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n)
+        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut innovation_number_global_counter,
+            n,
+        )
     }
 
     fn check_if_done(

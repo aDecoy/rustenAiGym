@@ -1,18 +1,19 @@
-use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::{EnvironmentSpesificIndividStuff, ToDimensjonelleMijøSpesifikkeIndividOppførsler};
+use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
+use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
 use crate::environments::gammelt_2d::moving_plank_2d::{
-    create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling, PLANK_HIGHT, PLANK_LENGTH,
+    PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
 };
 use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
-    add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype,
+    IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
 };
-use crate::genome::genom_muteringer::{lock_mutation_stability, mutate_genomes, MutasjonerErAktive};
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{
-    EnvValg, Kjøretilstand as OtherKjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE,
+    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
@@ -24,7 +25,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use std::cmp::{max, min, Ordering};
+use std::cmp::{Ordering, max, min};
 use std::collections::HashMap;
 use std::ops::Mul;
 
@@ -48,7 +49,7 @@ impl Plugin for EvolusjonStegPlugin {
                     (
                         ToDimensjonelleMijøSpesifikkeIndividOppførsler::check_if_done,
                         //         // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
-                        ToDimensjonelleMijøSpesifikkeIndividOppførsler:: agent_action_and_fitness_evaluation,
+                        ToDimensjonelleMijøSpesifikkeIndividOppførsler::agent_action_and_fitness_evaluation,
                     )
                         .run_if(in_state(Kjøretilstand::Kjørende)),
                     (
@@ -94,7 +95,13 @@ fn spawn_start_population(
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
-        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(&mut commands, &mut meshes, &mut materials, &mut innovation_number_global_counter, n);
+        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut innovation_number_global_counter,
+            n,
+        );
     }
 }
 
@@ -131,8 +138,6 @@ fn kill_worst_individuals(mut commands: Commands, query: Query<(Entity, &PlankPh
         commands.entity(*entity).despawn();
     }
 }
-
-
 
 fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
     next_state.set(Kjøretilstand::Kjørende);
@@ -295,7 +300,6 @@ fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events
         reset_events.write_default();
     }
 }
-
 
 lazy_static! {
      static ref START_POSITION_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {

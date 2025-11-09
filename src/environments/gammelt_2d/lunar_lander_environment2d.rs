@@ -1,5 +1,5 @@
 use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
@@ -20,8 +20,7 @@ pub struct LunarLanderEnvironment2d;
 
 impl Plugin for LunarLanderEnvironment2d {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(IndividWatching2dCameraPlugin)
+        app.add_plugins(IndividWatching2dCameraPlugin)
             .add_systems(Startup, (spawn_ground, spawn_roof, spawn_landing_target));
     }
 }

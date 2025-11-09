@@ -1,13 +1,11 @@
-use bevy::prelude::*;
 use crate::environments::tre_d::individ_watching_3d_camera::IndividWatching3dCameraPlugin;
+use bevy::prelude::*;
 
 pub(crate) struct LunarLanderEnvironment3d;
 
 impl Plugin for LunarLanderEnvironment3d {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(IndividWatching3dCameraPlugin)
-            .add_systems(Startup, (spawn_ground));
+        app.add_plugins(IndividWatching3dCameraPlugin).add_systems(Startup, (spawn_ground));
     }
 }
 
