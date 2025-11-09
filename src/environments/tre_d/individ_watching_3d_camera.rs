@@ -31,5 +31,5 @@ fn setup_individ_watching_camera(mut commands: Commands, query: Query<Entity, Wi
     commands
         .get_entity(main_camera)
         .unwrap()
-        .insert((Camera3d::default(), Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y)));
+        .insert((Camera3d::default(), Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y)));
 }
