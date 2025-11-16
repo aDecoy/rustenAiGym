@@ -1,7 +1,7 @@
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::draw_network::place_in_focus;
-use crate::populasjon_handlinger::population_sammenligninger::{EliteTag, get_best_elite};
+use crate::populasjon_handlinger::population_sammenligninger::{get_best_elite, EliteTag};
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{Assets, Handle};
 use bevy::color::palettes::basic::{GREEN, PURPLE, RED};

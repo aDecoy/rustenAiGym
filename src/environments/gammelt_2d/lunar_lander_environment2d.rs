@@ -1,5 +1,5 @@
 use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;

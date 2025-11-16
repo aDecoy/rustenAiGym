@@ -1,3 +1,3 @@
 mod individ_watching_3d_camera;
 pub mod lunar_lander_environment_3d;
-mod lunar_lander_individual_behavior;
+pub mod lunar_lander_individual_behavior;

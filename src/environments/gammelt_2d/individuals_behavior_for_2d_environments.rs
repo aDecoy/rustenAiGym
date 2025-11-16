@@ -1,30 +1,30 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_2d::{
-    PLANK_HIGHT, PLANK_LENGTH, create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling,
-};
+use crate::environments::gammelt_2d::moving_plank_2d::{ PLANK_HIGHT, PLANK_LENGTH,};
 use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
 use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype};
-use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
+use crate::genome::genome_stuff::{new_random_genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian2d::prelude::*;
 use bevy::asset::{Assets, Handle};
 use bevy::camera::visibility::RenderLayers;
-use bevy::color::Color;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::math::{Vec2, Vec3, vec2};
+use bevy::color::Color;
+use bevy::math::{vec2, Vec2, Vec3};
 use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use bevy::prelude::{ColorMaterial, Commands, Entity, Justify, NextState, Query, Rectangle, Res, ResMut, Text2d, TextLayout, Time, Transform, Window, With};
 use std::ops::Mul;
+use crate::environments::gammelt_2d::spawn_2d_individ_plugin::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
-impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOppførsler {
-    fn spawn_a_random_new_individual(
+// impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOppførsler {
+impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
+    pub(crate) fn spawn_a_random_new_individual(
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
@@ -45,6 +45,8 @@ impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOp
             EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
             _ => new_random_genome(2, 2, innovation_number_global_counter),
         };
+        
+        // TODO LAG SpawnNewIndividualMessage MESSAGE, som går til spawn_2d_individ_plugin, på samme måte som gjort med evolusjon steg plugin for create_new_children 
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(

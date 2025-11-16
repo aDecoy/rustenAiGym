@@ -1,4 +1,3 @@
-use crate::EttHakkState;
 use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
 use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
@@ -6,8 +5,9 @@ use crate::evolusjon::phenotype_plugin::{Individ, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
-use avian2d::PhysicsPlugins;
+use crate::EttHakkState;
 use avian2d::prelude::*;
+use avian2d::PhysicsPlugins;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
@@ -54,8 +54,8 @@ impl Plugin for MovingPlankPlugin2d {
 /// Defines the state found in the cart pole environment.
 #[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct MovingPlankObservation {
-    x: f32,
-    y: f32,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
 }
 
 const PLANK_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -150.0, z: 0.0 };
@@ -89,147 +89,6 @@ fn print_pois_velocity_and_force(mut query: Query<(&Transform, &PlankPhenotype, 
     }
 }
 
-pub fn create_plank_env_moving_right(
-    material_handle: Handle<ColorMaterial>,
-    mesh2d_handle: Handle<Mesh>,
-    start_position: Vec3,
-    genome: Genome,
-) -> (
-    Mesh2d,
-    Transform,
-    MeshMaterial2d<ColorMaterial>,
-    PlankPhenotype,
-    Genome,
-    Collider,
-    MovingPlankObservation,
-    LinearVelocity,
-) {
-    (
-        Mesh2d(mesh2d_handle),
-        Transform::from_translation(start_position),
-        // .with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
-        MeshMaterial2d(material_handle),
-        PlankPhenotype {
-            score: 0.0,
-            obseravations: vec![0.0, 0.0],
-            // phenotype_layers: create_phenotype_layers(genome.clone()),
-            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
-            // genotype: genome_entity,
-        }, // alt 1
-        genome,
-        // Collider::cuboid(0.5, 0.5),
-        Collider::rectangle(0.5, 0.5),
-        MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
-        // RigidBody::Dynamic,
-        // individ, // taged so we can use queryies to make evolutionary choises about the individual based on preformance of the phenotype
-        // Velocity {
-        //     // linvel: Vec2::new(100.0, 2.0),
-        //     linvel: Vec2::new(0.0, 0.0),
-        //     angvel: 0.0,
-        // },
-        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
-    )
-}
-
-pub fn create_plank_env_falling(
-    material_handle: Handle<ColorMaterial>,
-    mesh2d_handle: Handle<Mesh>,
-    start_position: Vec3,
-    genome: Genome,
-) -> (
-    Mesh2d,
-    Transform,
-    MeshMaterial2d<ColorMaterial>,
-    PlankPhenotype,
-    Genome,
-    Collider,
-    RigidBody,
-    CollisionLayers,
-    LinearVelocity,
-) {
-    (
-        Mesh2d(mesh2d_handle),
-        Transform::from_translation(start_position).with_scale(Vec2 { x: PLANK_LENGTH, y: PLANK_HIGHT }.extend(1.)),
-        MeshMaterial2d(material_handle),
-        PlankPhenotype {
-            score: 0.0,
-            obseravations: vec![0.0, 0.0],
-            // phenotype_layers:  create_phenotype_layers(genome.clone()),
-            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
-            // genotype: genome_entity,
-        }, // alt 1
-        genome,
-        Collider::rectangle(1.0, 1.0),
-        // Collider::cuboid(0.5, 0.5),
-        RigidBody::Dynamic,
-        // MovingPlankObservation { x: 0.0, y: 0.0 }, // alt 2,
-        // CollisionGroups::new(
-        //     // almost looked like it runs slower with less collisions?
-        //     // Kan være at det bare er mer ground kontakt, siden alle ikke hvilker på en blokk som er eneste som rører bakken
-        //     Group::GROUP_1,
-        //     if INDIVIDUALS_COLLIDE_IN_SIMULATION { Group::GROUP_1 } else {
-        //         Group::GROUP_2
-        //     },
-        // ),
-        CollisionLayers::new(0b0001, 0b0010),
-        // Velocity {
-        //     // linvel: Vec2::new(100.0, 2.0),
-        //     linvel: Vec2::new(0.0, 0.0),
-        //     angvel: 0.0,
-        // },
-        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
-    )
-}
-pub fn create_plank_ext_force_env_falling(
-    material_handle: Handle<ColorMaterial>,
-    mesh2d_handle: Handle<Mesh>,
-    start_position: Vec3,
-    genome: Genome,
-) -> (
-    Mesh2d,
-    MeshMaterial2d<ColorMaterial>,
-    Transform,
-    PlankPhenotype,
-    Genome,
-    Collider,
-    RigidBody,
-    CollisionLayers,
-    LinearVelocity,
-    // Forces,
-    TextLayout,
-    RenderLayers,
-    Individ,
-) {
-    // let text_style = TextStyle {
-    //     font_size: 30.0,
-    //     color: Color::   WHITE,
-    //     ..default()
-    // };
-    (
-        Mesh2d(mesh2d_handle),
-        MeshMaterial2d(material_handle),
-        Transform::from_translation(start_position).with_scale(Vec2 { x: 1.0, y: 1.0 }.extend(1.)),
-        PlankPhenotype {
-            score: 0.0,
-            obseravations: vec![0.0, 0.0],
-            // phenotype_layers: create_phenotype_layers(genome.clone()),
-            phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
-            // genotype: genome_entity,
-        }, // alt 1
-        genome,
-        // Collider::rectangle(1.0, 1.0),
-        Collider::rectangle(PLANK_LENGTH, PLANK_HIGHT),
-        RigidBody::Dynamic,
-        CollisionLayers::new(0b0001, 0b0010),
-        LinearVelocity { 0: Vec2::new(0.0, 0.0) },
-        // Forces { force: Vec2::new(0.0, 0.0), persistent: false , ..default()} ,
-        // Forces::new(Vec2::X).with_persistence(false),
-        TextLayout::new_with_justify(Justify::Center),
-        RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
-        Individ {},
-        // RenderLayers::from_layers(&[1]),
-    )
-}
 
 static INDIVIDUALS_COLLIDE_IN_SIMULATION: bool = false;
 

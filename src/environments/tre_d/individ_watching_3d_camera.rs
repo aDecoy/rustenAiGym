@@ -1,9 +1,9 @@
-use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, CameraViewportSetting, RENDER_LAYER_ALLE_INDIVIDER};
+use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER};
 use bevy::app::{App, Plugin, PreStartup};
 use bevy::camera::visibility::RenderLayers;
-use bevy::camera::{Camera, Camera2d, Camera3d};
-use bevy::math::{UVec2, Vec3};
-use bevy::prelude::{Commands, Entity, Query, Transform, Window, With, default};
+use bevy::camera::{Camera, Camera3d};
+use bevy::math::Vec3;
+use bevy::prelude::{default, Commands, Entity, Query, Transform, Window, With};
 
 pub struct IndividWatching3dCameraPlugin;
 
