@@ -1,7 +1,7 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
 use crate::environments::gammelt_2d::moving_plank_2d::{ PLANK_HIGHT, PLANK_LENGTH,};
-use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
+use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, SpawnNewIndividualMessage};
 use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype};
 use crate::genome::genome_stuff::{new_random_genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
@@ -30,6 +30,7 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
         materials: &mut ResMut<Assets<ColorMaterial>>,
         innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
         n: i32,
+         spawn_new_individual_message_writer: &mut MessageWriter<SpawnNewIndividualMessage>,
     ) {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -45,45 +46,10 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
             EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
             _ => new_random_genome(2, 2, innovation_number_global_counter),
         };
-        
-        // TODO LAG SpawnNewIndividualMessage MESSAGE, som går til spawn_2d_individ_plugin, på samme måte som gjort med evolusjon steg plugin for create_new_children 
 
-        match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre => commands.spawn(create_plank_env_moving_right(
-                material_handle.clone(),
-                rectangle_mesh_handle.into(),
-                Vec3 {
-                    x: 0.0,
-                    y: -150.0 + n as f32 * 50.0,
-                    z: 1.0,
-                },
-                genome,
-            )),
-            EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
-                material_handle.clone(),
-                rectangle_mesh_handle.into(),
-                Vec3 {
-                    x: 0.0,
-                    y: -150.0 + (n as f32 * 15.0),
-                    z: 1.0,
-                },
-                genome,
-            )),
-            EnvValg::FallExternalForcesHøyre | EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => commands.spawn(create_plank_ext_force_env_falling(
-                material_handle.clone(),
-                rectangle_mesh_handle.into(),
-                Vec3 { x: 30.0, y: 100.0, z: 1.0 },
-                genome,
-            )),
-        }
-        .with_children(|builder| {
-            builder.spawn((
-                Text2d::new("translation"),
-                TextLayout::new_with_justify(Justify::Center),
-                Transform::from_xyz(0.0, 0.0, 2.0),
-                IndividFitnessLabelTextTag,
-                RenderLayers::layer(1),
-            ));
+        spawn_new_individual_message_writer.write(SpawnNewIndividualMessage{
+            new_genome: genome,
+            n : n
         });
     }
 
@@ -186,6 +152,7 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
         mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+        mut spawn_new_individual_message_writer: MessageWriter<SpawnNewIndividualMessage>,
     ) {
         let n: i32 = 1;
         ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
@@ -194,6 +161,8 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
             &mut materials,
             &mut innovation_number_global_counter,
             n,
+            &mut spawn_new_individual_message_writer,
+
         )
     }
 

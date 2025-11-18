@@ -51,9 +51,13 @@ impl Plugin for EvolusjonStegPlugin {
         app.add_event::<ResetToStartPositionsEvent>()
             .insert_state(Kjøretilstand::Kjørende)
             .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
+        .add_message::<SpawnNewIndividualMessage>()
+
             .add_systems(
                 Startup,
-                ((spawn_start_population, add_observers_to_individuals.after(spawn_start_population), reset_to_star_pos).chain(),),
+                ((spawn_start_population,
+                  add_observers_to_individuals.after(spawn_start_population),
+                  reset_to_star_pos).chain(),),
             )
             .add_systems(
                 Update,
@@ -133,11 +137,12 @@ pub enum Kjøretilstand {
     // SurvivorSelection,
 }
 
-fn spawn_start_population(
+pub(crate) fn spawn_start_population(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+    mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
         // for n in 0i32..1 {
@@ -147,6 +152,7 @@ fn spawn_start_population(
             &mut materials,
             &mut innovation_number_global_counter,
             n,
+            &mut spawn_new_individual_writer
         );
     }
 }
@@ -196,18 +202,21 @@ fn extinction_on_t(
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
     innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+    mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
+
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_start_population(commands, meshes, materials, innovation_number_global_counter)
+        spawn_start_population(commands, meshes, materials, innovation_number_global_counter, spawn_new_individual_writer)
     }
 }
 
 #[derive(Message, Debug)]
 pub struct SpawnNewIndividualMessage {
     pub new_genome: Genome,
+    pub n: i32,
 }
 
 fn create_new_children(
@@ -286,11 +295,9 @@ fn create_new_children(
 
         spawn_new_individual_writer.write(SpawnNewIndividualMessage{
             new_genome: new_genome,
+            n: 0,
         });
         
-        // todo flytt dette inn til 2d mod, der det lyttes på SpawnNewIndividualMessage
-        
-        // todo add observcers to individuals må også bli en event hvis det er message som sendes dit den skal. Kan ikke gjøres synkront her.
 
         // spawn_new_2d_individ(&mut commands, new_genome, rectangle_mesh_handle, material_handle);
     }

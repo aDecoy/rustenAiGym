@@ -18,6 +18,7 @@ pub struct Spawn2dIndividPlugin;
 impl Plugin for Spawn2dIndividPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SpawnNewIndividualMessage>()
+            .add_systems(Startup, (spawn_new_2d_individ_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)))
             .add_systems(Update, (spawn_new_2d_individ_meldingsspiser));
     }
 }
@@ -34,11 +35,11 @@ fn spawn_new_2d_individ_meldingsspiser(
 
     // todo virker som at ikke kan dereff eller flyyytte på meldinger siden flere systemer kan konsumere de i paralell. Kan derfor ikke ta eierskap https://docs.rs/bevy/latest/bevy/ecs/message/struct.Messages.html
 
-    for mesage in spawn_new_individual_message.read() {
+    for message in spawn_new_individual_message.read() {
         // for mesage in spawn_new_individual_message.read().into_inner() {
         // for mesage in spawn_new_individual_message.read().into_iter() {
         // let message = mesage2;
-        let new_genome: Genome = mesage.new_genome.clone();
+        let new_genome: Genome = message.new_genome.clone();
 
         match ACTIVE_ENVIROMENT {
             EnvValg::Fall | EnvValg::FallVelocityHøyre => commands.spawn(create_plank_env_falling(
@@ -47,6 +48,7 @@ fn spawn_new_2d_individ_meldingsspiser(
                 Vec3 {
                     x: 0.0,
                     y: -150.0 + 3.3 * 50.0,
+                    // y: -150.0 + (n as f32 * 15.0),
                     z: 1.0,
                 },
                 new_genome,
@@ -56,7 +58,8 @@ fn spawn_new_2d_individ_meldingsspiser(
                 rectangle_mesh_handle.clone().into(),
                 Vec3 {
                     x: 0.0,
-                    y: -150.0 + 3.3 * 50.0,
+                    // y: -150.0 + 3.3 * 50.0,
+                    y: -150.0 + message.n as f32 * 50.0,
                     z: 1.0,
                 },
                 new_genome,
@@ -69,6 +72,7 @@ fn spawn_new_2d_individ_meldingsspiser(
                     y: -150.0 + 3.3 * 50.0,
                     z: 0.0,
                 },
+                // Vec3 { x: 30.0, y: 100.0, z: 1.0 },
                 new_genome,
             )),
         }
