@@ -1,9 +1,9 @@
-use crate::monitoring::camera_stuff::{resize_alle_individer_camera, KnapperMenyCameraTag};
+use crate::monitoring::camera_stuff::{KnapperMenyCameraTag, resize_alle_individer_camera};
 use bevy::app::{App, Plugin};
 use bevy::asset::Assets;
+use bevy::color::Color;
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::tailwind::RED_800;
-use bevy::color::Color;
 use bevy::prelude::*;
 
 pub struct KnappMenyPlugin;

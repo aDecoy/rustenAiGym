@@ -1,20 +1,18 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_2d::{
-    PLANK_HIGHT, PLANK_LENGTH,
-};
+use crate::environments::gammelt_2d::moving_plank_2d::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
-    add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype,
+    IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
 };
-use crate::genome::genom_muteringer::{lock_mutation_stability, mutate_genomes, MutasjonerErAktive};
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{
-    EnvValg, Kjøretilstand as OtherKjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE,
+    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
@@ -26,7 +24,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use std::cmp::{max, min, Ordering};
+use std::cmp::{Ordering, max, min};
 use std::collections::HashMap;
 use std::ops::Mul;
 
@@ -44,20 +42,23 @@ pub struct EvolusjonStegPlugin {
     pub environmentSpesificIndividStuff: PossibleBehaviorSets,
 }
 
+#[derive(Message)]
+pub struct PopulationIsSpawnedMessage;
+
 impl Plugin for EvolusjonStegPlugin {
-
-
     fn build(&self, app: &mut App) {
         app.add_event::<ResetToStartPositionsEvent>()
             .insert_state(Kjøretilstand::Kjørende)
             .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
-        .add_message::<SpawnNewIndividualMessage>()
-
+            .add_message::<PopulationIsSpawnedMessage>()
+            .add_message::<SpawnNewIndividualMessage>()
+            .add_systems(Startup, ((spawn_start_population,).chain(),))
             .add_systems(
-                Startup,
-                ((spawn_start_population,
-                  add_observers_to_individuals.after(spawn_start_population),
-                  reset_to_star_pos).chain(),),
+                PostStartup,
+                (
+                    add_observers_to_individuals.run_if(on_message::<PopulationIsSpawnedMessage>),
+                    reset_to_star_pos.run_if(on_message::<PopulationIsSpawnedMessage>),
+                ),
             )
             .add_systems(
                 Update,
@@ -66,15 +67,15 @@ impl Plugin for EvolusjonStegPlugin {
                     reset_event_ved_input,
                     reset_to_star_pos_on_event,
                     // (
-                        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::check_if_done,
-                        // self.environmentSpesificIndividStuff::check_if_done,
-                        // match &self.environmentSpesificIndividStuff {
-                        //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-                        //     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-                        //     PossibleBehaviorSets::TOd { oppførsel } => oppførsel::check_if_done,
-                        // },
-                        // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
-                        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::agent_action_and_fitness_evaluation,
+                    // ToDimensjonelleMijøSpesifikkeIndividOppførsler::check_if_done,
+                    // self.environmentSpesificIndividStuff::check_if_done,
+                    // match &self.environmentSpesificIndividStuff {
+                    //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
+                    //     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
+                    //     PossibleBehaviorSets::TOd { oppførsel } => oppførsel::check_if_done,
+                    // },
+                    // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
+                    // ToDimensjonelleMijøSpesifikkeIndividOppførsler::agent_action_and_fitness_evaluation,
                     // )
                     //     .run_if(in_state(Kjøretilstand::Kjørende)),
                     (
@@ -95,31 +96,29 @@ impl Plugin for EvolusjonStegPlugin {
                 ),
             );
 
-    // }
-//     let a = match &self.environmentSpesificIndividStuff {
-//     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-//     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => {
-// println!("LUNAR_LANDER_3D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-// LunarLanderIndividBehaviors::spawn_a_random_new_individual;
-// },
-// PossibleBehaviorSets::TOd { oppførsel } => {
-// println!("LUNAR_LANDER_2D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-// ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual;
-// },
-// };
+        // }
+        //     let a = match &self.environmentSpesificIndividStuff {
+        //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
+        //     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => {
+        // println!("LUNAR_LANDER_3D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        // LunarLanderIndividBehaviors::spawn_a_random_new_individual;
+        // },
+        // PossibleBehaviorSets::TOd { oppførsel } => {
+        // println!("LUNAR_LANDER_2D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual;
+        // },
+        // };
 
-// if let  PossibleBehaviorSets::LUNAR_LANDER_3D{oppførsel} = &self.environmentSpesificIndividStuff {
-//         app.add_systems(
-//              Update,(
-//                 LunarLanderIndividBehaviors::spawn_a_random_new_individual,
-//                 LunarLanderIndividBehaviors::agent_action_and_fitness_evaluation,
-//                 LunarLanderIndividBehaviors::check_if_done,
-//             )
-//         );
-// };
-
-
-}
+        // if let  PossibleBehaviorSets::LUNAR_LANDER_3D{oppførsel} = &self.environmentSpesificIndividStuff {
+        //         app.add_systems(
+        //              Update,(
+        //                 LunarLanderIndividBehaviors::spawn_a_random_new_individual,
+        //                 LunarLanderIndividBehaviors::agent_action_and_fitness_evaluation,
+        //                 LunarLanderIndividBehaviors::check_if_done,
+        //             )
+        //         );
+        // };
+    }
 }
 
 // todo kanksje inatrodusere configure_sets og SystemSets for de ulike stegene i evolusjon?
@@ -152,7 +151,7 @@ pub(crate) fn spawn_start_population(
             &mut materials,
             &mut innovation_number_global_counter,
             n,
-            &mut spawn_new_individual_writer
+            &mut spawn_new_individual_writer,
         );
     }
 }
@@ -203,7 +202,6 @@ fn extinction_on_t(
     key_input: Res<ButtonInput<KeyCode>>,
     innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
     mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
-
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
@@ -283,7 +281,6 @@ fn create_new_children(
         // NB: mutation is done in a seperate bevy system
         new_genome.allowed_to_change = true;
 
-
         // let text_style = TextStyle {
         //     font_size: 20.0,
         //     color: Color::WHITE,
@@ -293,16 +290,11 @@ fn create_new_children(
         // todo kanskje heller bare lage en event/ message til dit det skal lages en ny enitet? Trenger å skille evolusjon steg rekkefølge fra mer mijø og individ spesifikke ting.
         //  Ikke kalle direkte, bare lage en event som mijø / individ eller phenotype lytter på. Da også egentlig lett å utived senere til flere individ-art regler per mijø
 
-        spawn_new_individual_writer.write(SpawnNewIndividualMessage{
-            new_genome: new_genome,
-            n: 0,
-        });
-        
+        spawn_new_individual_writer.write(SpawnNewIndividualMessage { new_genome: new_genome, n: 0 });
 
         // spawn_new_2d_individ(&mut commands, new_genome, rectangle_mesh_handle, material_handle);
     }
 }
-
 
 #[derive(Message, Debug, Default)]
 struct ResetToStartPositionsEvent;

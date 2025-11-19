@@ -1,7 +1,7 @@
 use bevy::prelude::{Component, ResMut, Resource};
 use rand::distr::Uniform;
 use rand::prelude::ThreadRng;
-use rand::{random, rng, thread_rng, Rng};
+use rand::{Rng, random, rng, thread_rng};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};

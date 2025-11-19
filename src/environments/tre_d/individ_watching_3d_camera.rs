@@ -3,7 +3,7 @@ use bevy::app::{App, Plugin, PreStartup};
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{Camera, Camera3d};
 use bevy::math::Vec3;
-use bevy::prelude::{default, Commands, Entity, Query, Transform, Window, With};
+use bevy::prelude::{Commands, Entity, Query, Transform, Window, With, default};
 
 pub struct IndividWatching3dCameraPlugin;
 

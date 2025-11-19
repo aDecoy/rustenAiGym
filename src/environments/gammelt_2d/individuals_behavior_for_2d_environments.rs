@@ -1,24 +1,24 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_2d::{ PLANK_HIGHT, PLANK_LENGTH,};
+use crate::environments::gammelt_2d::moving_plank_2d::{PLANK_HIGHT, PLANK_LENGTH};
+use crate::environments::gammelt_2d::spawn_2d_individ_plugin::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
 use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, SpawnNewIndividualMessage};
 use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype};
-use crate::genome::genome_stuff::{new_random_genome, InnovationNumberGlobalCounter};
+use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::*;
 use bevy::asset::{Assets, Handle};
 use bevy::camera::visibility::RenderLayers;
+use bevy::color::Color;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::color::Color;
-use bevy::math::{vec2, Vec2, Vec3};
+use bevy::math::{Vec2, Vec3, vec2};
 use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use bevy::prelude::{ColorMaterial, Commands, Entity, Justify, NextState, Query, Rectangle, Res, ResMut, Text2d, TextLayout, Time, Transform, Window, With};
 use std::ops::Mul;
-use crate::environments::gammelt_2d::spawn_2d_individ_plugin::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
@@ -30,7 +30,7 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
         materials: &mut ResMut<Assets<ColorMaterial>>,
         innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
         n: i32,
-         spawn_new_individual_message_writer: &mut MessageWriter<SpawnNewIndividualMessage>,
+        spawn_new_individual_message_writer: &mut MessageWriter<SpawnNewIndividualMessage>,
     ) {
         let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
         let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -47,10 +47,7 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
             _ => new_random_genome(2, 2, innovation_number_global_counter),
         };
 
-        spawn_new_individual_message_writer.write(SpawnNewIndividualMessage{
-            new_genome: genome,
-            n : n
-        });
+        spawn_new_individual_message_writer.write(SpawnNewIndividualMessage { new_genome: genome, n: n });
     }
 
     // fn agent_action(query: Query<Transform, With<Individual>>) {
@@ -162,7 +159,6 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
             &mut innovation_number_global_counter,
             n,
             &mut spawn_new_individual_message_writer,
-
         )
     }
 

@@ -1,12 +1,10 @@
-use crate::environments::gammelt_2d::moving_plank_2d::{
-     MovingPlankObservation, PLANK_HIGHT, PLANK_LENGTH,
-};
+use crate::environments::gammelt_2d::moving_plank_2d::{MovingPlankObservation, PLANK_HIGHT, PLANK_LENGTH};
 use crate::evolusjon::evolusjon_steg_plugin::SpawnNewIndividualMessage;
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::{Individ, IndividFitnessLabelTextTag, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{Collider, CollisionLayers, LinearVelocity, RigidBody};
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
@@ -18,7 +16,10 @@ pub struct Spawn2dIndividPlugin;
 impl Plugin for Spawn2dIndividPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SpawnNewIndividualMessage>()
-            .add_systems(Startup, (spawn_new_2d_individ_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)))
+            .add_systems(
+                Startup,
+                (spawn_new_2d_individ_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)),
+            )
             .add_systems(Update, (spawn_new_2d_individ_meldingsspiser));
     }
 }
