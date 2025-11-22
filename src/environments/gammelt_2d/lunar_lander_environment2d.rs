@@ -8,6 +8,7 @@ use bevy::math::Vec3;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use crate::environments::gammelt_2d::evolution_steps_implementation_plugin::EvolutionStepsImplementationPlugin;
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
@@ -22,7 +23,7 @@ pub struct LunarLanderEnvironment2d;
 impl Plugin for LunarLanderEnvironment2d {
     fn build(&self, app: &mut App) {
         app.add_plugins(IndividWatching2dCameraPlugin)
-            .add_plugins(Spawn2dIndividPlugin)
+            .add_plugins(EvolutionStepsImplementationPlugin)
             .add_systems(Startup, (spawn_ground, spawn_roof, spawn_landing_target));
     }
 }

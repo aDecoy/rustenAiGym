@@ -14,6 +14,8 @@ impl Plugin for IndividWatching3dCameraPlugin {
     }
 }
 
+// todo Kanskje legge til et camera som følger elite target 
+
 fn setup_individ_watching_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     let main_camera = commands
         .spawn((

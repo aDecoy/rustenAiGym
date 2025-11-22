@@ -16,11 +16,11 @@ impl Plugin for LunarLanderEnvironment3d {
 
 fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     // plane
-    // commands.spawn((
-    //     Mesh3d(meshes.add(Plane3d::default().mesh().size(5.0, 5.0))),
-    //     MeshMaterial3d(materials.add(Color::srgb(0.1, 0.2, 0.1))),
-    //     RenderLayers::layer(1),
-    // ));
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(5.0, 5.0))),
+        MeshMaterial3d(materials.add(Color::srgb(0.1, 0.2, 0.1))),
+        RenderLayers::layer(1),
+    ));
     // // sphere
     // commands.spawn((
     //     Mesh3d(meshes.add(Sphere::new(0.5).mesh().ico(4).unwrap())),

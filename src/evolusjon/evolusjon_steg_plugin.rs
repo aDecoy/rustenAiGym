@@ -47,11 +47,14 @@ pub struct PopulationIsSpawnedMessage;
 
 impl Plugin for EvolusjonStegPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<ResetToStartPositionsEvent>()
+        app.add_message::<ResetToStartPositionsEvent>()
             .insert_state(Kjøretilstand::Kjørende)
             .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
             .add_message::<PopulationIsSpawnedMessage>()
             .add_message::<SpawnNewIndividualMessage>()
+            .add_message::<ResetToStartPositionsEvent>()
+            .add_message::<GenerationIsDone>()
+            .add_message::<CheckIfDoneRequest>()
             .add_systems(Startup, ((spawn_start_population,).chain(),))
             .add_systems(
                 PostStartup,
@@ -65,7 +68,6 @@ impl Plugin for EvolusjonStegPlugin {
                 (
                     extinction_on_t,
                     reset_event_ved_input,
-                    reset_to_star_pos_on_event,
                     // (
                     // ToDimensjonelleMijøSpesifikkeIndividOppførsler::check_if_done,
                     // self.environmentSpesificIndividStuff::check_if_done,
@@ -96,6 +98,8 @@ impl Plugin for EvolusjonStegPlugin {
                 ),
             );
 
+        // todo ha denne pluginen sende messages som plukkes opp av implementasjon spesifikke plugins
+        
         // }
         //     let a = match &self.environmentSpesificIndividStuff {
         //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
@@ -128,7 +132,6 @@ pub enum Kjøretilstand {
     #[default]
     Pause,
     Kjørende,
-
     EvolutionOverhead,
     // FitnessEvaluation,
     // Mutation,
@@ -192,6 +195,27 @@ fn kill_worst_individuals(mut commands: Commands, query: Query<(Entity, &PlankPh
 
 fn set_to_kjørende_state(mut next_state: ResMut<NextState<Kjøretilstand>>) {
     next_state.set(Kjøretilstand::Kjørende);
+}
+
+#[derive(Message)]
+pub(crate) struct GenerationIsDone;
+#[derive(Message)]
+pub(crate) struct CheckIfDoneRequest;
+
+fn request_env_to_check_if_done_with_generation(
+    mut message_writer: MessageWriter<CheckIfDoneRequest>,
+){
+    message_writer.write(CheckIfDoneRequest);
+}
+
+fn adjust_kjøretilstand_if_generation_is_done(
+    mut message_reader: MessageReader<GenerationIsDone>,
+    mut next_state: ResMut<NextState<Kjøretilstand>>,
+){
+    if !message_reader.is_empty(){
+        next_state.set(Kjøretilstand::EvolutionOverhead);
+    }
+    message_reader.read();
 }
 
 fn extinction_on_t(
@@ -297,76 +321,17 @@ fn create_new_children(
 }
 
 #[derive(Message, Debug, Default)]
-struct ResetToStartPositionsEvent;
+pub(crate) struct ResetToStartPositionsEvent;
 
-fn reset_to_star_pos_on_event(
-    mut reset_events: MessageReader<ResetToStartPositionsEvent>,
-    // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut Velocity), ( With<crate::PlankPhenotype>)>,
-    // query: Query<(&mut Transform, &mut crate::PlankPhenotype, &mut LinearVelocity, Option<&mut ExternalForce>), ( With<crate::PlankPhenotype>)>,
-    query: Query<(
-        &mut Transform,
-        &mut PlankPhenotype,
-        &mut LinearVelocity,
-        &mut AngularVelocity,
-        // Forces,
-    )>,
-) {
-    if reset_events.read().next().is_some() {
-        reset_to_star_pos(query);
-    }
-}
+
 
 fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
     if user_input.pressed(KeyR) {
         reset_events.write_default();
     }
 }
-
-lazy_static! {
-     static ref START_POSITION_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {
- HashMap::from([
-    ( EnvValg::Høyre, Vec2 { x: 0.0, y: 0.0 }), // y is determined by index in population
-    ( EnvValg::Homing, Vec2 { x: 0.0, y: -0.0 }),
-    ( EnvValg::HomingGroud, Vec2 { x: 100.0, y: 30.0 }),
-    ( EnvValg::HomingGroudY, Vec2 { x: 100.0, y: 30.0 }),
-    ])
-    };
-    pub static ref START_POSITION: Vec2 = START_POSITION_PER_ENVIRONMENT[&ACTIVE_ENVIROMENT];
+fn reset_to_star_pos(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
+        reset_events.write_default();
 }
 
-// NB : Dette resetter ikke node verdiene i nettverket til phenotypen
-fn reset_to_star_pos(
-    mut query: Query<(
-        &mut Transform,
-        &mut PlankPhenotype,
-        &mut LinearVelocity,
-        &mut AngularVelocity,
-        // Forces,
-    )>,
-) {
-    for (
-        mut transform,
-        mut plank,
-        mut linvel,
-        mut angular_velocity, // , forces
-    ) in query.iter_mut()
-    {
-        transform.translation.x = START_POSITION.x;
-        if ACTIVE_ENVIROMENT != EnvValg::Høyre {
-            transform.translation.y = START_POSITION.y;
-        }
-        transform.rotation = Quat::default();
 
-        plank.score = transform.translation.x.clone();
-        plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()];
-        // velocity.angvel = 0.0;
-        linvel.x = 0.0;
-        linvel.y = 0.0;
-
-        angular_velocity.0 = 0.0;
-
-        // if let Some(mut force) = forces {
-        //     force.apply_local_force(Vector::ZERO); // kanskje ikke lenger nødvendig? dette burde jo teknisk sett ikke gjøre noe, Jeg tror forces ikke persiteres lenger etter avian sin 0.4 milestone
-        // }
-    }
-}

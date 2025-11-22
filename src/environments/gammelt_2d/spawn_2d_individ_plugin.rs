@@ -22,7 +22,8 @@ impl Plugin for Spawn2dIndividPlugin {
             )
             .add_systems(Update, (spawn_new_2d_individ_meldingsspiser));
     }
-}
+}                 
+
 
 fn spawn_new_2d_individ_meldingsspiser(
     mut spawn_new_individual_message: MessageReader<SpawnNewIndividualMessage>,

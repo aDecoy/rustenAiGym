@@ -19,6 +19,7 @@ use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use bevy::prelude::{ColorMaterial, Commands, Entity, Justify, NextState, Query, Rectangle, Res, ResMut, Text2d, TextLayout, Time, Transform, Window, With};
 use std::ops::Mul;
+use lazy_static::lazy_static;
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
@@ -163,11 +164,14 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
     }
 
     fn check_if_done(
+        mut message_reader: MessageReader<crate::evolusjon::evolusjon_steg_plugin::CheckIfDoneRequest>,
+        mut message_writer: MessageWriter<crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone>,
         mut query: Query<(&mut Transform, &mut PlankPhenotype), (With<PlankPhenotype>)>,
         mut next_state: ResMut<NextState<Kjøretilstand>>,
         simulation_timer: Res<SimulationGenerationTimer>,
         window: Query<&Window, With<AllIndividerWindowTag>>,
     ) {
+        if !message_reader.is_empty(){
         let max_width = window.single().unwrap().width() * 0.5;
 
         match ACTIVE_ENVIROMENT {
@@ -176,18 +180,19 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
                 for (individual, _) in query.iter_mut() {
                     if individual.translation.x > max_width {
                     // println!("done");
-                    ; // er det skalert etter reapier logikk eller pixler\?
-                    next_state.set(Kjøretilstand::EvolutionOverhead)
+                        message_writer.write(crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone);
                 }
                 }
             }
             EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => {
                 if simulation_timer.main_timer.just_finished() {
                 // println!("done");
-                ; // er det skalert etter reapier logikk eller pixler\?
-                next_state.set(Kjøretilstand::EvolutionOverhead);
+                    message_writer.write(crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone);
+
             }
             }
         }
+    }
+        message_reader.read();
     }
 }
