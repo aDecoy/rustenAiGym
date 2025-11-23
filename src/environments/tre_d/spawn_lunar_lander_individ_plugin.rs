@@ -1,3 +1,4 @@
+use crate::environments::tre_d::lunar_lander_individual_behavior::START_POSITION;
 // use avian2d::prelude::{Collider, CollisionLayers, RigidBody};
 use crate::evolusjon::evolusjon_steg_plugin::{PopulationIsSpawnedMessage, SpawnNewIndividualMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
@@ -6,8 +7,9 @@ use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
-use bevy::log::tracing::Instrument;
 use bevy::prelude::*;
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::genome::genome_stuff::{new_random_genome, InnovationNumberGlobalCounter};
 // todo lag spwawn individ on event plugin oig legg den til i main. starupt after create population
 
 pub struct SpawnLunarLanderPlugin;
@@ -30,12 +32,15 @@ fn spawn_new_3d_individ_meldingsspiser(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     for message in spawn_new_individual_message.read() {
-        let genome = message.new_genome.clone();
 
+        let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
+        
         let length = 1.0;
-        let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];
+        // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];
+        // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];
         let individ_size: Vec<f32> = vec![0.5, 0.5, 0.5];
         // cube
         commands.spawn((
@@ -45,7 +50,7 @@ fn spawn_new_3d_individ_meldingsspiser(
                 base_color: Color::from(PURPLE),
                 ..default()
             })),
-            Transform::from_xyz(start_position[0], start_position[1], start_position[2]),
+            Transform::from_translation(START_POSITION.clone()), // from_xyz(START_POSITION.x, start_position[1], start_position[2]),
             PlankPhenotype {
                 score: 0.0,
                 obseravations: vec![0.0, 0.0],

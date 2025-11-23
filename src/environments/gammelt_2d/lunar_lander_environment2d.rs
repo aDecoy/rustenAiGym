@@ -1,14 +1,15 @@
+use crate::environments::gammelt_2d::evolution_steps_implementation_plugin::EvolutionStepsImplementationPlugin;
 use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
-use crate::environments::gammelt_2d::spawn_2d_individ_plugin::Spawn2dIndividPlugin;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
-use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Restitution, RigidBody};
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Physics, PhysicsTime, Restitution, RigidBody};
+use avian2d::PhysicsPlugins;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use crate::environments::gammelt_2d::evolution_steps_implementation_plugin::EvolutionStepsImplementationPlugin;
+use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::MovingPlankWithUserInput2dPlugin;
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
@@ -19,10 +20,16 @@ const ROOF_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: 300.0, z: 1.0 };
 // const GROUND_STARTING_POSITION: Vec3 = Vec3 { x: 0.0, y: -300.0, z: 1.0 };
 
 pub struct LunarLanderEnvironment2d;
+pub const PIXELS_PER_METER: f32 = 10.0;
+pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
 
 impl Plugin for LunarLanderEnvironment2d {
     fn build(&self, app: &mut App) {
-        app.add_plugins(IndividWatching2dCameraPlugin)
+        app
+            .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+            .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED))
+            .add_plugins(MovingPlankWithUserInput2dPlugin)
+            .add_plugins(IndividWatching2dCameraPlugin)
             .add_plugins(EvolutionStepsImplementationPlugin)
             .add_systems(Startup, (spawn_ground, spawn_roof, spawn_landing_target));
     }

@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use crate::environments::gammelt_2d::spawn_2d_individ_plugin::Spawn2dIndividPlugin;
+use crate::evolusjon::phenotype_plugin::PlankPhenotype;
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian2d::prelude::{AngularVelocity, LinearVelocity};
 use bevy::prelude::*;
 use lazy_static::lazy_static;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
-use crate::environments::gammelt_2d::spawn_2d_individ_plugin::Spawn2dIndividPlugin;
-use crate::evolusjon::phenotype_plugin::PlankPhenotype;
+use std::collections::HashMap;
+use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
 pub struct EvolutionStepsImplementationPlugin;
 

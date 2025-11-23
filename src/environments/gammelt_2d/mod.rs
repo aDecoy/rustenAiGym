@@ -2,6 +2,6 @@ mod flat_bakke_simulasjon;
 mod individ_watching_2d_camera;
 pub mod individuals_behavior_for_2d_environments;
 pub mod lunar_lander_environment2d;
-pub mod moving_plank_2d;
+pub mod moving_plank_with_user_input_2d_plugin;
 mod spawn_2d_individ_plugin;
 mod evolution_steps_implementation_plugin;

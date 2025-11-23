@@ -1,18 +1,18 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_2d::{PLANK_HIGHT, PLANK_LENGTH};
+use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
 use crate::evolusjon::phenotype_plugin::{
-    IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, add_observers_to_individuals, update_phenotype_network_for_changed_genomes,
+    add_observers_to_individuals, update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype,
 };
-use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
+use crate::genome::genom_muteringer::{lock_mutation_stability, mutate_genomes, MutasjonerErAktive};
+use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{
-    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
+    EnvValg, Kjøretilstand as OtherKjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
@@ -24,7 +24,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use std::cmp::{Ordering, max, min};
+use std::cmp::{max, min, Ordering};
 use std::collections::HashMap;
 use std::ops::Mul;
 
@@ -38,9 +38,7 @@ pub enum PossibleBehaviorSets {
     LUNAR_LANDER_3D { oppførsel: LunarLanderIndividBehaviors },
 }
 
-pub struct EvolusjonStegPlugin {
-    pub environmentSpesificIndividStuff: PossibleBehaviorSets,
-}
+pub struct EvolusjonStegPlugin;
 
 #[derive(Message)]
 pub struct PopulationIsSpawnedMessage;
@@ -55,6 +53,9 @@ impl Plugin for EvolusjonStegPlugin {
             .add_message::<ResetToStartPositionsEvent>()
             .add_message::<GenerationIsDone>()
             .add_message::<CheckIfDoneRequest>()
+            .add_message::<IndividerSkalObservereMessage>()
+            .add_message::<IndividerSkalTenkeOgHandleMessage>()
+            .add_message::<IndividerSkalFåFitnessEvaluertMessage>()
             .add_systems(Startup, ((spawn_start_population,).chain(),))
             .add_systems(
                 PostStartup,
@@ -68,18 +69,12 @@ impl Plugin for EvolusjonStegPlugin {
                 (
                     extinction_on_t,
                     reset_event_ved_input,
-                    // (
-                    // ToDimensjonelleMijøSpesifikkeIndividOppførsler::check_if_done,
-                    // self.environmentSpesificIndividStuff::check_if_done,
-                    // match &self.environmentSpesificIndividStuff {
-                    //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-                    //     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-                    //     PossibleBehaviorSets::TOd { oppførsel } => oppførsel::check_if_done,
-                    // },
-                    // check_if_done.run_if(every_time_if_stop_on_right_window()), // ELDSTE simulasjoner hadde mål å bevege seg til høyre
-                    // ToDimensjonelleMijøSpesifikkeIndividOppførsler::agent_action_and_fitness_evaluation,
-                    // )
-                    //     .run_if(in_state(Kjøretilstand::Kjørende)),
+                    (
+                        alle_individer_observerer,
+                    alle_individer_tenker_og_handler.after(alle_individer_observerer),
+                    alle_individer_får_fitness_evaluert.after(alle_individer_tenker_og_handler),
+                    )
+                        .run_if(in_state(Kjøretilstand::Kjørende)),
                     (
                         kill_worst_individuals,
                         reset_to_star_pos,
@@ -99,29 +94,7 @@ impl Plugin for EvolusjonStegPlugin {
             );
 
         // todo ha denne pluginen sende messages som plukkes opp av implementasjon spesifikke plugins
-        
-        // }
-        //     let a = match &self.environmentSpesificIndividStuff {
-        //     // PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => oppførsel::check_if_done,
-        //     PossibleBehaviorSets::LUNAR_LANDER_3D { oppførsel } => {
-        // println!("LUNAR_LANDER_3D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        // LunarLanderIndividBehaviors::spawn_a_random_new_individual;
-        // },
-        // PossibleBehaviorSets::TOd { oppførsel } => {
-        // println!("LUNAR_LANDER_2D!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual;
-        // },
-        // };
 
-        // if let  PossibleBehaviorSets::LUNAR_LANDER_3D{oppførsel} = &self.environmentSpesificIndividStuff {
-        //         app.add_systems(
-        //              Update,(
-        //                 LunarLanderIndividBehaviors::spawn_a_random_new_individual,
-        //                 LunarLanderIndividBehaviors::agent_action_and_fitness_evaluation,
-        //                 LunarLanderIndividBehaviors::check_if_done,
-        //             )
-        //         );
-        // };
     }
 }
 
@@ -147,16 +120,44 @@ pub(crate) fn spawn_start_population(
     mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
 ) {
     for n in 0i32..START_POPULATION_SIZE {
+        spawn_new_individual_writer.write(SpawnNewIndividualMessage{n:n});
         // for n in 0i32..1 {
-        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut innovation_number_global_counter,
-            n,
-            &mut spawn_new_individual_writer,
-        );
+        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
+        //     &mut commands,
+        //     &mut meshes,
+        //     &mut materials,
+        //     &mut innovation_number_global_counter,
+        //     n,
+        //     &mut spawn_new_individual_writer,
+        // );
     }
+}
+
+#[derive(Message, Debug, Default)]
+pub(crate) struct IndividerSkalObservereMessage;
+
+#[derive(Message, Debug, Default)]
+pub(crate) struct IndividerSkalTenkeOgHandleMessage;
+
+#[derive(Message, Debug, Default)]
+pub(crate) struct IndividerSkalFåFitnessEvaluertMessage;
+
+
+fn alle_individer_observerer(
+    mut message_writer: MessageWriter<IndividerSkalObservereMessage>
+){
+    message_writer.write(IndividerSkalObservereMessage);
+}
+fn alle_individer_tenker_og_handler(
+   mut  message_writer: MessageWriter<IndividerSkalTenkeOgHandleMessage>
+){
+    message_writer.write(IndividerSkalTenkeOgHandleMessage);
+}
+
+fn alle_individer_får_fitness_evaluert(
+   mut  message_writer: MessageWriter<IndividerSkalFåFitnessEvaluertMessage>
+){
+    message_writer.write(IndividerSkalFåFitnessEvaluertMessage);
 }
 
 fn kill_worst_individuals(mut commands: Commands, query: Query<(Entity, &PlankPhenotype), With<PlankPhenotype>>) {
@@ -237,7 +238,7 @@ fn extinction_on_t(
 
 #[derive(Message, Debug)]
 pub struct SpawnNewIndividualMessage {
-    pub new_genome: Genome,
+    // pub new_genome: Genome,
     pub n: i32,
 }
 
@@ -322,8 +323,6 @@ fn create_new_children(
 
 #[derive(Message, Debug, Default)]
 pub(crate) struct ResetToStartPositionsEvent;
-
-
 
 fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
     if user_input.pressed(KeyR) {

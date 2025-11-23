@@ -12,20 +12,18 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
+use crate::environments::gammelt_2d::lunar_lander_environment2d::PIXELS_PER_METER;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
-pub struct MovingPlankPlugin2d;
+pub struct MovingPlankWithUserInput2dPlugin;
 
-impl MovingPlankPlugin2d {}
+impl MovingPlankWithUserInput2dPlugin {}
 
-pub const PIXELS_PER_METER: f32 = 10.0;
-pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
-
-impl Plugin for MovingPlankPlugin2d {
+impl Plugin for MovingPlankWithUserInput2dPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
-            .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED)) // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
+        app
+            // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
             .insert_resource(Gravity::ZERO)

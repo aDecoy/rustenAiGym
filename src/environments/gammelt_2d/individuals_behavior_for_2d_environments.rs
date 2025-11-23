@@ -1,55 +1,36 @@
 use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_2d::{PLANK_HIGHT, PLANK_LENGTH};
-use crate::environments::gammelt_2d::spawn_2d_individ_plugin::{create_plank_env_falling, create_plank_env_moving_right, create_plank_ext_force_env_falling};
+use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, SpawnNewIndividualMessage};
-use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype};
-use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
+use crate::evolusjon::phenotype_plugin::PlankPhenotype;
+use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian2d::prelude::*;
 use bevy::asset::{Assets, Handle};
-use bevy::camera::visibility::RenderLayers;
-use bevy::color::Color;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::math::{Vec2, Vec3, vec2};
+use bevy::color::Color;
+use bevy::math::{vec2, Vec2};
 use bevy::mesh::Mesh;
 use bevy::prelude::*;
-use bevy::prelude::{ColorMaterial, Commands, Entity, Justify, NextState, Query, Rectangle, Res, ResMut, Text2d, TextLayout, Time, Transform, Window, With};
+use bevy::prelude::{ColorMaterial, Commands, Entity, NextState, Query, Rectangle, Res, ResMut, Time, Transform, Window, With};
 use std::ops::Mul;
-use lazy_static::lazy_static;
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
+
+
+#[derive(Message, Debug)]
+pub struct SpawnNewIndividualMessageWithGenome {
+    pub new_genome: Genome,
+    pub n: i32,
+}
+
 // impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOppførsler {
 impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
-    pub(crate) fn spawn_a_random_new_individual(
-        commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-        innovation_number_global_counter: &mut ResMut<InnovationNumberGlobalCounter>,
-        n: i32,
-        spawn_new_individual_message_writer: &mut MessageWriter<SpawnNewIndividualMessage>,
-    ) {
-        let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
-        let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
 
-        let hover_matl = materials.add(Color::from(CYAN_300));
-        // println!("Har jeg klart å lage en genome fra entity = : {}", genome2.allowed_to_change);
-        // let text_style = TextStyle {
-        //     font_size: 20.0,
-        //     color: Color::WHITE,
-        //     ..default()
-        // };
-        let genome = match ACTIVE_ENVIROMENT {
-            EnvValg::HomingGroudY => new_random_genome(1, 1, innovation_number_global_counter),
-            _ => new_random_genome(2, 2, innovation_number_global_counter),
-        };
-
-        spawn_new_individual_message_writer.write(SpawnNewIndividualMessage { new_genome: genome, n: n });
-    }
 
     // fn agent_action(query: Query<Transform, With<Individual>>) {
     fn agent_action_and_fitness_evaluation(
@@ -145,23 +126,7 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
     }
 
     // Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
-    fn spawn_a_random_new_individual2(
-        mut commands: Commands,
-        mut meshes: ResMut<Assets<Mesh>>,
-        mut materials: ResMut<Assets<ColorMaterial>>,
-        mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-        mut spawn_new_individual_message_writer: MessageWriter<SpawnNewIndividualMessage>,
-    ) {
-        let n: i32 = 1;
-        ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut innovation_number_global_counter,
-            n,
-            &mut spawn_new_individual_message_writer,
-        )
-    }
+
 
     fn check_if_done(
         mut message_reader: MessageReader<crate::evolusjon::evolusjon_steg_plugin::CheckIfDoneRequest>,

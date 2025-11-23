@@ -1,4 +1,3 @@
-use crate::environments::gammelt_2d::moving_plank_2d::PIXELS_PER_METER;
 use crate::genome::genome_stuff::{Genome, NodeGene, WeightGene};
 use bevy::prelude::Query;
 use std::collections::HashMap;
@@ -31,13 +30,13 @@ impl PhenotypeNeuralNetwork {
         for value in input_values {
             //     println!("raw input values {:?}", node);
             // clamped_input_values.push(value / PIXELS_PER_METER);
-            clamped_input_values.push(value / PIXELS_PER_METER);
+            clamped_input_values.push(value);
             // println!("new clamped input value {:?}", value);
         }
         // dbg!(&clamped_input_values);
 
         // Feed/load in input values
-        // dbg!(&self.input_layer);
+        dbg!(&self.input_layer);
         for i in 0..clamped_input_values.len() {
             let node = &self.input_layer[i];
             if node.enabled.read().unwrap().clone() == false {

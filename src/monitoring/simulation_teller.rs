@@ -1,5 +1,5 @@
-use crate::Kjøretilstand;
 use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
+use crate::Kjøretilstand;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
@@ -13,7 +13,7 @@ impl Plugin for SimulationRunningTellerPlugin {
             .insert_resource(SimulationGenerationTimer {
                 main_timer: Timer::from_seconds(GENERATION_TIME, TimerMode::Repeating),
             })
-            .add_systems(Startup, spawn_simulation_tellertekst)
+            .add_systems(Startup, spawn_simulation_tellertekst) 
             .add_systems(Startup, spawn_simulation_generation_time_tellertekst)
             .add_systems(Startup, spawn_simulation_timer_tekst)
             .add_systems(
@@ -91,7 +91,8 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
         SimulationTotalRuntimeRunningTellerTekst,
-        RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
+        // RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
+        RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
     ));
 }
 
