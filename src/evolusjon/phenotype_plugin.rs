@@ -27,9 +27,10 @@ pub fn update_phenotype_network_for_changed_genomes(mut query: Query<(&Genome, &
 // fn rotate_on_drag(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
 fn rotate_on_drag(drag: On<Pointer<Drag>>, mut angular_velocities: Query<&mut AngularVelocity>) {
     println!("dragging");
-    let mut angular_velocitiy = angular_velocities.get_mut(drag.target().entity()).unwrap();
+    let mut angular_velocitiy = angular_velocities.get_mut(drag.event().entity.entity()).unwrap();
     angular_velocitiy.0 += 0.1;
-}
+    // todo også la denne bli en melding som env må implemnementere selv. slipper da avian 2d vs 3d import problemer
+}tfgyhjk
 
 pub fn add_observers_to_individuals(mut commands: Commands, individ_query: Query<Entity, Added<PlankPhenotype>>) {
     for individ_entity in individ_query.iter() {

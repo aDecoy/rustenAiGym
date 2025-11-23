@@ -1,19 +1,20 @@
-use avian3d::PhysicsPlugins;
-use avian3d::prelude::{Physics, PhysicsTime};
 use crate::environments::tre_d::individ_watching_3d_camera::IndividWatching3dCameraPlugin;
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::monitoring::camera_stuff::RENDER_LAYER_NETTVERK;
+use avian3d::PhysicsPlugins;
+use avian3d::prelude::{Physics, PhysicsTime};
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
 pub(crate) struct LunarLanderEnvironment3d;
-pub const PIXELS_PER_METER: f32 = 10.0;
-pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
+pub const PIXELS_PER_METER: f32 = 100.0;
+pub const PHYSICS_RELATIVE_SPEED: f32 = 1.0;
 
 impl Plugin for LunarLanderEnvironment3d {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+            // .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+            .add_plugins((PhysicsPlugins::default()))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED))
             .add_plugins(IndividWatching3dCameraPlugin)
             .add_plugins(LunarLanderIndividBehaviors)

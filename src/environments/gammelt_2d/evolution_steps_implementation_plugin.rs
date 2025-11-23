@@ -1,24 +1,25 @@
+use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 use crate::environments::gammelt_2d::spawn_2d_individ_plugin::Spawn2dIndividPlugin;
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{AngularVelocity, LinearVelocity};
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
 pub struct EvolutionStepsImplementationPlugin;
 
-impl Plugin for EvolutionStepsImplementationPlugin{
+impl Plugin for EvolutionStepsImplementationPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(Spawn2dIndividPlugin) 
-            .add_systems(Update, (
-                reset_to_star_pos_on_event // Kan ikke gjøre run in state hvis state blir byttet tilbake i samme Update runde som eventet sendes ut  .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
-            ));
+        app.add_plugins(Spawn2dIndividPlugin).add_systems(
+            Update,
+            (
+                reset_to_star_pos_on_event
+                // Kan ikke gjøre run in state hvis state blir byttet tilbake i samme Update runde som eventet sendes ut  .run_if(in_state(Kjøretilstand::EvolutionOverhead)),
+            ),
+        );
     }
 }
-
 
 lazy_static! {
      static ref START_POSITION_PER_ENVIRONMENT:HashMap<EnvValg ,Vec2 > = {

@@ -1,17 +1,16 @@
 use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{MovingPlankObservation, PLANK_HIGHT, PLANK_LENGTH};
-use crate::evolusjon::evolusjon_steg_plugin::SpawnNewIndividualMessage;
+use crate::evolusjon::evolusjon_steg_plugin::{SpawnNewIndividualMessage, SpawnNewIndividualWithGenomeMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::{Individ, IndividFitnessLabelTextTag, PlankPhenotype};
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::{Collider, CollisionLayers, LinearVelocity, RigidBody};
 use bevy::asset::io::ErasedAssetReader;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::prelude::*;
-use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::{SpawnNewIndividualMessageWithGenome, ToDimensjonelleMijøSpesifikkeIndividOppførsler};
 
 pub struct Spawn2dIndividPlugin;
 
@@ -22,31 +21,33 @@ impl Plugin for Spawn2dIndividPlugin {
                 Startup,
                 (spawn_new_2d_individ_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)),
             )
-            .add_systems(Update, (
-                create_genome_and_send_spawn_message,
-                         // spawn_new_2d_individ_meldingsspiser.after(create_genome_and_send_spawn_message),
-            )
+            .add_systems(
+                Update,
+                (
+                    create_genome_and_send_spawn_message,
+                    // spawn_new_2d_individ_meldingsspiser.after(create_genome_and_send_spawn_message),
+                ),
             );
     }
 }
 
- fn create_genome_and_send_spawn_message(
-    mut  innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-    mut  spawn_new_individual_message_reader:  MessageReader<SpawnNewIndividualMessage>,
-    mut  spawn_new_individual_message_writer:  MessageWriter<SpawnNewIndividualMessageWithGenome>,
+fn create_genome_and_send_spawn_message(
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+    mut spawn_new_individual_message_reader: MessageReader<SpawnNewIndividualMessage>,
+    mut spawn_new_individual_message_writer: MessageWriter<SpawnNewIndividualWithGenomeMessage>,
 ) {
-     for message in spawn_new_individual_message_reader.read() {
-         let genome = match ACTIVE_ENVIROMENT {
-             EnvValg::HomingGroudY => new_random_genome(1, 1, &mut innovation_number_global_counter),
-             _ => new_random_genome(2, 2, &mut innovation_number_global_counter),
-         };
+    for message in spawn_new_individual_message_reader.read() {
+        let genome = match ACTIVE_ENVIROMENT {
+            EnvValg::HomingGroudY => new_random_genome(1, 1, &mut innovation_number_global_counter),
+            _ => new_random_genome(2, 2, &mut innovation_number_global_counter),
+        };
 
-         spawn_new_individual_message_writer.write(SpawnNewIndividualMessageWithGenome { new_genome: genome, n: message.n });
-     }
+        spawn_new_individual_message_writer.write(SpawnNewIndividualWithGenomeMessage { new_genome: genome });
+    }
 }
 
 fn spawn_new_2d_individ_meldingsspiser(
-    mut spawn_new_individual_message: MessageReader<SpawnNewIndividualMessageWithGenome>,
+    mut spawn_new_individual_message: MessageReader<SpawnNewIndividualWithGenomeMessage>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -80,8 +81,8 @@ fn spawn_new_2d_individ_meldingsspiser(
                 rectangle_mesh_handle.clone().into(),
                 Vec3 {
                     x: 0.0,
-                    // y: -150.0 + 3.3 * 50.0,
-                    y: -150.0 + message.n as f32 * 50.0,
+                    y: -150.0 + 3.3 * 50.0,
+                    // y: -150.0 + message.n as f32 * 50.0,
                     z: 1.0,
                 },
                 new_genome,

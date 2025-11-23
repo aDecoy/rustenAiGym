@@ -36,7 +36,7 @@ impl PhenotypeNeuralNetwork {
         // dbg!(&clamped_input_values);
 
         // Feed/load in input values
-        dbg!(&self.input_layer);
+        // dbg!(&self.input_layer);
         for i in 0..clamped_input_values.len() {
             let node = &self.input_layer[i];
             if node.enabled.read().unwrap().clone() == false {

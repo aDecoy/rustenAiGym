@@ -3,16 +3,16 @@ use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
 use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, SpawnNewIndividualMessage};
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
-use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
+use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::prelude::*;
 use bevy::asset::{Assets, Handle};
+use bevy::color::Color;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::color::Color;
-use bevy::math::{vec2, Vec2};
+use bevy::math::{Vec2, vec2};
 use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use bevy::prelude::{ColorMaterial, Commands, Entity, NextState, Query, Rectangle, Res, ResMut, Time, Transform, Window, With};
@@ -20,18 +20,8 @@ use std::ops::Mul;
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 
-
-
-#[derive(Message, Debug)]
-pub struct SpawnNewIndividualMessageWithGenome {
-    pub new_genome: Genome,
-    pub n: i32,
-}
-
 // impl EnvironmentSpesificIndividStuff for ToDimensjonelleMijøSpesifikkeIndividOppførsler {
 impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
-
-
     // fn agent_action(query: Query<Transform, With<Individual>>) {
     fn agent_action_and_fitness_evaluation(
         // mut query: Query<(&mut Transform, &mut PlankPhenotype, &mut LinearVelocity, Option<Forces>, Entity), (With<PlankPhenotype>)>,
@@ -127,7 +117,6 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
 
     // Turns out Rust dont have any good default parameter solutions. At least none that i like. Ok kanskje det er noen ok løsninger. https://www.thecodedmessage.com/posts/default-params/
 
-
     fn check_if_done(
         mut message_reader: MessageReader<crate::evolusjon::evolusjon_steg_plugin::CheckIfDoneRequest>,
         mut message_writer: MessageWriter<crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone>,
@@ -136,28 +125,27 @@ impl ToDimensjonelleMijøSpesifikkeIndividOppførsler {
         simulation_timer: Res<SimulationGenerationTimer>,
         window: Query<&Window, With<AllIndividerWindowTag>>,
     ) {
-        if !message_reader.is_empty(){
-        let max_width = window.single().unwrap().width() * 0.5;
+        if !message_reader.is_empty() {
+            let max_width = window.single().unwrap().width() * 0.5;
 
-        match ACTIVE_ENVIROMENT {
-            EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
-                // done if one is all the way to the right of the screen
-                for (individual, _) in query.iter_mut() {
-                    if individual.translation.x > max_width {
-                    // println!("done");
+            match ACTIVE_ENVIROMENT {
+                EnvValg::Høyre | EnvValg::Fall | EnvValg::FallVelocityHøyre | EnvValg::FallExternalForcesHøyre => {
+                    // done if one is all the way to the right of the screen
+                    for (individual, _) in query.iter_mut() {
+                        if individual.translation.x > max_width {
+                            // println!("done");
+                            message_writer.write(crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone);
+                        }
+                    }
+                }
+                EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => {
+                    if simulation_timer.main_timer.just_finished() {
+                        // println!("done");
                         message_writer.write(crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone);
+                    }
                 }
-                }
-            }
-            EnvValg::Homing | EnvValg::HomingGroud | EnvValg::HomingGroudY => {
-                if simulation_timer.main_timer.just_finished() {
-                // println!("done");
-                    message_writer.write(crate::evolusjon::evolusjon_steg_plugin::GenerationIsDone);
-
-            }
             }
         }
-    }
         message_reader.read();
     }
 }

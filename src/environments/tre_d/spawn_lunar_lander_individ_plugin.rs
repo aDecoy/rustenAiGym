@@ -1,15 +1,15 @@
 use crate::environments::tre_d::lunar_lander_individual_behavior::START_POSITION;
 // use avian2d::prelude::{Collider, CollisionLayers, RigidBody};
-use crate::evolusjon::evolusjon_steg_plugin::{PopulationIsSpawnedMessage, SpawnNewIndividualMessage};
+use crate::evolusjon::evolusjon_steg_plugin::{PopulationIsSpawnedMessage, SpawnNewIndividualMessage, SpawnNewIndividualWithGenomeMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
+use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
-use crate::genome::genome_stuff::{new_random_genome, InnovationNumberGlobalCounter};
 // todo lag spwawn individ on event plugin oig legg den til i main. starupt after create population
 
 pub struct SpawnLunarLanderPlugin;
@@ -20,13 +20,30 @@ impl Plugin for SpawnLunarLanderPlugin {
             .add_message::<PopulationIsSpawnedMessage>()
             .add_systems(
                 Startup,
-                (spawn_new_3d_individ_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)),
+                (spawn_new_3d_individ_med_nytt_genome_meldingsspiser.after(crate::evolusjon::evolusjon_steg_plugin::spawn_start_population)),
             )
-            .add_systems(Update, (spawn_new_3d_individ_meldingsspiser));
+            .add_systems(
+                Update,
+                (
+                    create_genome_and_send_spawn_message,
+                    spawn_new_3d_individ_med_nytt_genome_meldingsspiser.after(create_genome_and_send_spawn_message),
+                ),
+            );
     }
 }
 
-fn spawn_new_3d_individ_meldingsspiser(
+fn create_genome_and_send_spawn_message(
+    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
+    mut spawn_new_individual_message_reader: MessageReader<SpawnNewIndividualMessage>,
+    mut spawn_new_individual_message_writer: MessageWriter<SpawnNewIndividualWithGenomeMessage>,
+) {
+    for _ in spawn_new_individual_message_reader.read() {
+        let genome = new_random_genome(2, 2, &mut innovation_number_global_counter);
+        spawn_new_individual_message_writer.write(SpawnNewIndividualWithGenomeMessage { new_genome: genome });
+    }
+}
+
+fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
     mut spawn_new_individual_message: MessageReader<SpawnNewIndividualMessage>,
     mut population_done_spawning_in: MessageWriter<PopulationIsSpawnedMessage>,
     mut commands: Commands,
@@ -35,9 +52,8 @@ fn spawn_new_3d_individ_meldingsspiser(
     mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     for message in spawn_new_individual_message.read() {
-
         let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
-        
+
         let length = 1.0;
         // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];
         // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];

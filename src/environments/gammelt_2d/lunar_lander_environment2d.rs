@@ -1,15 +1,15 @@
 use crate::environments::gammelt_2d::evolution_steps_implementation_plugin::EvolutionStepsImplementationPlugin;
 use crate::environments::gammelt_2d::individ_watching_2d_camera::IndividWatching2dCameraPlugin;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
-use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Physics, PhysicsTime, Restitution, RigidBody};
+use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::MovingPlankWithUserInput2dPlugin;
+use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian2d::PhysicsPlugins;
+use avian2d::prelude::{Collider, CollisionLayers, Friction, LayerMask, Physics, PhysicsTime, Restitution, RigidBody};
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::Color;
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::MovingPlankWithUserInput2dPlugin;
 
 const GROUND_LENGTH: f32 = 5495.;
 const GROUND_HEIGHT: f32 = 10.;
@@ -25,8 +25,7 @@ pub const PHYSICS_RELATIVE_SPEED: f32 = 20.0;
 
 impl Plugin for LunarLanderEnvironment2d {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
+        app.add_plugins((PhysicsPlugins::default().with_length_unit(PIXELS_PER_METER),))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED))
             .add_plugins(MovingPlankWithUserInput2dPlugin)
             .add_plugins(IndividWatching2dCameraPlugin)

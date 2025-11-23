@@ -3,7 +3,7 @@ use bevy::app::{App, Plugin, PreStartup};
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{Camera, Camera3d};
 use bevy::math::Vec3;
-use bevy::prelude::{default, Commands, Entity, Query, Transform, Window, With};
+use bevy::prelude::{Commands, Entity, Query, Transform, Window, With, default};
 
 pub struct IndividWatching3dCameraPlugin;
 
@@ -14,7 +14,7 @@ impl Plugin for IndividWatching3dCameraPlugin {
     }
 }
 
-// todo Kanskje legge til et camera som følger elite target 
+// todo Kanskje legge til et camera som følger elite target
 
 fn setup_individ_watching_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     let main_camera = commands

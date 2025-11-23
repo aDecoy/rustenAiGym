@@ -28,15 +28,6 @@ use std::cmp::{max, min, Ordering};
 use std::collections::HashMap;
 use std::ops::Mul;
 
-// pub enum PossibleBehaviorSets{
-//     TOd( ToDimensjonelleMijøSpesifikkeIndividOppførsler),
-//     LUNAR_LANDER_3D(LunarLanderIndividBehaviors)
-// }
-
-pub enum PossibleBehaviorSets {
-    TOd { oppførsel: ToDimensjonelleMijøSpesifikkeIndividOppførsler },
-    LUNAR_LANDER_3D { oppførsel: LunarLanderIndividBehaviors },
-}
 
 pub struct EvolusjonStegPlugin;
 
@@ -46,10 +37,11 @@ pub struct PopulationIsSpawnedMessage;
 impl Plugin for EvolusjonStegPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ResetToStartPositionsEvent>()
-            .insert_state(Kjøretilstand::Kjørende)
+            .insert_state(Kjøretilstand::Pause)
             .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
             .add_message::<PopulationIsSpawnedMessage>()
             .add_message::<SpawnNewIndividualMessage>()
+            .add_message::<SpawnNewIndividualWithGenomeMessage>()
             .add_message::<ResetToStartPositionsEvent>()
             .add_message::<GenerationIsDone>()
             .add_message::<CheckIfDoneRequest>()
@@ -71,8 +63,8 @@ impl Plugin for EvolusjonStegPlugin {
                     reset_event_ved_input,
                     (
                         alle_individer_observerer,
-                    alle_individer_tenker_og_handler.after(alle_individer_observerer),
-                    alle_individer_får_fitness_evaluert.after(alle_individer_tenker_og_handler),
+                        alle_individer_tenker_og_handler.after(alle_individer_observerer),
+                        alle_individer_får_fitness_evaluert.after(alle_individer_tenker_og_handler),
                     )
                         .run_if(in_state(Kjøretilstand::Kjørende)),
                     (
@@ -94,7 +86,6 @@ impl Plugin for EvolusjonStegPlugin {
             );
 
         // todo ha denne pluginen sende messages som plukkes opp av implementasjon spesifikke plugins
-
     }
 }
 
@@ -112,24 +103,9 @@ pub enum Kjøretilstand {
     // SurvivorSelection,
 }
 
-pub(crate) fn spawn_start_population(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
-    mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
-) {
+pub(crate) fn spawn_start_population(mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>) {
     for n in 0i32..START_POPULATION_SIZE {
-        spawn_new_individual_writer.write(SpawnNewIndividualMessage{n:n});
-        // for n in 0i32..1 {
-        // ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual(
-        //     &mut commands,
-        //     &mut meshes,
-        //     &mut materials,
-        //     &mut innovation_number_global_counter,
-        //     n,
-        //     &mut spawn_new_individual_writer,
-        // );
+        spawn_new_individual_writer.write(SpawnNewIndividualMessage { n: n });
     }
 }
 
@@ -142,21 +118,14 @@ pub(crate) struct IndividerSkalTenkeOgHandleMessage;
 #[derive(Message, Debug, Default)]
 pub(crate) struct IndividerSkalFåFitnessEvaluertMessage;
 
-
-fn alle_individer_observerer(
-    mut message_writer: MessageWriter<IndividerSkalObservereMessage>
-){
+fn alle_individer_observerer(mut message_writer: MessageWriter<IndividerSkalObservereMessage>) {
     message_writer.write(IndividerSkalObservereMessage);
 }
-fn alle_individer_tenker_og_handler(
-   mut  message_writer: MessageWriter<IndividerSkalTenkeOgHandleMessage>
-){
+fn alle_individer_tenker_og_handler(mut message_writer: MessageWriter<IndividerSkalTenkeOgHandleMessage>) {
     message_writer.write(IndividerSkalTenkeOgHandleMessage);
 }
 
-fn alle_individer_får_fitness_evaluert(
-   mut  message_writer: MessageWriter<IndividerSkalFåFitnessEvaluertMessage>
-){
+fn alle_individer_får_fitness_evaluert(mut message_writer: MessageWriter<IndividerSkalFåFitnessEvaluertMessage>) {
     message_writer.write(IndividerSkalFåFitnessEvaluertMessage);
 }
 
@@ -203,17 +172,12 @@ pub(crate) struct GenerationIsDone;
 #[derive(Message)]
 pub(crate) struct CheckIfDoneRequest;
 
-fn request_env_to_check_if_done_with_generation(
-    mut message_writer: MessageWriter<CheckIfDoneRequest>,
-){
+fn request_env_to_check_if_done_with_generation(mut message_writer: MessageWriter<CheckIfDoneRequest>) {
     message_writer.write(CheckIfDoneRequest);
 }
 
-fn adjust_kjøretilstand_if_generation_is_done(
-    mut message_reader: MessageReader<GenerationIsDone>,
-    mut next_state: ResMut<NextState<Kjøretilstand>>,
-){
-    if !message_reader.is_empty(){
+fn adjust_kjøretilstand_if_generation_is_done(mut message_reader: MessageReader<GenerationIsDone>, mut next_state: ResMut<NextState<Kjøretilstand>>) {
+    if !message_reader.is_empty() {
         next_state.set(Kjøretilstand::EvolutionOverhead);
     }
     message_reader.read();
@@ -221,21 +185,22 @@ fn adjust_kjøretilstand_if_generation_is_done(
 
 fn extinction_on_t(
     mut commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity), With<PlankPhenotype>>,
     key_input: Res<ButtonInput<KeyCode>>,
-    innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
     mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
 ) {
     if key_input.just_pressed(KeyT) {
         for (entity) in query.iter() {
             commands.entity(entity).despawn();
         }
-        spawn_start_population(commands, meshes, materials, innovation_number_global_counter, spawn_new_individual_writer)
+        spawn_start_population(spawn_new_individual_writer)
     }
 }
 
+#[derive(Message, Debug)]
+pub struct SpawnNewIndividualWithGenomeMessage {
+    pub new_genome: Genome,
+}
 #[derive(Message, Debug)]
 pub struct SpawnNewIndividualMessage {
     // pub new_genome: Genome,
@@ -248,7 +213,7 @@ fn create_new_children(
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(Entity, &PlankPhenotype, &Genome), With<PlankPhenotype>>,
     camera: Query<Entity, With<AllIndividerCameraTag>>,
-    mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualMessage>,
+    mut spawn_new_individual_writer: MessageWriter<SpawnNewIndividualWithGenomeMessage>,
 ) {
     let mut population = Vec::new();
     //sort_individuals
@@ -315,7 +280,7 @@ fn create_new_children(
         // todo kanskje heller bare lage en event/ message til dit det skal lages en ny enitet? Trenger å skille evolusjon steg rekkefølge fra mer mijø og individ spesifikke ting.
         //  Ikke kalle direkte, bare lage en event som mijø / individ eller phenotype lytter på. Da også egentlig lett å utived senere til flere individ-art regler per mijø
 
-        spawn_new_individual_writer.write(SpawnNewIndividualMessage { new_genome: new_genome, n: 0 });
+        spawn_new_individual_writer.write(SpawnNewIndividualWithGenomeMessage { new_genome });
 
         // spawn_new_2d_individ(&mut commands, new_genome, rectangle_mesh_handle, material_handle);
     }
@@ -330,7 +295,5 @@ fn reset_event_ved_input(user_input: Res<ButtonInput<KeyCode>>, mut reset_events
     }
 }
 fn reset_to_star_pos(user_input: Res<ButtonInput<KeyCode>>, mut reset_events: MessageWriter<ResetToStartPositionsEvent>) {
-        reset_events.write_default();
+    reset_events.write_default();
 }
-
-

@@ -1,9 +1,9 @@
+use crate::Kjøretilstand;
 use crate::evolusjon::phenotype_plugin::{PhentypeAndGenome, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
-use crate::Kjøretilstand;
 use bevy::asset::{Assets, Handle};
-use bevy::color::palettes::basic::RED;
 use bevy::color::Color;
+use bevy::color::palettes::basic::RED;
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::*;
 use std::cmp::Ordering;

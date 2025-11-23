@@ -1,10 +1,10 @@
+use crate::environments::tre_d::moving_plank_with_user_input_3d_plugin::MovingPlankWithUserInput3dPlugin;
 use crate::environments::tre_d::spawn_lunar_lander_individ_plugin::SpawnLunarLanderPlugin;
 use crate::evolusjon::evolusjon_steg_plugin::{IndividerSkalFåFitnessEvaluertMessage, IndividerSkalTenkeOgHandleMessage};
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian3d::math::Vector;
-use avian3d::prelude::{AngularVelocity, Forces, LinearVelocity, RigidBodyForces};
+use avian3d::prelude::{AngularVelocity, Forces, LinearVelocity};
 use bevy::prelude::*;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
@@ -22,7 +22,10 @@ lazy_static! {
 // impl EnvironmentSpesificIndividStuff for LunarLanderIndividBehaviors {
 impl Plugin for LunarLanderIndividBehaviors {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SpawnLunarLanderPlugin).add_systems(
+        app
+            .add_plugins(SpawnLunarLanderPlugin)
+            .add_plugins(MovingPlankWithUserInput3dPlugin)
+            .add_systems(
             Update,
             (agent_fitness_evaluation, agent_observation_and_action, check_if_done, reset_to_star_pos_on_event),
         );
@@ -57,21 +60,23 @@ fn agent_fitness_evaluation(
 
 fn agent_observation_and_action(
     mut message_reader: MessageReader<IndividerSkalTenkeOgHandleMessage>,
-    mut query: Query<(&Transform, &mut PlankPhenotype, Forces, Entity), (With<PlankPhenotype>)>, time: Res<Time>) {
+    mut query: Query<(&Transform, &mut PlankPhenotype, Forces, Entity), (With<PlankPhenotype>)>,
+    time: Res<Time>,
+) {
     if !message_reader.is_empty() {
         for (transform, mut plank, mut forces, entity) in query.iter_mut() {
-        // plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()]
-        plank.obseravations = transform.translation.xyz().to_array().clone().to_vec();
-        let input_values = plank.obseravations.clone();
-        // dbg!(&input_values);
-        let action = plank.phenotype_layers.decide_on_action2(input_values);
-        let x = 1.0 * action[0];
-        let y = 1.0 * action[1];
-        let z = 1.0 * action[2];
-        // forces.non_waking().apply_force(vec2(x, y).mul(100.0));
-        forces.apply_force(vec3(x, y, z).mul(1.0));
-        // forces.non_waking().apply_local_linear_acceleration(Vec2::new(0.0, y));
-    }
+            // plank.obseravations = vec![transform.translation.x.clone(), transform.translation.y.clone()]
+            plank.obseravations = transform.translation.xyz().to_array().clone().to_vec();
+            let input_values = plank.obseravations.clone();
+            // dbg!(&input_values);
+            let action = plank.phenotype_layers.decide_on_action2(input_values);
+            let x = 0.000001 * action[0];
+            let y = 0.000001 * action[1];
+            let z = 0.000001 * action[2];
+            // forces.non_waking().apply_force(vec2(x, y).mul(100.0));
+            // forces.apply_force(vec3(x, y, z).mul(1.0));
+            // forces.non_waking().apply_local_linear_acceleration(Vec2::new(0.0, y));
+        }
     }
     message_reader.read();
 }
@@ -110,9 +115,9 @@ fn reset_to_star_pos_on_event(
         ) in query.iter_mut()
         {
             transform.translation.x = START_POSITION.x;
-            if ACTIVE_ENVIROMENT != EnvValg::Høyre {
                 transform.translation.y = START_POSITION.y;
-            }
+                transform.translation.z = START_POSITION.z;
+            
             transform.rotation = Quat::default();
 
             plank.score = transform.translation.x.clone();
