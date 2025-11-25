@@ -19,6 +19,7 @@ impl Plugin for IndividWatching3dCameraPlugin {
 fn setup_individ_watching_camera(mut commands: Commands, query: Query<Entity, With<Window>>) {
     let main_camera = commands
         .spawn((
+            Camera3d::default(), // dette fikk egui til å bytte camera...
             Camera {
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 1 as isize,

@@ -37,7 +37,7 @@ pub struct PopulationIsSpawnedMessage;
 impl Plugin for EvolusjonStegPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ResetToStartPositionsEvent>()
-            .insert_state(Kjøretilstand::Pause)
+            .insert_state(Kjøretilstand::Kjørende)
             .insert_state(MutasjonerErAktive::Ja) // todo la en knapp skru av og på mutasjon, slik at jeg kan se om identiske chilren gjør nøyaktig det som parents gjør
             .add_message::<PopulationIsSpawnedMessage>()
             .add_message::<SpawnNewIndividualMessage>()
@@ -77,7 +77,6 @@ impl Plugin for EvolusjonStegPlugin {
                         create_new_children,
                         // ToDimensjonelleMijøSpesifikkeIndividOppførsler::spawn_a_random_new_individual2,
                         lock_mutation_stability,
-                        add_observers_to_individuals.after(create_new_children),
                         set_to_kjørende_state,
                     )
                         .chain()
