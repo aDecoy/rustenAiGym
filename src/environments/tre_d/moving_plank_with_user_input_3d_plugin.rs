@@ -66,6 +66,8 @@ fn set_physics_time_to_paused_or_unpaused(kjøretistand_state: Res<State<Kjøret
     }
 }
 
+
+
 // Docs for avian froce rework  https://github.com/Jondolf/avian/pull/770
 // todo tyngdekraft kan endres til
 // // Apply a constant force of 10 N in the positive Y direction.

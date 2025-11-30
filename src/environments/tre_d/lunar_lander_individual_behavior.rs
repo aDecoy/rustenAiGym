@@ -4,8 +4,7 @@ use crate::evolusjon::evolusjon_steg_plugin::{IndividerSkalFåFitnessEvaluertMes
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use avian3d::math::Vector;
-use avian3d::prelude::{AngularVelocity, Forces, LinearVelocity};
-use bevy::prelude::*;
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::ops::Mul;
@@ -70,11 +69,13 @@ fn agent_observation_and_action(
             let input_values = plank.obseravations.clone();
             // dbg!(&input_values);
             let action = plank.phenotype_layers.decide_on_action2(input_values);
-            let x = 0.000001 * action[0];
-            let y = 0.000001 * action[1];
-            let z = 0.000001 * action[2];
+            let x = 0.01 * action[0];
+            let y = 0.01 * action[1];
+            let z = 0.01 * action[2];
+            let force_change = vec3(x, y, z).mul(1.0);
             // forces.non_waking().apply_force(vec2(x, y).mul(100.0));
-            // forces.apply_force(vec3(x, y, z).mul(1.0));
+            // dbg!(&force_change);
+            forces.apply_force(force_change);
             // forces.non_waking().apply_local_linear_acceleration(Vec2::new(0.0, y));
         }
     }
