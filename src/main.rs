@@ -3,7 +3,7 @@ use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{Mo
 use crate::environments::tre_d::lunar_lander_environment_3d::LunarLanderEnvironment3d;
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::evolusjon::evolusjon_steg_plugin::{EvolusjonStegPlugin, Kjøretilstand};
-use crate::evolusjon::phenotype_plugin::{FenotypePlugin, IndividFitnessLabelTextTag, PlankPhenotype, add_observers_to_individuals};
+use crate::evolusjon::phenotype_plugin::{FenotypePlugin, IndividFitnessLabelTextTag, PlankPhenotype};
 use crate::genome::genom_muteringer::mutate_genomes;
 use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
@@ -71,7 +71,6 @@ fn main() {
             },
             WorldInspectorPlugin::new(),
         ))
-        .add_plugins(MeshPickingPlugin)
         .insert_state(EttHakkState::DISABLED)
         .insert_resource(InnovationNumberGlobalCounter { count: 0 })
         .add_systems(Update, (endre_kjøretilstand_ved_input,))

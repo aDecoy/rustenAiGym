@@ -1,9 +1,9 @@
 use crate::environments::tre_d::individ_watching_3d_camera::IndividWatching3dCameraPlugin;
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::monitoring::camera_stuff::{RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_NETTVERK};
+use avian3d::PhysicsPlugins;
 use avian3d::prelude::*;
 use avian3d::prelude::{Physics, PhysicsTime};
-use avian3d::PhysicsPlugins;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
@@ -18,6 +18,7 @@ impl Plugin for LunarLanderEnvironment3d {
             .add_plugins((PhysicsPlugins::default()))
             .add_plugins((PhysicsDebugPlugin::default()))
             .insert_resource(Time::<Physics>::default().with_relative_speed(PHYSICS_RELATIVE_SPEED))
+            .insert_resource(Gravity::ZERO)
             .add_plugins(IndividWatching3dCameraPlugin)
             .add_plugins(LunarLanderIndividBehaviors)
             .add_systems(Startup, (spawn_ground));
@@ -31,7 +32,7 @@ fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut ma
         MeshMaterial3d(materials.add(Color::srgb(0.1, 0.2, 0.1))),
         RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
         RigidBody::Static,
-        Collider::cuboid(10.0, 0.1002, 5.00), 
+        Collider::cuboid(10.0, 0.1002, 5.00),
         Restitution::new(0.0),
         Friction::new(0.5),
         CollisionLayers::new(0b0010, LayerMask::ALL), // todo forvirrende retning. kanskje gi transfor med z spesifikt opp ? Tror Plane3d setter y opp ... rart
@@ -63,8 +64,6 @@ fn spawn_ground(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut ma
             ..default()
         },
         Transform::from_xyz(8.0, 16.0, 8.0),
-            RenderLayers::layer(RENDER_LAYER_NETTVERK), // Er dette et problem for skygger?? Eller mangler 
-
+        RenderLayers::layer(RENDER_LAYER_NETTVERK), // Er dette et problem for skygger?? Eller mangler
     ));
-
 }

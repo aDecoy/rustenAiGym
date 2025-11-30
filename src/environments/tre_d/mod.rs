@@ -2,4 +2,4 @@ mod individ_watching_3d_camera;
 pub mod lunar_lander_environment_3d;
 pub mod lunar_lander_individual_behavior;
 mod spawn_lunar_lander_individ_plugin;
-mod moving_plank_with_user_input_3d_plugin;
+mod user_input_3d_plugin;

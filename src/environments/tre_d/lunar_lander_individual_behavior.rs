@@ -1,5 +1,5 @@
-use crate::environments::tre_d::moving_plank_with_user_input_3d_plugin::MovingPlankWithUserInput3dPlugin;
 use crate::environments::tre_d::spawn_lunar_lander_individ_plugin::SpawnLunarLanderPlugin;
+use crate::environments::tre_d::user_input_3d_plugin::UserInput3dPlugin;
 use crate::evolusjon::evolusjon_steg_plugin::{IndividerSkalFåFitnessEvaluertMessage, IndividerSkalTenkeOgHandleMessage};
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
@@ -21,10 +21,7 @@ lazy_static! {
 // impl EnvironmentSpesificIndividStuff for LunarLanderIndividBehaviors {
 impl Plugin for LunarLanderIndividBehaviors {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(SpawnLunarLanderPlugin)
-            .add_plugins(MovingPlankWithUserInput3dPlugin)
-            .add_systems(
+        app.add_plugins(SpawnLunarLanderPlugin).add_plugins(UserInput3dPlugin).add_systems(
             Update,
             (agent_fitness_evaluation, agent_observation_and_action, check_if_done, reset_to_star_pos_on_event),
         );
@@ -116,9 +113,9 @@ fn reset_to_star_pos_on_event(
         ) in query.iter_mut()
         {
             transform.translation.x = START_POSITION.x;
-                transform.translation.y = START_POSITION.y;
-                transform.translation.z = START_POSITION.z;
-            
+            transform.translation.y = START_POSITION.y;
+            transform.translation.z = START_POSITION.z;
+
             transform.rotation = Quat::default();
 
             plank.score = transform.translation.x.clone();

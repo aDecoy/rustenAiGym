@@ -5,7 +5,6 @@ use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
@@ -13,6 +12,8 @@ use bevy::prelude::*;
 // todo lag spwawn individ on event plugin oig legg den til i main. starupt after create population
 
 pub struct SpawnLunarLanderPlugin;
+
+pub static INDIVID_DEFAULT_COLOR: Srgba = PURPLE;
 
 impl Plugin for SpawnLunarLanderPlugin {
     fn build(&self, app: &mut App) {
@@ -63,7 +64,7 @@ fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
             Mesh3d(meshes.add(Cuboid::new(individ_size[0], individ_size[1], individ_size[2]))),
             // MeshMaterial3d(materials.add(Color::srgb(0.5, 0.4, 0.3))),
             MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::from(PURPLE),
+                base_color: Color::from(INDIVID_DEFAULT_COLOR),
                 ..default()
             })),
             Transform::from_translation(START_POSITION.clone()), // from_xyz(START_POSITION.x, start_position[1], start_position[2]),

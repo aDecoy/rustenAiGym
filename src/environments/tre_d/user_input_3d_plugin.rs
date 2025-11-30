@@ -1,32 +1,44 @@
 use crate::EttHakkState;
-use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
+use crate::environments::tre_d::spawn_lunar_lander_individ_plugin::INDIVID_DEFAULT_COLOR;
+use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, PopulationIsSpawnedMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::{Individ, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
 use avian3d::PhysicsPlugins;
+use avian3d::math::Vector;
 use avian3d::prelude::*;
+use avian3d::prelude::{AngularVelocity as AngularVelocity3d, LinearVelocity as LinearVelocity3d};
 use bevy::camera::visibility::RenderLayers;
+use bevy::color::palettes::tailwind::{CYAN_300, PINK_100, RED_500};
+use bevy::picking::pointer::PointerInteraction;
 use bevy::prelude::KeyCode::{KeyA, KeyD, KeyX, KeyZ};
 use bevy::prelude::*;
 use std::vec;
 // use bevy_rapier2d::na::ComplexField;
 // use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group, NoUserData, PhysicsSet, RapierDebugRenderPlugin, RapierPhysicsPlugin, RigidBody, Velocity};
 
-pub struct MovingPlankWithUserInput3dPlugin;
+pub struct UserInput3dPlugin;
 
-impl Plugin for MovingPlankWithUserInput3dPlugin {
+impl Plugin for UserInput3dPlugin {
     fn build(&self, app: &mut App) {
         app
             // NOTE: Denne og SimulationGenerationTimer henger ikke sammen. Kan endres til å henge sammen, men er ikke gjort akkurat nå
             // Important note: gravity is default on, but only if ExternalForces is used https://github.com/Jondolf/avian/issues/526
             // .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0))
-            .insert_resource(Gravity::ZERO)
+            .add_plugins(MeshPickingPlugin)
+            .add_systems(Startup, update_gizmo_config)
+            .add_systems(
+                PostStartup,
+                (add_picking_observers_to_new_individuals.run_if(on_message::<PopulationIsSpawnedMessage>),),
+            )
             // .add_systems(Startup, spawn_plank)
             .add_systems(
                 Update,
                 (
+                    draw_mesh_intersections,
+                    add_picking_observers_to_new_individuals.run_if(on_message::<PopulationIsSpawnedMessage>),
                     (set_physics_time_to_paused_or_unpaused).run_if(state_changed::<Kjøretilstand>),
                     (
                         move_plank_with_keyboard_inputs,
@@ -42,6 +54,26 @@ impl Plugin for MovingPlankWithUserInput3dPlugin {
                 )
                     .chain(),
             );
+    }
+}
+
+fn update_gizmo_config(mut config_store: ResMut<GizmoConfigStore>) {
+    let (config, _) = config_store.config_mut::<DefaultGizmoConfigGroup>();
+    config.render_layers = RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER);
+    println!("oppdatert gizmo render layer")
+}
+
+/// A system that draws hit indicators for every pointer.
+fn draw_mesh_intersections(pointers: Query<&PointerInteraction>, mut gizmos: Gizmos) {
+    for (point, normal) in pointers
+        .iter()
+        .filter_map(|interaction| interaction.get_nearest_hit())
+        .filter_map(|(_entity, hit)| hit.position.zip(hit.normal))
+    {
+        println!("draw mesh med point {}", &point);
+
+        gizmos.sphere(point, 0.05, RED_500);
+        gizmos.arrow(point, point + normal.normalize() * 0.5, PINK_100);
     }
 }
 
@@ -65,8 +97,6 @@ fn set_physics_time_to_paused_or_unpaused(kjøretistand_state: Res<State<Kjøret
         Kjøretilstand::EvolutionOverhead => physics_time.unpause(),
     }
 }
-
-
 
 // Docs for avian froce rework  https://github.com/Jondolf/avian/pull/770
 // todo tyngdekraft kan endres til
@@ -211,4 +241,47 @@ fn reset_plank(mut query: Query<&mut Transform, With<PlankPhenotype>>) {
     translation.x = 0.0;
     translation.y = 0.0;
     translation.z = 0.0;
+}
+
+// fn rotate_on_drag(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn rotate_on_drag3d(drag: On<Pointer<Drag>>, mut angular_velocities: Query<&mut AngularVelocity3d>) {
+    // println!("dragging3d rotate");
+    let mut angular_velocitiy = angular_velocities.get_mut(drag.event().entity.entity()).unwrap();
+    angular_velocitiy.0 += Vector::new(0.1, 0.1, 0.1);
+}
+fn get_velocity_on_drag3d(drag: On<Pointer<Drag>>, mut velocities: Query<&mut LinearVelocity3d>) {
+    // println!("dragging3d velocity");
+    let mut velocitiy = velocities.get_mut(drag.event().entity.entity()).unwrap();
+    velocitiy.0 += Vector::new(drag.delta.x * 0.02, -drag.delta.y * 0.02, 0.); // todo https://bevy.org/examples/picking/mesh-picking/
+}
+
+pub fn add_picking_observers_to_new_individuals(
+    mut commands: Commands,
+    individ_query: Query<Entity, Added<PlankPhenotype>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let hover_matl = materials.add(Color::from(CYAN_300));
+    let default_matl = materials.add(Color::from(INDIVID_DEFAULT_COLOR));
+    for individ_entity in individ_query.iter() {
+        commands
+            .get_entity(individ_entity)
+            .unwrap()
+            // .observe(rotate_on_drag2d)
+            .observe(get_velocity_on_drag3d)
+            .observe(rotate_on_drag3d)
+            .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
+            .observe(update_material_on::<Pointer<Out>>(default_matl.clone()));
+    }
+}
+
+/// Returns an observer that updates the entity's material to the one specified.
+fn update_material_on<E: EntityEvent>(new_material: Handle<StandardMaterial>) -> impl Fn(On<E>, Query<&mut MeshMaterial3d<StandardMaterial>>) {
+    // An observer closure that captures `new_material`. We do this to avoid needing to write four
+    // versions of this observer, each triggered by a different event and with a different hardcoded
+    // material. Instead, the event type is a generic, and the material is passed in.
+    move |event, mut query| {
+        if let Ok(mut material) = query.get_mut(event.event_target()) {
+            material.0 = new_material.clone();
+        }
+    }
 }
