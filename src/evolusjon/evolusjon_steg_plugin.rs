@@ -1,16 +1,15 @@
-use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::individuals_behavior_for_2d_environments::ToDimensjonelleMijøSpesifikkeIndividOppførsler;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
 use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{PLANK_HIGHT, PLANK_LENGTH};
 use crate::environments::tre_d::lunar_lander_individual_behavior::LunarLanderIndividBehaviors;
 use crate::evolusjon::hjerne_fenotype::nullstill_nettverk_verdier_til_0;
-use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype, update_phenotype_network_for_changed_genomes};
-use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability, mutate_genomes};
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
+use crate::evolusjon::phenotype_plugin::{update_phenotype_network_for_changed_genomes, IndividFitnessLabelTextTag, PhentypeAndGenome, PlankPhenotype};
+use crate::genome::genom_muteringer::{lock_mutation_stability, mutate_genomes, MutasjonerErAktive};
+use crate::genome::genome_stuff::{new_random_genome, Genome, InnovationNumberGlobalCounter};
 use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag};
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
 use crate::{
-    ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, EnvValg, Kjøretilstand as OtherKjøretilstand, START_POPULATION_SIZE,
+    EnvValg, Kjøretilstand as OtherKjøretilstand, ACTIVE_ENVIROMENT, ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON, ANT_PARENTS_HVER_GENERASJON, START_POPULATION_SIZE,
 };
 use avian2d::math::{AdjustPrecision, Vector};
 use avian2d::prelude::*;
@@ -22,7 +21,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 use rand::prelude::IndexedRandom;
 use rand::thread_rng;
-use std::cmp::{Ordering, max, min};
+use std::cmp::{max, min, Ordering};
 use std::collections::HashMap;
 use std::ops::Mul;
 

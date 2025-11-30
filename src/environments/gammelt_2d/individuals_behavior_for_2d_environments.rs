@@ -1,21 +1,13 @@
-use crate::environments::felles_miljø_traits::EnvironmentSpesificIndividStuff;
 use crate::environments::gammelt_2d::lunar_lander_environment2d::LANDING_SITE;
-use crate::environments::gammelt_2d::moving_plank_with_user_input_2d_plugin::{PLANK_HIGHT, PLANK_LENGTH};
-use crate::evolusjon::evolusjon_steg_plugin::{Kjøretilstand, SpawnNewIndividualMessage};
+use crate::evolusjon::evolusjon_steg_plugin::Kjøretilstand;
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
-use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::AllIndividerWindowTag;
 use crate::monitoring::simulation_teller::SimulationGenerationTimer;
-use crate::{ACTIVE_ENVIROMENT, EnvValg};
+use crate::{EnvValg, ACTIVE_ENVIROMENT};
 use avian2d::prelude::*;
-use bevy::asset::{Assets, Handle};
-use bevy::color::Color;
-use bevy::color::palettes::basic::PURPLE;
-use bevy::color::palettes::tailwind::CYAN_300;
-use bevy::math::{Vec2, vec2};
-use bevy::mesh::Mesh;
+use bevy::math::{vec2, Vec2};
 use bevy::prelude::*;
-use bevy::prelude::{ColorMaterial, Commands, Entity, NextState, Query, Rectangle, Res, ResMut, Time, Transform, Window, With};
+use bevy::prelude::{Entity, NextState, Query, Res, ResMut, Time, Transform, Window, With};
 use std::ops::Mul;
 
 pub struct ToDimensjonelleMijøSpesifikkeIndividOppførsler;

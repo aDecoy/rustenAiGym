@@ -70,8 +70,7 @@ fn draw_mesh_intersections(pointers: Query<&PointerInteraction>, mut gizmos: Giz
         .filter_map(|interaction| interaction.get_nearest_hit())
         .filter_map(|(_entity, hit)| hit.position.zip(hit.normal))
     {
-        println!("draw mesh med point {}", &point);
-
+        // println!("draw mesh med point {}", &point);
         gizmos.sphere(point, 0.05, RED_500);
         gizmos.arrow(point, point + normal.normalize() * 0.5, PINK_100);
     }
