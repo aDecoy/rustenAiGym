@@ -1,5 +1,7 @@
+use crate::monitoring::camera_stuff::RENDER_LAYER_NETTVERK;
 use crate::monitoring::in_focus_stuff::{IndividInFocus, IndividInFocusСhangedEvent};
 use crate::{Genome, Kjøretilstand, NodeGene, WeightGene};
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -172,6 +174,7 @@ fn tegn_og_spawn_noder(
                 ),
                 NodeRefForDrawing { node: Arc::clone(node) },
                 DrawingTag,
+                RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 // Text::from_section("START!!!", text_style.clone()).with_justify(text_justification),
             ))
             .with_children(|builder| {
@@ -181,12 +184,14 @@ fn tegn_og_spawn_noder(
                     // , text_style.clone())                        .with_justify(text_justification),
                     Transform::from_xyz(0.0, 0.0, 2.0),
                     NodeValueLabelTag,
+                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ));
                 // IndividLabelText,
                 builder.spawn((
                     Text2d::new(node.label.clone()),
                     TextLayout::new_with_justify(if node.inputnode { Justify::Left } else { Justify::Right }),
                     Transform::from_xyz(0.0, 30.0, 3.0),
+                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ));
             });
     }
@@ -257,6 +262,7 @@ fn tegn_forbindelser(
                     )
                     .with_rotation(Quat::from_rotation_z(angle)),
                     DrawingTag,
+                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ))
                 .with_children(|builder| {
                     builder.spawn((
@@ -268,6 +274,7 @@ fn tegn_forbindelser(
                         // , text_style.clone())                    .with_justify(text_justification),
                         Transform::from_xyz(0.0, 0.0, 2.0).with_rotation(Quat::from_rotation_z(-angle)),
                         // IndividLabelText,
+                        RenderLayers::layer(RENDER_LAYER_NETTVERK),
                     ));
                     builder.spawn((
                         Mesh2d(meshes.add(Triangle2d::new(Vec2::Y * 10.0, Vec2::new(-10.0, -10.0), Vec2::new(10.0, -10.0)))),
@@ -278,6 +285,7 @@ fn tegn_forbindelser(
                             // .with_rotation(Quat::from_rotation_z(0.0 ))
                             .with_rotation(Quat::from_rotation_z(PI * 0.5)),
                         // IndividLabelText,
+                        RenderLayers::layer(RENDER_LAYER_NETTVERK),
                     ));
                 });
         }

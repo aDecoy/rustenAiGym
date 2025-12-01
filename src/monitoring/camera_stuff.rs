@@ -23,7 +23,8 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(LeftClickAction::Resize)
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
-            .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera)
+            .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
             // .add_systems(Startup, spawn_camera_margines)
@@ -75,25 +76,29 @@ impl CameraViewportSetting {
 }
 
 #[derive(Component)]
+#[require(RenderLayers)]
 pub struct AllIndividerCameraTag;
-#[derive(Component)]
-pub struct NetverkInFokusCameraTag;
 #[derive(Component)]
 pub struct AllIndividerWindowTag;
 
 #[derive(Component)]
-pub struct PopulasjonMenyCameraTag;
-
+#[require(RenderLayers)]
+struct NetverkInFokusCameraTag ;
 #[derive(Component)]
-pub struct KnapperMenyCameraTag;
+#[require(RenderLayers)]
+pub struct PopulasjonMenyCameraTag ;
+#[derive(Component)]
+#[require(RenderLayers)]
+pub struct KnapperMenyCameraTag ;
 
 #[derive(Component)]
 struct SecondaryWindowTag;
 
-pub const RENDER_LAYER_NETTVERK: usize = 0;
+pub const RENDER_LAYER_MYSTERIE: usize = 0;
 pub const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 pub const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 pub const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
+pub const RENDER_LAYER_NETTVERK: usize = 4;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum CameraDragningJustering {
@@ -279,11 +284,12 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
     }
 }
 
-pub fn spawn_camera_resize_button_for_neuron_camera(
+pub fn  spawn_camera_resize_button_for_neuron_camera<T: Component>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    kamera_query: Query<(Entity, &Camera), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    // kamera_query: Query<(Entity, &Camera), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    kamera_query: Query<(Entity, &Camera, &RenderLayers), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
 
@@ -291,7 +297,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
     // let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(top_left_corner.x as f32, top_left_corner.y as f32));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
     kamera_query.single().expect("Kamera eksisterer ikke :(");
-    for (kamera_entity, kamera) in kamera_query.iter() {
+    for (kamera_entity, kamera, render_layers) in kamera_query.iter() {
         let viewport = kamera.clone().viewport.unwrap().clone();
         // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera.
         // but as a child to the parent camera, the transform is relative to parent , and not global
@@ -301,6 +307,9 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
         let top_side = (viewport.physical_size.y as f32 * 0.5);
         dbg!(left_side, top_side);
         let mut parent_kamera = commands.get_entity(kamera_entity);
+        let render_layer_of_camera_componenat = render_layers
+            .iter()
+            .collect::<Vec<_>>();
 
         parent_kamera.unwrap().with_children(|parent_builder| {
             parent_builder
@@ -309,7 +318,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera(
                     MeshMaterial2d(material_handle.clone().into()),
                     Transform::from_xyz(left_side, top_side, 10.0),
                     KameraEdgeResizeDragButton,
-                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
+                    RenderLayers::from_layers(&render_layer_of_camera_componenat),
                 ))
                 .observe(camera_drag_to_resize);
         });
@@ -359,6 +368,31 @@ pub fn setup_extra_monitor_cameras(
                 camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
                 active_camera_mode_index: 1,
             },
+            RenderLayers::from_layers(&[RENDER_LAYER_MYSTERIE]),
+        ))
+        .with_children(|spawner| {
+            spawn_camera_margins(color_material_handle.clone(), spawner, RENDER_LAYER_MYSTERIE);
+        });
+
+    commands
+        .spawn((
+            Camera2d::default(),
+            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 4 as isize,
+                target: RenderTarget::Window(WindowRef::Entity(second_window)),
+                viewport: Some(Viewport::default()),
+                ..default()
+            },
+            CameraPosition {
+                pos: UVec2::new((1 % 2) as u32, (0 / 2) as u32),
+                // pos: UVec2::new((0 % 2) as u32, (0) as u32),
+            },
+            CameraViewportSetting {
+                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
+                active_camera_mode_index: 0,
+            },
             NetverkInFokusCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_NETTVERK]),
         ))
@@ -405,7 +439,7 @@ pub fn setup_extra_monitor_cameras(
                 y_høyde: 50,
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
-            KnapperMenyCameraTag,
+            KnapperMenyCameraTag ,
             RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
         ))
         .with_children(|parent_builder| {

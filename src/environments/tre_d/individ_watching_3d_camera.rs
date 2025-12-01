@@ -28,11 +28,12 @@ fn setup_individ_watching_camera(mut commands: Commands, query: Query<Entity, Wi
             // AllIndividerCamera{ camera_mode: CameraMode::HALV },
             AllIndividerCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
+            Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ))
         .id();
     commands.entity(query.single().unwrap()).insert((AllIndividerWindowTag));
-    commands
-        .get_entity(main_camera)
-        .unwrap()
-        .insert((Camera3d::default(), Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y)));
+    // commands
+    //     .get_entity(main_camera)
+    //     .unwrap()
+    //     .insert((Camera3d::default(), Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y)));
 }

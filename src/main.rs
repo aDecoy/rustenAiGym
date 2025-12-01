@@ -8,8 +8,8 @@ use crate::genome::genom_muteringer::mutate_genomes;
 use crate::genome::genom_muteringer::{MutasjonerErAktive, lock_mutation_stability};
 use crate::genome::genome_stuff::{Genome, InnovationNumberGlobalCounter, new_random_genome};
 use crate::genome::genome_stuff::{NodeGene, WeightGene};
-use crate::monitoring::camera_stuff::{AllIndividerCameraTag, AllIndividerWindowTag, PopulasjonMenyCameraTag, RENDER_LAYER_POPULASJON_MENY};
-use crate::monitoring::camera_stuff::{KnapperMenyCameraTag, MinCameraPlugin, resize_alle_individer_camera};
+use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_POPULASJON_MENY};
+use crate::monitoring::camera_stuff::{MinCameraPlugin, resize_alle_individer_camera};
 use crate::monitoring::draw_network::{
     TegnNevraltNettverkPlugin, oppdater_node_tegninger, place_in_focus, remove_drawing_of_network, remove_drawing_of_network_for_previous_individ_in_focus,
 };
