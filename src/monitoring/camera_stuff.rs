@@ -83,13 +83,13 @@ pub struct AllIndividerWindowTag;
 
 #[derive(Component)]
 #[require(RenderLayers)]
-struct NetverkInFokusCameraTag ;
+struct NetverkInFokusCameraTag;
 #[derive(Component)]
 #[require(RenderLayers)]
-pub struct PopulasjonMenyCameraTag ;
+pub struct PopulasjonMenyCameraTag;
 #[derive(Component)]
 #[require(RenderLayers)]
-pub struct KnapperMenyCameraTag ;
+pub struct KnapperMenyCameraTag;
 
 #[derive(Component)]
 struct SecondaryWindowTag;
@@ -284,7 +284,7 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
     }
 }
 
-pub fn  spawn_camera_resize_button_for_neuron_camera<T: Component>(
+pub fn spawn_camera_resize_button_for_neuron_camera<T: Component>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -298,6 +298,7 @@ pub fn  spawn_camera_resize_button_for_neuron_camera<T: Component>(
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
     kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity, kamera, render_layers) in kamera_query.iter() {
+        dbg!(&kamera);
         let viewport = kamera.clone().viewport.unwrap().clone();
         // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera.
         // but as a child to the parent camera, the transform is relative to parent , and not global
@@ -307,9 +308,7 @@ pub fn  spawn_camera_resize_button_for_neuron_camera<T: Component>(
         let top_side = (viewport.physical_size.y as f32 * 0.5);
         dbg!(left_side, top_side);
         let mut parent_kamera = commands.get_entity(kamera_entity);
-        let render_layer_of_camera_componenat = render_layers
-            .iter()
-            .collect::<Vec<_>>();
+        let render_layer_of_camera_componenat = render_layers.iter().collect::<Vec<_>>();
 
         parent_kamera.unwrap().with_children(|parent_builder| {
             parent_builder
@@ -320,7 +319,7 @@ pub fn  spawn_camera_resize_button_for_neuron_camera<T: Component>(
                     KameraEdgeResizeDragButton,
                     RenderLayers::from_layers(&render_layer_of_camera_componenat),
                 ))
-                .observe(camera_drag_to_resize);
+                .observe(camera_drag_to_resize::<T>);
         });
     }
 }
@@ -408,7 +407,8 @@ pub fn setup_extra_monitor_cameras(
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 2 as isize,
                 target: RenderTarget::Window(WindowRef::Entity(second_window)),
-                ..default()
+                viewport: Some(Viewport::default()),
+                 ..default()
             },
             CameraViewportSetting {
                 camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
@@ -433,13 +433,14 @@ pub fn setup_extra_monitor_cameras(
                 // Renders cameras with different priorities to prevent ambiguities
                 order: 3 as isize,
                 target: RenderTarget::Window(WindowRef::Entity(second_window)),
+                viewport: Some(Viewport::default()),
                 ..default()
             },
             CameraAbsolutePosition {
                 y_høyde: 50,
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
-            KnapperMenyCameraTag ,
+            KnapperMenyCameraTag,
             RenderLayers::from_layers(&[RENDER_LAYER_TOP_BUTTON_MENY]),
         ))
         .with_children(|parent_builder| {
@@ -487,10 +488,14 @@ fn set_camera_viewports(
     mut absolutt_kamera_query: Query<(&CameraAbsolutePosition, &mut Camera), (With<KnapperMenyCameraTag>, Without<CameraPosition>, Without<AllIndividerCameraTag>)>,
     mut kamera_med_størrelse_og_posisjon_settings_query: Query<(&CameraPosition, &mut Camera, &CameraViewportSetting), (Without<CameraAbsolutePosition>)>,
 ) {
+    // println!("Setter kamera viewports hvis events");
+
     // We need to dynamically resize the camera's viewports whenever the window size changes
     // so then each camera always takes up half the screen.
-    // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
+    // Obs obs: The following might not no longer be true for cameras except for default camera for window??., A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
     for resize_event in resize_events.read() {
+        println!("Setter kamera viewports siden resize events eksisterer");
+
         // let primary_window = primary_window.get(resize_event.window);
 
         if let Ok(window) = primary_window.get(resize_event.window) {
@@ -774,16 +779,16 @@ fn adjust_camera_viewport_according_to_settings(
     camera: &mut Mut<Camera>,
     viewport_settings: &CameraViewportSetting,
 ) {
-    // println!("variabel-kamera er i vindu som ble endret og vil bli justert");
+    println!("variabel-kamera er i vindu som ble endret og vil bli justert");
     let camera_viewport_size_setting = viewport_settings.get_camera_mode();
-    // dbg!(&camera_viewport_size_setting);
-    // dbg!(&camera_position.pos);
+    dbg!(&camera_viewport_size_setting);
+    dbg!(&camera_position.pos);
     //
-    // println!(
-    //     "variabel_kamera_query er i primary window : {}  ",
-    //     camera.target.is_window_target_primary(),
-    //     // camera.target.get_window_target_entity().unwrap()
-    // );
+    println!(
+        "variabel_kamera_query er i primary window : {}  ",
+        camera.target.is_window_target_primary(),
+        // camera.target.get_window_target_entity().unwrap()
+    );
 
     if camera_viewport_size_setting != CameraMode::AV {
         camera.viewport = Some(Viewport {
@@ -833,17 +838,19 @@ pub fn resize_alle_individer_camera(
     }
 }
 
-fn camera_drag_to_resize(drag: On<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>, window_query: Query<&Window>) {
+// fn camera_drag_to_resize(drag: On<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>, window_query: Query<&Window>) {
+fn camera_drag_to_resize<T: Component>(drag: On<Pointer<Drag>>, mut kamera_query: Query<(&mut Camera), With<T>>, window_query: Query<&Window>) {
     // println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut camera) = kamera_query.single_mut() {
-        println!("resizing camera2");
+        println!("resizing camera in window");
 
         // finn window størrelse for å vite max endring vi kan gjøre (krasjer hvis går over vindu)
         let window = window_query.get(camera.target.get_window_target_entity().unwrap()).unwrap(); // jeg er usikker på om camera i primary vindu har ressultat av get_window_target_entity.
         let window_size = window.physical_size();
 
         let potensiell_viewport: &mut Option<Viewport> = &mut camera.viewport;
+        dbg!(&potensiell_viewport);
 
         if let Some(viewport) = potensiell_viewport {
             let u32_vektor: &mut UVec2 = &mut viewport.physical_size;
