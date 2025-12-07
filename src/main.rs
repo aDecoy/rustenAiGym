@@ -93,7 +93,7 @@ fn main() {
 
 /////////////////// create/kill/develop  new individuals
 
-static START_POPULATION_SIZE: i32 = 300;
+static START_POPULATION_SIZE: i32 = 100;
 static ANT_INDIVIDER_SOM_OVERLEVER_HVER_GENERASJON: i32 = 5;
 static ANT_PARENTS_HVER_GENERASJON: usize = 3;
 

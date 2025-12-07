@@ -23,11 +23,11 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(LeftClickAction::Resize)
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
-            .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<NetverkInFokusCameraTag>)
-            .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
-            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            // .add_systems(Startup, spawn_camera_resize_button_for_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_resize_button_for_camera::<PopulasjonMenyCameraTag>)
+            // .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
-            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            // .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
@@ -238,13 +238,14 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera<T: Component>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     // kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
-    kamera_query: Query<(Entity), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    kamera_query: Query<(Entity, &RenderLayers), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
     kamera_query.single().expect("Kamera eksisterer ikke :(");
-    for (kamera_entity) in kamera_query.iter() {
+    for (kamera_entity, render_layers) in kamera_query.iter() {
         let mut parent_kamera = commands.get_entity(kamera_entity);
+        let render_layer_of_camera_component = render_layers.iter().collect::<Vec<_>>();
 
         parent_kamera.unwrap().with_children(|parent_builder| {
             parent_builder
@@ -253,7 +254,7 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera<T: Component>(
                     MeshMaterial2d(material_handle.clone().into()),
                     Transform::from_xyz(0.0, 0.0, 10.0), // will be adjusted on camera move events
                     KameraEdgeMoveCameraInTheWorldDragButton,
-                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
+                    RenderLayers::from_layers(&render_layer_of_camera_component),
                 ))
                 .observe(camera_drag_to_move_camera_in_the_world::<T>);
         });
@@ -265,14 +266,15 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera<T: Component>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     // kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
-    kamera_query: Query<(Entity), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    kamera_query: Query<(Entity, &RenderLayers), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(BLUE));
     let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(Vec2::new(-15., 0.), Vec2::new(15., 0.), Vec2::new(0., 15.)));
 
     kamera_query.single().expect("Kamera eksisterer ikke :(");
-    for (kamera_entity) in kamera_query.iter() {
+    for (kamera_entity, render_layers) in kamera_query.iter() {
         let mut parent_kamera = commands.get_entity(kamera_entity);
+        let render_layer_of_camera_component = render_layers.iter().collect::<Vec<_>>();
 
         parent_kamera.unwrap().with_children(|parent_builder| {
             parent_builder
@@ -281,14 +283,14 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera<T: Component>(
                     MeshMaterial2d(material_handle.clone().into()),
                     Transform::from_xyz(0.0, 0.0, 10.0), // will be adjusted on camera move events
                     KameraEdgeMoveCameraInTheWindowDragButton,
-                    RenderLayers::layer(RENDER_LAYER_NETTVERK),
+                    RenderLayers::from_layers(&render_layer_of_camera_component),
                 ))
                 .observe(camera_drag_to_move_camera_in_the_window::<T>);
         });
     }
 }
 
-pub fn spawn_camera_resize_button_for_neuron_camera<T: Component>(
+pub fn spawn_camera_resize_button_for_camera<T: Component>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -312,7 +314,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera<T: Component>(
         let top_side = (viewport.physical_size.y as f32 * 0.5);
         dbg!(left_side, top_side);
         let mut parent_kamera = commands.get_entity(kamera_entity);
-        let render_layer_of_camera_componenat = render_layers.iter().collect::<Vec<_>>();
+        let render_layer_of_camera_component = render_layers.iter().collect::<Vec<_>>();
 
         parent_kamera.unwrap().with_children(|parent_builder| {
             parent_builder
@@ -321,7 +323,7 @@ pub fn spawn_camera_resize_button_for_neuron_camera<T: Component>(
                     MeshMaterial2d(material_handle.clone().into()),
                     Transform::from_xyz(left_side, top_side, 10.0),
                     KameraEdgeResizeDragButton,
-                    RenderLayers::from_layers(&render_layer_of_camera_componenat),
+                    RenderLayers::from_layers(&render_layer_of_camera_component),
                 ))
                 .observe(camera_drag_to_resize::<T>);
         });
@@ -693,6 +695,7 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
+        dbg!( &camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,
@@ -722,6 +725,7 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
+        dbg!( &camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,

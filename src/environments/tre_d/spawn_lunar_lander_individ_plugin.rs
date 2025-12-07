@@ -39,21 +39,21 @@ fn create_genome_and_send_spawn_message(
     mut spawn_new_individual_message_writer: MessageWriter<SpawnNewIndividualWithGenomeMessage>,
 ) {
     for _ in spawn_new_individual_message_reader.read() {
-        let genome = new_random_genome(2, 2, &mut innovation_number_global_counter);
+        let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
         spawn_new_individual_message_writer.write(SpawnNewIndividualWithGenomeMessage { new_genome: genome });
     }
 }
 
 fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
-    mut spawn_new_individual_message: MessageReader<SpawnNewIndividualMessage>,
+    mut spawn_new_individual_message: MessageReader<SpawnNewIndividualWithGenomeMessage>,
     mut population_done_spawning_in: MessageWriter<PopulationIsSpawnedMessage>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut innovation_number_global_counter: ResMut<InnovationNumberGlobalCounter>,
 ) {
     for message in spawn_new_individual_message.read() {
-        let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
+        // let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
+        let genome = message.new_genome.clone();
 
         let length = 1.0;
         // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];

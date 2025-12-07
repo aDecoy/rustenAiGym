@@ -81,7 +81,7 @@ fn setup_population_meny(
     camera_query: Query<(Entity, &Camera), With<PopulasjonMenyCameraTag>>,
 ) {
     let population: Vec<PhentypeAndGenome> = get_population_sorted_from_best_to_worst_v2(query.iter()).clone();
-    let best = population[0].clone();
+    // let best = population[0].clone();
 
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(PLANK_LENGTH, PLANK_HIGHT));
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(PURPLE));
@@ -95,8 +95,10 @@ fn setup_population_meny(
         commands
             .spawn((
                 Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
+                    width: Val::Percent(90.0),
+                    height: Val::Percent(90.0),
+                    // left: px(10.0),
+                    // right: px(10.0),
                     // justify_content: JustifyContent::SpaceBetween,
                     // justify_content: JustifyContent::Stretch,
                     justify_content: JustifyContent::SpaceEvenly,
@@ -105,8 +107,8 @@ fn setup_population_meny(
                     ..default()
                 },
                 Outline::new(Val::Px(10.), Val::ZERO, RED.into()),
-                // RenderLayers::layer(RENDER_LAYER_POPULASJON_MENY), // https://github.com/bevyengine/bevy/issues/12461
-                UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden
+                UiTargetCamera(camera_entity), // UiTargetCamera brukes for UI ting. Ser ut til at bare trenger den på top noden.
+                // Bevy UI doesn't support `RenderLayers`. Each UI layout can only have one render target, selected using `UiTargetCamera`
             ))
             .with_children(|parent| {
                 // kolonner som fyller hele veien ned
