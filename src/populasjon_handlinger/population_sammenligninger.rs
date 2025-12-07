@@ -1,4 +1,5 @@
 use crate::Kjøretilstand;
+use crate::evolusjon::evolusjon_steg_plugin::PopulationIsSpawnedMessage;
 use crate::evolusjon::phenotype_plugin::{PhentypeAndGenome, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use bevy::asset::{Assets, Handle};
@@ -72,8 +73,6 @@ pub fn get_best_elite<'a>(iteratior: QueryIter<'a, '_, (Entity, &PlankPhenotype,
     return elite.clone(); // KAN DET VÆRE AT DETTE LAGER EN NY GENOME`?
 }
 // fn get_population_sorted_from_best_to_worst<'lifetime_a>(query: QueryIter<'lifetime_a, '_, &crate::PlankPhenotype, ()>) -> Vec<&'lifetime_a crate::PlankPhenotype> {
-
-// todo bare kjøre denne etter at populasjon er laget
 
 pub(crate) fn add_elite_component_tag_to_best_individ(
     mut commands: Commands,

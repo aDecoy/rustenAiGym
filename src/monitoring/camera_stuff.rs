@@ -354,7 +354,7 @@ pub fn spawn_camera_resize_button_for_camera<T: Component>(
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
     kamera_query.single().expect("Kamera eksisterer ikke :(");
     for (kamera_entity, kamera, render_layers) in kamera_query.iter() {
-        dbg!(&kamera);
+        // dbg!(&kamera);
         let viewport = kamera.clone().viewport.unwrap().clone();
         // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera.
         // but as a child to the parent camera, the transform is relative to parent , and not global
@@ -362,7 +362,7 @@ pub fn spawn_camera_resize_button_for_camera<T: Component>(
         // let top_side = viewport.physical_position.y as f32 - (viewport.physical_size.y as f32 * 0.5);
         let left_side = -(viewport.physical_size.x as f32 * 0.5);
         let top_side = (viewport.physical_size.y as f32 * 0.5);
-        dbg!(left_side, top_side);
+        // dbg!(left_side, top_side);
         let mut parent_kamera = commands.get_entity(kamera_entity);
         let render_layer_of_camera_component = render_layers.iter().collect::<Vec<_>>();
 
@@ -746,7 +746,7 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
-        dbg!(&camera.viewport);
+        // dbg!(&camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,
@@ -776,7 +776,7 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
-        dbg!(&camera.viewport);
+        // dbg!(&camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,
@@ -838,16 +838,16 @@ fn adjust_camera_viewport_according_to_settings(
     camera: &mut Mut<Camera>,
     viewport_settings: &CameraViewportSetting,
 ) {
-    println!("variabel-kamera er i vindu som ble endret og vil bli justert");
+    // println!("variabel-kamera er i vindu som ble endret og vil bli justert");
     let camera_viewport_size_setting = viewport_settings.get_camera_mode();
-    dbg!(&camera_viewport_size_setting);
-    dbg!(&camera_position.pos);
+    // dbg!(&camera_viewport_size_setting);
+    // dbg!(&camera_position.pos);
     //
-    println!(
-        "variabel_kamera_query er i primary window : {}  ",
-        camera.target.is_window_target_primary(),
-        // camera.target.get_window_target_entity().unwrap()
-    );
+    // println!(
+    //     "variabel_kamera_query er i primary window : {}  ",
+    //     camera.target.is_window_target_primary(),
+    //     // camera.target.get_window_target_entity().unwrap()
+    // );
 
     if camera_viewport_size_setting != CameraMode::AV {
         camera.viewport = Some(Viewport {

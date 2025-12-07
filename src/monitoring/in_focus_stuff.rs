@@ -1,3 +1,4 @@
+use crate::evolusjon::evolusjon_steg_plugin::PopulationIsSpawnedMessage;
 use crate::evolusjon::phenotype_plugin::PlankPhenotype;
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::draw_network::place_in_focus;
@@ -9,6 +10,7 @@ use bevy::color::palettes::tailwind::CYAN_300;
 use bevy::color::{Alpha, Color};
 use bevy::ecs::query::QueryIter;
 use bevy::prelude::*;
+use bevy::tasks::futures_lite::StreamExt;
 use std::cmp::Ordering;
 // mod populasjon_handlinger;
 
@@ -24,16 +26,24 @@ pub(crate) struct InFocusPlugin;
 
 impl Plugin for InFocusPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<IndividInFocusСhangedEvent>()
-            // .add_systems(
-            //     PostStartup,
-            //     (
-            //         set_new_elite_in_focus,
-            //         publiser_event_for_ny_individ_i_fokus,
-            //         // color_change_on_pointer_out_of_individ
-            //     ),
-            // )
-            .add_systems(Update, (fjern_fokus_fra_gammel_elite, set_new_elite_in_focus, publiser_event_for_ny_individ_i_fokus));
+        app.add_message::<IndividInFocusСhangedEvent>()
+            .add_systems(
+                PostStartup,
+                (
+                    set_new_elite_in_focus,
+                    publiser_event_for_ny_individ_i_fokus,
+                    set_a_random_individ_in_focus_after_population_is_spawned_if_no_elite_exist, // color_change_on_pointer_out_of_individ
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    set_a_random_individ_in_focus_after_population_is_spawned_if_no_elite_exist,
+                    fjern_fokus_fra_gammel_elite,
+                    set_new_elite_in_focus,
+                    publiser_event_for_ny_individ_i_fokus,
+                ),
+            );
     }
 }
 fn color_change_on_pointer_out_of_individ(
@@ -68,6 +78,26 @@ fn update_material_on<E: EntityEvent>(new_material: Handle<ColorMaterial>) -> im
     move |on, mut query| {
         if let Ok(mut material) = query.get_mut(on.event_target()) {
             material.0 = new_material.clone();
+        }
+    }
+}
+
+fn set_a_random_individ_in_focus_after_population_is_spawned_if_no_elite_exist(
+    mut population_done_spawning_in: MessageReader<PopulationIsSpawnedMessage>,
+    mut commands: Commands,
+    query: Query<(Entity), (Without<IndividInFocus>, With<PlankPhenotype>)>,
+    individ_in_focus_query: Query<(Entity), With<IndividInFocus>>,
+) {
+    if !individ_in_focus_query.is_empty() {
+        return;
+    }
+    for _ in population_done_spawning_in.read() {
+        println!("populasjon er spawned inn, setter en random til å være i fokus");
+        if let Some((entity)) = query.iter().next() {
+            println!("setter random individ til å være i fokus");
+            commands.entity(entity).insert(IndividInFocus);
+        } else {
+            warn!("kunne ikke finne et random individ til å putte i fokus :(")
         }
     }
 }

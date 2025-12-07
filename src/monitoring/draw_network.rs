@@ -44,7 +44,7 @@ pub fn draw_network_in_genome2(mut commands: Commands, mut meshes: ResMut<Assets
 
     let point_per_node = kordinater_per_node(genome, node_to_layer, layers_ordered_output_to_input);
 
-    println!("tegner opp {} noder", point_per_node.iter().count());
+    // println!("tegner opp {} noder", point_per_node.iter().count());
 
     // draw connections
     tegn_forbindelser(&mut commands, &mut meshes, &mut materials, genome, &point_per_node);
@@ -425,10 +425,12 @@ pub fn spawn_drawing_of_network_for_individ_in_focus_changed_event(
     mut changed_focus_eventer: MessageReader<IndividInFocusСhangedEvent>,
 ) {
     if changed_focus_eventer.read().next().is_some() {
+        // println!("tegner opp nettverk");
+
         let genome = query.single();
 
         if genome.is_ok() {
-            println!("Spawning drawing of network for_individ_in_focus_changed_event");
+            // println!("Spawning drawing of network for_individ_in_focus_changed_event");
             draw_network_in_genome2(commands, meshes, materials, genome.unwrap());
         } else {
             println!("intet genom i fokus ?!, (eller flere samtidig...)")
