@@ -3,14 +3,16 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{RenderTarget, Viewport};
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::css::BLUE;
-use bevy::color::palettes::tailwind::CYAN_950;
+use bevy::color::palettes::tailwind::{CYAN_950, GREEN_800};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::ButtonInput;
+use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
+use std::f32::consts::PI;
 
 pub struct MinCameraPlugin {
     pub(crate) debug: bool,
@@ -23,22 +25,25 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(LeftClickAction::Resize)
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
-            // .add_systems(Startup, spawn_camera_resize_button_for_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_resize_button_for_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_resize_button_for_camera::<PopulasjonMenyCameraTag>)
-            // .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_resize_button_for_camera::<RenderLayerMysterieTag>)
+            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
-            // .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<RenderLayerMysterieTag>)
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<RenderLayerMysterieTag>)
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
                 (
                     set_camera_viewports,
-                    // adjust_camera_drag_point_viewports,
                     adjust_camera_margines,
                     adjust_camera_drag_resize_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement,
+                    zoom,
                 ),
             )
             .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),));
@@ -89,6 +94,9 @@ struct NetverkInFokusCameraTag;
 #[derive(Component)]
 #[require(RenderLayers)]
 pub struct PopulasjonMenyCameraTag;
+#[derive(Component)]
+#[require(RenderLayers)]
+pub struct RenderLayerMysterieTag;
 #[derive(Component)]
 #[require(RenderLayers)]
 pub struct KnapperMenyCameraTag;
@@ -156,6 +164,48 @@ const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::West,
     CompassOctant::NorthWest,
 ];
+
+fn zoom(
+    mut camera_projections: Query<&mut Projection, With<Camera>>,
+    // camera_settings: Res<CameraSettings>,
+    mouse_wheel_input: Res<AccumulatedMouseScroll>,
+) {
+    for mut projection in camera_projections.iter_mut() {
+        // https://bevy.org/examples/camera/projection-zoom/
+        if (mouse_wheel_input.delta != Vec2::ZERO) {
+            // dbg!(&mouse_wheel_input);
+            // dbg!(&projection);
+            let y = mouse_wheel_input.delta.y;
+            let zoom_speed = 1.0;
+            let delta_zoom = -y * zoom_speed;
+            match *projection {
+                Projection::Orthographic(ref mut orthographic) => {
+                    // When changing scales, logarithmic changes are more intuitive.
+                    // To get this effect, we add 1 to the delta, so that a delta of 0
+                    // results in no multiplicative effect, positive values result in a multiplicative increase,
+                    // and negative values result in multiplicative decreases.
+                    let multiplicative_zoom = 1. + delta_zoom;
+
+                    orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.1, 10.0);
+                }
+                Projection::Perspective(ref mut perspective) => {
+                    // We want scrolling up to zoom in, decreasing the scale, so we negate the delta.
+                    // Changes in FOV are much more noticeable due to its limited range in radians
+                    let delta_zoom = -mouse_wheel_input.delta.y * 0.05;
+
+                    // Adjust the field of view, but keep it within our stated range.
+                    perspective.fov = (perspective.fov + delta_zoom).clamp(
+                        // Perspective projections use field of view, expressed in radians. We would
+                        // normally not set it to more than π, which represents a 180° FOV.
+                        (PI / 5.),
+                        (PI - 0.2),
+                    );
+                }
+                _ => (),
+            }
+        }
+    }
+}
 
 fn juster_camera_størrelse_dragning_retning(
     // mut action: ResMut<LeftClickAction>,
@@ -373,6 +423,7 @@ pub fn setup_extra_monitor_cameras(
                 camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
                 active_camera_mode_index: 1,
             },
+            RenderLayerMysterieTag,
             RenderLayers::from_layers(&[RENDER_LAYER_MYSTERIE]),
         ))
         .with_children(|spawner| {
@@ -695,7 +746,7 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
-        dbg!( &camera.viewport);
+        dbg!(&camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,
@@ -725,7 +776,7 @@ fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
     for (camera, barn_marginer) in kamera_query.iter() {
-        dbg!( &camera.viewport);
+        dbg!(&camera.viewport);
         if let Some(viewport) = &camera.viewport {
             let view_dimensions = Vec2 {
                 x: viewport.physical_size.x as f32,
