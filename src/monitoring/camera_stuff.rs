@@ -25,8 +25,10 @@ impl Plugin for MinCameraPlugin {
             .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_resize_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
-            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera)
-            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera)
+            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
+            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
             // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
@@ -231,11 +233,12 @@ struct KameraEdgeMoveCameraInTheWorldDragButton;
 #[derive(Component)]
 struct KameraEdgeMoveCameraInTheWindowDragButton;
 
-pub fn spawn_camera_move_in_world_button_for_neuron_camera(
+pub fn spawn_camera_move_in_world_button_for_neuron_camera<T: Component>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    // kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    kamera_query: Query<(Entity), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(RED));
     let rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, 10.0));
@@ -252,16 +255,17 @@ pub fn spawn_camera_move_in_world_button_for_neuron_camera(
                     KameraEdgeMoveCameraInTheWorldDragButton,
                     RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ))
-                .observe(camera_drag_to_move_camera_in_the_world);
+                .observe(camera_drag_to_move_camera_in_the_world::<T>);
         });
     }
 }
 
-pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
+pub fn spawn_camera_move_on_screen_button_for_neuron_camera<T: Component>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    // kamera_query: Query<(Entity), With<NetverkInFokusCameraTag>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
+    kamera_query: Query<(Entity), With<T>>, // kan gjøres generisk ved å ta inn denne taggen som en <T>
 ) {
     let material_handle: Handle<ColorMaterial> = materials.add(Color::from(BLUE));
     let mesh_handle: Handle<Mesh> = meshes.add(Triangle2d::new(Vec2::new(-15., 0.), Vec2::new(15., 0.), Vec2::new(0., 15.)));
@@ -279,7 +283,7 @@ pub fn spawn_camera_move_on_screen_button_for_neuron_camera(
                     KameraEdgeMoveCameraInTheWindowDragButton,
                     RenderLayers::layer(RENDER_LAYER_NETTVERK),
                 ))
-                .observe(camera_drag_to_move_camera_in_the_window);
+                .observe(camera_drag_to_move_camera_in_the_window::<T>);
         });
     }
 }
@@ -408,7 +412,7 @@ pub fn setup_extra_monitor_cameras(
                 order: 2 as isize,
                 target: RenderTarget::Window(WindowRef::Entity(second_window)),
                 viewport: Some(Viewport::default()),
-                 ..default()
+                ..default()
             },
             CameraViewportSetting {
                 camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
@@ -874,7 +878,7 @@ fn drag_u32_vektor_med_potensielt_negative_i32_verdier(drag: On<Pointer<Drag>>, 
     u32_vektor.y = max(0, new_y_value) as u32;
 }
 
-fn camera_drag_to_move_camera_in_the_world(drag: On<Pointer<Drag>>, mut query: Query<(&mut Transform), With<NetverkInFokusCameraTag>>) {
+fn camera_drag_to_move_camera_in_the_world<T: Component>(drag: On<Pointer<Drag>>, mut query: Query<(&mut Transform), With<T>>) {
     println!("dragging camera");
     // if let Ok(mut camera) = kamera_query.get_mut(drag.target) {
     if let Ok(mut transform) = query.single_mut() {
@@ -885,9 +889,10 @@ fn camera_drag_to_move_camera_in_the_world(drag: On<Pointer<Drag>>, mut query: Q
     }
 }
 
-fn camera_drag_to_move_camera_in_the_window(
+fn camera_drag_to_move_camera_in_the_window<T: Component>(
     drag: On<Pointer<Drag>>,
-    mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
+    // mut kamera_query: Query<(&mut Camera), With<NetverkInFokusCameraTag>>,
+    mut kamera_query: Query<(&mut Camera), With<T>>,
     window_query: Query<&Window>,
 ) {
     // println!("trigger moving camera in window");
