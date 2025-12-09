@@ -43,7 +43,8 @@ impl Plugin for MinCameraPlugin {
                     adjust_camera_drag_resize_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement,
-                    zoom,
+                    // zoom,
+                    zoom_by_moving_camera
                 ),
             )
             .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),));
@@ -165,7 +166,7 @@ const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::NorthWest,
 ];
 
-fn zoom(
+fn zoom_by_scaling_and_field_of_view(
     mut camera_projections: Query<&mut Projection, With<Camera>>,
     // camera_settings: Res<CameraSettings>,
     mouse_wheel_input: Res<AccumulatedMouseScroll>,
@@ -175,17 +176,17 @@ fn zoom(
         if (mouse_wheel_input.delta != Vec2::ZERO) {
             // dbg!(&mouse_wheel_input);
             // dbg!(&projection);
-            let y = mouse_wheel_input.delta.y;
-            let zoom_speed = 1.0;
-            let delta_zoom = -y * zoom_speed;
+
             match *projection {
                 Projection::Orthographic(ref mut orthographic) => {
                     // When changing scales, logarithmic changes are more intuitive.
                     // To get this effect, we add 1 to the delta, so that a delta of 0
                     // results in no multiplicative effect, positive values result in a multiplicative increase,
                     // and negative values result in multiplicative decreases.
+                    let y = mouse_wheel_input.delta.y;
+                    let zoom_speed = 0.5;
+                    let delta_zoom = -y * zoom_speed;
                     let multiplicative_zoom = 1. + delta_zoom;
-
                     orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.1, 10.0);
                 }
                 Projection::Perspective(ref mut perspective) => {
@@ -203,6 +204,22 @@ fn zoom(
                 }
                 _ => (),
             }
+        }
+    }
+}
+fn zoom_by_moving_camera(
+    mut camera_query: Query<( &mut Transform) , With<Camera3d>>, // 2d camera zoom i z aksje bare påvirker hva som renderes, ikke xy
+    // camera_settings: Res<CameraSettings>,
+    mouse_wheel_input: Res<AccumulatedMouseScroll>,
+) {
+    if (mouse_wheel_input.delta != Vec2::ZERO) {
+        for (mut transform) in camera_query.iter_mut() {
+            let forward_direction = transform.forward();
+            let movement_speed = 0.5;
+            let movement_delta = forward_direction * movement_speed *  mouse_wheel_input.delta.y; //* time.delta_seconds();
+
+            // Apply the translation
+            transform.translation += movement_delta;
         }
     }
 }
