@@ -43,8 +43,8 @@ impl Plugin for MinCameraPlugin {
                     adjust_camera_drag_resize_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement,
                     adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement,
-                    // zoom,
-                    zoom_by_moving_camera
+                    zoom_by_scaling_and_field_of_view_on_scroll,
+                    // zoom_by_moving_camera
                 ),
             )
             .add_systems(Update, (juster_camera_størrelse_dragning_retning.run_if(in_state(CameraDragningJustering::PÅ)),));
@@ -166,7 +166,60 @@ const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::NorthWest,
 ];
 
-fn zoom_by_scaling_and_field_of_view(
+// // todo ha Marginer og Hud elementer endre størrelse ? ...
+// fn adjust_margin_on_zoom(
+//     kamera_query: Query<(&mut Camera, &Projection, &Children), (Changed<Projection>)>,
+//     mut margin_query: Query<(&CameraMarginDirection, &mut Mesh2d, &mut Transform)>,
+//     // mouse_wheel_input: Res<AccumulatedMouseScroll>,// kan kanskje lytte på endret Projection istedenfor scroll
+// ) {
+//     // if (mouse_wheel_input.delta != Vec2::ZERO) {
+//     for (mut camera, projection, barn_marginer) in kamera_query.iter() {
+//         if let Some(viewport) = &camera.viewport {
+//
+//             match *projection {
+//                 Projection::Orthographic(ref mut orthographic) => {
+//                     let view_dimensions = Vec2 {
+//                         x: viewport.physical_size.x as f32,
+//                         y: viewport.physical_size.y as f32,
+//                     };
+//                    let viewport_dimentions_scaled = view_dimensions * orthographic.scale;
+//                     let bredde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(view_dimensions.x, 10.0));
+//                     let høyde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, view_dimensions.y));
+//
+//                     for barn_margin_ref in barn_marginer {
+//                         if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref) {
+//                             match direction {
+//                                 CameraMarginDirection::TOPP => {
+//                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
+//                                     transform.translation.x = 0.0;
+//                                     transform.translation.y = top_side_y;
+//                                 }
+//                                 CameraMarginDirection::VENSTRE => {
+//                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
+//                                     transform.translation.x = venstre_side_x;
+//                                     transform.translation.y = 0.0;
+//                                 }
+//                                 CameraMarginDirection::HØYRE => {
+//                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
+//                                     transform.translation.x = høyre_side_x;
+//                                     transform.translation.y = 0.0;
+//                                 }
+//                                 CameraMarginDirection::BUNN => {
+//                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
+//                                     transform.translation.x = 0.0;
+//                                     transform.translation.y = bunn_side_y;
+//                                 }
+//                             }
+//                         }
+//                 }
+//                 _ => {                }
+//             }
+//             };
+//
+//         }
+//     }
+// todo ha Marginer og Hud elementer endre størrelse ? ...
+fn zoom_by_scaling_and_field_of_view_on_scroll(
     mut camera_projections: Query<&mut Projection, With<Camera>>,
     // camera_settings: Res<CameraSettings>,
     mouse_wheel_input: Res<AccumulatedMouseScroll>,
@@ -208,7 +261,7 @@ fn zoom_by_scaling_and_field_of_view(
     }
 }
 fn zoom_by_moving_camera(
-    mut camera_query: Query<( &mut Transform) , With<Camera3d>>, // 2d camera zoom i z aksje bare påvirker hva som renderes, ikke xy
+    mut camera_query: Query<(&mut Transform), With<Camera3d>>, // 2d camera zoom i z aksje bare påvirker hva som renderes, ikke xy
     // camera_settings: Res<CameraSettings>,
     mouse_wheel_input: Res<AccumulatedMouseScroll>,
 ) {
@@ -216,7 +269,7 @@ fn zoom_by_moving_camera(
         for (mut transform) in camera_query.iter_mut() {
             let forward_direction = transform.forward();
             let movement_speed = 0.5;
-            let movement_delta = forward_direction * movement_speed *  mouse_wheel_input.delta.y; //* time.delta_seconds();
+            let movement_delta = forward_direction * movement_speed * mouse_wheel_input.delta.y; //* time.delta_seconds();
 
             // Apply the translation
             transform.translation += movement_delta;
@@ -706,55 +759,65 @@ fn adjust_camera_margines(
     // mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
-    kamera_query: Query<(Entity, &Camera, &Transform, &Children), (Changed<Camera>, Without<CameraMarginDirection>)>,
+    kamera_query: Query<(Entity, &Camera, &Transform, &Children, &Projection), (Changed<Camera>, Without<CameraMarginDirection>)>,
     mut margin_query: Query<(&CameraMarginDirection, &mut Mesh2d, &mut Transform), With<CameraMarginDirection>>,
 ) {
-    for (kamera_entity, camera, camera_transform, barn_marginer) in kamera_query.iter() {
+    for (kamera_entity, camera, camera_transform, barn_marginer, projection) in kamera_query.iter() {
         if let Some(viewport) = &camera.viewport {
-            let view_dimensions = Vec2 {
-                x: viewport.physical_size.x as f32,
-                y: viewport.physical_size.y as f32,
-            };
+            match *projection {
+                Projection::Orthographic(ref orthographic) => {  // ENUM PATTERN MATCHING!!!! TRENGTE BARE REF
+                    let view_dimensions = Vec2 {
+                        x: viewport.physical_size.x as f32,
+                        y: viewport.physical_size.y as f32,
+                    } * orthographic.scale;
 
-            let bredde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(view_dimensions.x, 10.0));
-            let høyde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, view_dimensions.y));
-            // let color_material_handle = materials.add(Color::from(RED));
-            // let color_material_handle = materials.add(Color::from(CYAN_950));
+                    // let view_dimensions = Vec2 {
+                    //     x: viewport.physical_size.x as f32,
+                    //     y: viewport.physical_size.y as f32,
+                    // };
 
-            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
-            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
-            let padding = 5.0;
-            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
-            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
-            let top_side_y = (view_dimensions.y * 0.5) - padding;
-            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
-            for barn_margin_ref in barn_marginer {
-                if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref) {
-                    match direction {
-                        CameraMarginDirection::TOPP => {
-                            mesh.0 = bredde_rectangle_mesh_handle.clone();
-                            transform.translation.x = 0.0;
-                            transform.translation.y = top_side_y;
-                        }
-                        CameraMarginDirection::VENSTRE => {
-                            mesh.0 = høyde_rectangle_mesh_handle.clone();
-                            transform.translation.x = venstre_side_x;
-                            transform.translation.y = 0.0;
-                        }
-                        CameraMarginDirection::HØYRE => {
-                            mesh.0 = høyde_rectangle_mesh_handle.clone();
-                            transform.translation.x = høyre_side_x;
-                            transform.translation.y = 0.0;
-                        }
-                        CameraMarginDirection::BUNN => {
-                            mesh.0 = bredde_rectangle_mesh_handle.clone();
-                            transform.translation.x = 0.0;
-                            transform.translation.y = bunn_side_y;
+                    let bredde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(view_dimensions.x, 10.0));
+                    let høyde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, view_dimensions.y));
+                    // let color_material_handle = materials.add(Color::from(RED));
+                    // let color_material_handle = materials.add(Color::from(CYAN_950));
+
+                    // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+                    // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+                    let padding = 5.0;
+                    let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+                    let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+                    let top_side_y = (view_dimensions.y * 0.5) - padding;
+                    let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+                    for barn_margin_ref in barn_marginer {
+                        if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref) {
+                            match direction {
+                                CameraMarginDirection::TOPP => {
+                                    mesh.0 = bredde_rectangle_mesh_handle.clone();
+                                    transform.translation.x = 0.0;
+                                    transform.translation.y = top_side_y;
+                                }
+                                CameraMarginDirection::VENSTRE => {
+                                    mesh.0 = høyde_rectangle_mesh_handle.clone();
+                                    transform.translation.x = venstre_side_x;
+                                    transform.translation.y = 0.0;
+                                }
+                                CameraMarginDirection::HØYRE => {
+                                    mesh.0 = høyde_rectangle_mesh_handle.clone();
+                                    transform.translation.x = høyre_side_x;
+                                    transform.translation.y = 0.0;
+                                }
+                                CameraMarginDirection::BUNN => {
+                                    mesh.0 = bredde_rectangle_mesh_handle.clone();
+                                    transform.translation.x = 0.0;
+                                    transform.translation.y = bunn_side_y;
+                                }
+                            }
                         }
                     }
                 }
+                _ => {}
             }
-        };
+        }
     }
 }
 
