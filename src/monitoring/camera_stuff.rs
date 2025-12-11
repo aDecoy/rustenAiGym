@@ -1,16 +1,14 @@
 use bevy::camera::visibility::RenderLayers;
-// use bevy::utils::dbg;
 use bevy::camera::{RenderTarget, Viewport};
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::css::BLUE;
-use bevy::color::palettes::tailwind::{CYAN_950, GREEN_800};
+use bevy::color::palettes::tailwind::CYAN_950;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
-use bevy::input::ButtonInput;
 use bevy::input::mouse::AccumulatedMouseScroll;
+use bevy::input::ButtonInput;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
-use bevy_inspector_egui::egui::debug_text::print;
 use std::cmp::{max, min};
 use std::f32::consts::PI;
 
@@ -34,7 +32,6 @@ impl Plugin for MinCameraPlugin {
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<RenderLayerMysterieTag>)
-            // .add_systems(Startup, spawn_camera_margines)
             .add_systems(
                 Update,
                 (
@@ -651,7 +648,7 @@ fn set_camera_viewports(
         };
         if let Ok(window) = secondary_windows.get(resize_event.window) {
             // Only cameras in secondary windows needs to be resized
-            // println!("resize_event for secondary window");
+            println!("resize_event for secondary window");
 
             // Knapp meny er alltid i andre windu
             let (knapp_meny_position, mut knapp_meny_camera) = absolutt_kamera_query.single_mut().unwrap();
@@ -765,11 +762,14 @@ fn adjust_camera_margines(
     for (kamera_entity, camera, camera_transform, barn_marginer, projection) in kamera_query.iter() {
         if let Some(viewport) = &camera.viewport {
             match *projection {
-                Projection::Orthographic(ref orthographic) => {  // ENUM PATTERN MATCHING!!!! TRENGTE BARE REF
+                Projection::Orthographic(ref orthographic) => {
+                    // ENUM PATTERN MATCHING!!!! TRENGTE BARE REF
                     let view_dimensions = Vec2 {
                         x: viewport.physical_size.x as f32,
                         y: viewport.physical_size.y as f32,
-                    } * orthographic.scale;
+                    }
+                        // * orthographic.scale
+                        ;
 
                     // let view_dimensions = Vec2 {
                     //     x: viewport.physical_size.x as f32,
@@ -794,24 +794,25 @@ fn adjust_camera_margines(
                                 CameraMarginDirection::TOPP => {
                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
                                     transform.translation.x = 0.0;
-                                    transform.translation.y = top_side_y;
+                                    transform.translation.y = top_side_y * orthographic.scale;
                                 }
                                 CameraMarginDirection::VENSTRE => {
                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
-                                    transform.translation.x = venstre_side_x;
+                                    transform.translation.x = venstre_side_x * orthographic.scale;
                                     transform.translation.y = 0.0;
                                 }
                                 CameraMarginDirection::HØYRE => {
                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
-                                    transform.translation.x = høyre_side_x;
+                                    transform.translation.x = høyre_side_x * orthographic.scale;
                                     transform.translation.y = 0.0;
                                 }
                                 CameraMarginDirection::BUNN => {
                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
                                     transform.translation.x = 0.0;
-                                    transform.translation.y = bunn_side_y;
+                                    transform.translation.y = bunn_side_y * orthographic.scale;
                                 }
                             }
+                            transform.scale = Vec3::new(orthographic.scale, orthographic.scale, orthographic.scale);
                         }
                     }
                 }
@@ -821,92 +822,127 @@ fn adjust_camera_margines(
     }
 }
 
-fn adjust_camera_drag_resize_button_transform_on_camera_movement(
-    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeResizeDragButton>)>,
+fn adjust_camera_drag_resize_button_size_on_camera_movement(
+    kamera_query: Query<(&Camera, &Children, &Projection), (Changed<Camera>, Without<KameraEdgeResizeDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
 ) {
-    for (camera, barn_marginer) in kamera_query.iter() {
-        // dbg!(&camera.viewport);
-        if let Some(viewport) = &camera.viewport {
-            let view_dimensions = Vec2 {
-                x: viewport.physical_size.x as f32,
-                y: viewport.physical_size.y as f32,
-            };
+    for (camera, barn_marginer, projection) in kamera_query.iter() {
+        match *projection {
+            Projection::Orthographic(ref orthographic) => {}
+            _ => {}
+        }
+    }
+}
 
-            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
-            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
-            let padding = 5.0;
-            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
-            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
-            let top_side_y = (view_dimensions.y * 0.5) - padding;
-            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
-            for barn_margin_ref in barn_marginer {
-                // akkurat nå så er knappen alltid nede til høyre
-                if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
-                    transform.translation.x = høyre_side_x;
-                    transform.translation.y = bunn_side_y;
-                }
+fn adjust_camera_drag_resize_button_transform_on_camera_movement(
+    kamera_query: Query<(&Camera, &Children, &Projection), (Changed<Camera>, Without<KameraEdgeResizeDragButton>)>,
+    mut button_query: Query<&mut Transform, With<KameraEdgeResizeDragButton>>,
+) {
+    for (camera, barn_marginer, projection) in kamera_query.iter() {
+        // dbg!(&camera.viewport);
+        // dbg!(&projection);
+        match *projection {
+            Projection::Orthographic(ref orthographic) => {
+                if let Some(viewport) = &camera.viewport {
+                    let view_dimensions = Vec2 {
+                        x: viewport.physical_size.x as f32,
+                        y: viewport.physical_size.y as f32,
+                    };
+                    // dbg!(&camera, &view_dimensions);
+                    // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+                    // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+                    let padding = 5.0;
+                    let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+                    let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+                    let top_side_y = (view_dimensions.y * 0.5) - padding;
+                    let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+                    for barn_margin_ref in barn_marginer {
+                        // akkurat nå så er knappen alltid nede til høyre
+                        if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
+                            transform.translation.x = høyre_side_x * orthographic.scale;
+                            transform.translation.y = bunn_side_y * orthographic.scale;
+                            dbg!(&transform.scale);
+                            dbg!(&orthographic.scale);
+                            transform.scale = Vec3::new(orthographic.scale, orthographic.scale, 1.0);
+                        }
+                    }
+                };
             }
-        };
+            _ => {}
+        }
     }
 }
 
 fn adjust_camera_drag_move_camera_in_world_button_transform_on_camera_movement(
-    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWorldDragButton>)>,
+    kamera_query: Query<(&Camera, &Children, &Projection), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWorldDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWorldDragButton>>,
 ) {
-    for (camera, barn_marginer) in kamera_query.iter() {
+    for (camera, barn_marginer, projection) in kamera_query.iter() {
         // dbg!(&camera.viewport);
-        if let Some(viewport) = &camera.viewport {
-            let view_dimensions = Vec2 {
-                x: viewport.physical_size.x as f32,
-                y: viewport.physical_size.y as f32,
-            };
+        match *projection {
+            Projection::Orthographic(ref orthographic) => {
+                if let Some(viewport) = &camera.viewport {
+                    let view_dimensions = Vec2 {
+                        x: viewport.physical_size.x as f32,
+                        y: viewport.physical_size.y as f32,
+                    }
+                        // * orthographic.scale
+                        ;
 
-            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
-            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
-            let padding = 15.0;
-            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
-            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
-            let top_side_y = (view_dimensions.y * 0.5) - padding;
-            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
-            for barn_margin_ref in barn_marginer {
-                // akkurat nå så er knappen alltid nede til høyre
-                if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
-                    transform.translation.x = høyre_side_x;
-                    transform.translation.y = bunn_side_y;
-                }
+                    // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+                    // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+                    let padding = 15.0;
+                    let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+                    let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+                    let top_side_y = (view_dimensions.y * 0.5) - padding;
+                    let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+                    for barn_margin_ref in barn_marginer {
+                        // akkurat nå så er knappen alltid nede til høyre
+                        if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
+                            transform.translation.x = høyre_side_x * orthographic.scale;
+                            transform.translation.y = bunn_side_y * orthographic.scale;
+                            transform.scale = Vec3::new(orthographic.scale, orthographic.scale, 1.0);
+                        }
+                    }
+                };
             }
-        };
+            _ => {}
+        }
     }
 }
 
 fn adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement(
-    kamera_query: Query<(&Camera, &Children), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWindowDragButton>)>,
+    kamera_query: Query<(&Camera, &Children, &Projection), (Changed<Camera>, Without<KameraEdgeMoveCameraInTheWindowDragButton>)>,
     mut button_query: Query<&mut Transform, With<KameraEdgeMoveCameraInTheWindowDragButton>>,
 ) {
-    for (camera, barn_marginer) in kamera_query.iter() {
-        if let Some(viewport) = &camera.viewport {
-            let view_dimensions = Vec2 {
-                x: viewport.physical_size.x as f32,
-                y: viewport.physical_size.y as f32,
-            };
+    for (camera, barn_marginer, projection) in kamera_query.iter() {
+        match *projection {
+            Projection::Orthographic(ref orthographic) => {
+                if let Some(viewport) = &camera.viewport {
+                    let view_dimensions = Vec2 {
+                        x: viewport.physical_size.x as f32,
+                        y: viewport.physical_size.y as f32,
+                    } ;
 
-            // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
-            // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
-            let padding = 20.0;
-            let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
-            let høyre_side_x = (view_dimensions.x * 0.5) - padding;
-            let top_side_y = (view_dimensions.y * 0.5) - padding;
-            let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
-            for barn_margin_ref in barn_marginer {
-                // akkurat nå så er knappen alltid nede til høyre
-                if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
-                    transform.translation.x = høyre_side_x;
-                    transform.translation.y = bunn_side_y;
-                }
+                    // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
+                    // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
+                    let padding = 20.0;
+                    let venstre_side_x = -(view_dimensions.x * 0.5) + padding;
+                    let høyre_side_x = (view_dimensions.x * 0.5) - padding;
+                    let top_side_y = (view_dimensions.y * 0.5) - padding;
+                    let bunn_side_y = -(view_dimensions.y * 0.5) + padding;
+                    for barn_margin_ref in barn_marginer {
+                        // akkurat nå så er knappen alltid nede til høyre
+                        if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
+                            transform.translation.x = høyre_side_x * orthographic.scale;
+                            transform.translation.y = bunn_side_y * orthographic.scale;
+                            transform.scale = Vec3::new(orthographic.scale, orthographic.scale, 1.0);
+                        }
+                    }
+                };
             }
-        };
+            _ => {}
+        }
     }
 }
 
@@ -918,7 +954,7 @@ fn adjust_camera_viewport_according_to_settings(
     camera: &mut Mut<Camera>,
     viewport_settings: &CameraViewportSetting,
 ) {
-    // println!("variabel-kamera er i vindu som ble endret og vil bli justert");
+    println!("variabel-kamera er i vindu som ble endret og vil bli justert");
     let camera_viewport_size_setting = viewport_settings.get_camera_mode();
     // dbg!(&camera_viewport_size_setting);
     // dbg!(&camera_position.pos);

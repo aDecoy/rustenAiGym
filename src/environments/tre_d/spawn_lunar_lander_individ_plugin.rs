@@ -52,7 +52,7 @@ fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     if spawn_new_individual_message.is_empty() {
-       return; 
+        return;
     }
     for message in spawn_new_individual_message.read() {
         // let genome = new_random_genome(3, 3, &mut innovation_number_global_counter);
