@@ -217,11 +217,52 @@ const DIRECTIONS: [CompassOctant; 8] = [
 //     }
 // todo ha Marginer og Hud elementer endre størrelse ? ...
 fn zoom_by_scaling_and_field_of_view_on_scroll(
-    mut camera_projections: Query<&mut Projection, With<Camera>>,
+
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    secondary_windows: Query<&Window, Without<PrimaryWindow>>, // irriterende at camera.target enum er ulik om det er primary eller secondary...
+    
+    // mut camera_projections: Query<&mut Projection, With<Camera>>,
+    mut camera_projections: Query<(&mut Projection, &Camera)>,
     // camera_settings: Res<CameraSettings>,
+    focused_windows: Query<(Entity, &Window)>,
     mouse_wheel_input: Res<AccumulatedMouseScroll>,
 ) {
-    for mut projection in camera_projections.iter_mut() {
+     for (window_entity, window) in focused_windows.iter() {
+         if !window.focused {
+             continue;
+         }
+     }
+    ///     if let Some(cursor_position) = window.cursor_position()
+    ///         // Calculate a ray pointing from the camera into the world based on the cursor's position.
+    ///         && let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position)
+    ///     {
+    ///         println!("{ray:?}");
+    ///     }
+
+    for (mut projection, camera) in camera_projections.iter_mut() {
+
+        if camera.target.is_window_target_primary() {
+            if let Some(cursor_position) = primary_window.single().cursor_position(){
+                
+            }
+            // println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
+            continue;
+        }
+        if let Some(entity) = camera.target.get_window_target_entity() {
+            if entity != resize_event.window {
+                // println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
+                continue;
+            }
+        }
+        
+        // Bare gjør ting om musa er i camera.
+        if let RenderTarget::Window(window_ref) = camera.target {
+            
+            
+            if let Some(window) = window_ref.en {}
+        }
+        
+        
         // https://bevy.org/examples/camera/projection-zoom/
         if (mouse_wheel_input.delta != Vec2::ZERO) {
             // dbg!(&mouse_wheel_input);
