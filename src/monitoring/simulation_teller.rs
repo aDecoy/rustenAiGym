@@ -86,6 +86,7 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
     let text_justification = Justify::Center;
     commands.spawn((
         Text2d::new("START"),
+        Text3d::new("START"),
         TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 2d
