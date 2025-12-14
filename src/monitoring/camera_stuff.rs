@@ -1,11 +1,12 @@
+use crate::genome::genome_stuff::Genome;
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{RenderTarget, Viewport};
 use bevy::color::palettes::basic::RED;
 use bevy::color::palettes::css::BLUE;
 use bevy::color::palettes::tailwind::CYAN_950;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
-use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::input::ButtonInput;
+use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::math::{CompassOctant, UVec2, Vec3};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
@@ -163,141 +164,76 @@ const DIRECTIONS: [CompassOctant; 8] = [
     CompassOctant::NorthWest,
 ];
 
-// // todo ha Marginer og Hud elementer endre størrelse ? ...
-// fn adjust_margin_on_zoom(
-//     kamera_query: Query<(&mut Camera, &Projection, &Children), (Changed<Projection>)>,
-//     mut margin_query: Query<(&CameraMarginDirection, &mut Mesh2d, &mut Transform)>,
-//     // mouse_wheel_input: Res<AccumulatedMouseScroll>,// kan kanskje lytte på endret Projection istedenfor scroll
-// ) {
-//     // if (mouse_wheel_input.delta != Vec2::ZERO) {
-//     for (mut camera, projection, barn_marginer) in kamera_query.iter() {
-//         if let Some(viewport) = &camera.viewport {
-//
-//             match *projection {
-//                 Projection::Orthographic(ref mut orthographic) => {
-//                     let view_dimensions = Vec2 {
-//                         x: viewport.physical_size.x as f32,
-//                         y: viewport.physical_size.y as f32,
-//                     };
-//                    let viewport_dimentions_scaled = view_dimensions * orthographic.scale;
-//                     let bredde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(view_dimensions.x, 10.0));
-//                     let høyde_rectangle_mesh_handle: Handle<Mesh> = meshes.add(Rectangle::new(10.0, view_dimensions.y));
-//
-//                     for barn_margin_ref in barn_marginer {
-//                         if let Ok((direction, mut mesh, mut transform)) = margin_query.get_mut(*barn_margin_ref) {
-//                             match direction {
-//                                 CameraMarginDirection::TOPP => {
-//                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
-//                                     transform.translation.x = 0.0;
-//                                     transform.translation.y = top_side_y;
-//                                 }
-//                                 CameraMarginDirection::VENSTRE => {
-//                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
-//                                     transform.translation.x = venstre_side_x;
-//                                     transform.translation.y = 0.0;
-//                                 }
-//                                 CameraMarginDirection::HØYRE => {
-//                                     mesh.0 = høyde_rectangle_mesh_handle.clone();
-//                                     transform.translation.x = høyre_side_x;
-//                                     transform.translation.y = 0.0;
-//                                 }
-//                                 CameraMarginDirection::BUNN => {
-//                                     mesh.0 = bredde_rectangle_mesh_handle.clone();
-//                                     transform.translation.x = 0.0;
-//                                     transform.translation.y = bunn_side_y;
-//                                 }
-//                             }
-//                         }
-//                 }
-//                 _ => {                }
-//             }
-//             };
-//
-//         }
-//     }
-// todo ha Marginer og Hud elementer endre størrelse ? ...
 fn zoom_by_scaling_and_field_of_view_on_scroll(
-
     primary_window: Query<&Window, With<PrimaryWindow>>,
     secondary_windows: Query<&Window, Without<PrimaryWindow>>, // irriterende at camera.target enum er ulik om det er primary eller secondary...
-    
-    // mut camera_projections: Query<&mut Projection, With<Camera>>,
-    mut camera_projections: Query<(&mut Projection, &Camera)>,
-    // camera_settings: Res<CameraSettings>,
-    focused_windows: Query<(Entity, &Window)>,
+    mut camera_projections: Query<(&mut Projection, &Camera, &GlobalTransform)>,
     mouse_wheel_input: Res<AccumulatedMouseScroll>,
 ) {
-     for (window_entity, window) in focused_windows.iter() {
-         if !window.focused {
-             continue;
-         }
-     }
-    ///     if let Some(cursor_position) = window.cursor_position()
-    ///         // Calculate a ray pointing from the camera into the world based on the cursor's position.
-    ///         && let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position)
-    ///     {
-    ///         println!("{ray:?}");
-    ///     }
+    if (mouse_wheel_input.delta != Vec2::ZERO) {
+        // We want scrolling up to zoom in, decreasing the scale, so we negate the delta.
+        let scroll_direction = -mouse_wheel_input.delta.y;
 
-    for (mut projection, camera) in camera_projections.iter_mut() {
-
-        if camera.target.is_window_target_primary() {
-            if let Some(cursor_position) = primary_window.single().cursor_position(){
-                
+        for (mut projection, camera, camera_global_transform) in camera_projections.iter_mut() {
+            if camera.target.is_window_target_primary() {
+                if let Ok(window) = primary_window.single() {
+                    if let Some(cursor_position) = window.cursor_position()
+                    // Calculate a ray pointing from the camera into the world based on the cursor's position.
+                       &&   let Ok(ray) = camera.viewport_to_world(camera_global_transform, cursor_position)
+                    {
+                        zoomCameraProjection(&mut projection, scroll_direction);
+                        continue;
+                    }
+                }
             }
-            // println!("camera er i primary window, og trenger ikke å resize når secondary vinduer endrer seg");
-            continue;
-        }
-        if let Some(entity) = camera.target.get_window_target_entity() {
-            if entity != resize_event.window {
+
+            if let Some(window_entity) = camera.target.get_window_target_entity() {
                 // println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
-                continue;
-            }
-        }
-        
-        // Bare gjør ting om musa er i camera.
-        if let RenderTarget::Window(window_ref) = camera.target {
-            
-            
-            if let Some(window) = window_ref.en {}
-        }
-        
-        
-        // https://bevy.org/examples/camera/projection-zoom/
-        if (mouse_wheel_input.delta != Vec2::ZERO) {
-            // dbg!(&mouse_wheel_input);
-            // dbg!(&projection);
-
-            match *projection {
-                Projection::Orthographic(ref mut orthographic) => {
-                    // When changing scales, logarithmic changes are more intuitive.
-                    // To get this effect, we add 1 to the delta, so that a delta of 0
-                    // results in no multiplicative effect, positive values result in a multiplicative increase,
-                    // and negative values result in multiplicative decreases.
-                    let y = mouse_wheel_input.delta.y;
-                    let zoom_speed = 0.5;
-                    let delta_zoom = -y * zoom_speed;
-                    let multiplicative_zoom = 1. + delta_zoom;
-                    orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.1, 10.0);
+                dbg!(window_entity);
+                if let Ok(window) = secondary_windows.get(window_entity) {
+                    if let Some(cursor_position) = window.cursor_position()
+                       // Calculate a ray pointing from the camera into the world based on the cursor's position.
+                       // &&   let Ok(ray) = camera.viewport_to_world(camera_global_transform, cursor_position)
+                        && let Some(target_rect) = camera.logical_viewport_rect() && target_rect.contains(cursor_position)
+                    {
+                        zoomCameraProjection(&mut projection, scroll_direction);
+                        continue;
+                    }
                 }
-                Projection::Perspective(ref mut perspective) => {
-                    // We want scrolling up to zoom in, decreasing the scale, so we negate the delta.
-                    // Changes in FOV are much more noticeable due to its limited range in radians
-                    let delta_zoom = -mouse_wheel_input.delta.y * 0.05;
-
-                    // Adjust the field of view, but keep it within our stated range.
-                    perspective.fov = (perspective.fov + delta_zoom).clamp(
-                        // Perspective projections use field of view, expressed in radians. We would
-                        // normally not set it to more than π, which represents a 180° FOV.
-                        (PI / 5.),
-                        (PI - 0.2),
-                    );
-                }
-                _ => (),
             }
+            // https://bevy.org/examples/camera/projection-zoom/
         }
     }
 }
+
+fn zoomCameraProjection(projection: &mut Projection, scroll_direction: f32) {
+    match *projection {
+        Projection::Orthographic(ref mut orthographic) => {
+            // When changing scales, logarithmic changes are more intuitive.
+            // To get this effect, we add 1 to the delta, so that a delta of 0
+            // results in no multiplicative effect, positive values result in a multiplicative increase,
+            // and negative values result in multiplicative decreases.
+            let zoom_speed = 0.5;
+            let delta_zoom = scroll_direction * zoom_speed;
+            let multiplicative_zoom = 1. + delta_zoom;
+            orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.1, 10.0);
+        }
+        Projection::Perspective(ref mut perspective) => {
+            // Changes in FOV are much more noticeable due to its limited range in radians
+            let delta_zoom = scroll_direction * 0.05;
+
+            // Adjust the field of view, but keep it within our stated range.
+            perspective.fov = (perspective.fov + delta_zoom).clamp(
+                // Perspective projections use field of view, expressed in radians. We would
+                // normally not set it to more than π, which represents a 180° FOV.
+                (PI / 5.),
+                (PI - 0.2),
+            );
+        }
+        _ => (),
+    }
+}
+
 fn zoom_by_moving_camera(
     mut camera_query: Query<(&mut Transform), With<Camera3d>>, // 2d camera zoom i z aksje bare påvirker hva som renderes, ikke xy
     // camera_settings: Res<CameraSettings>,
@@ -902,8 +838,8 @@ fn adjust_camera_drag_resize_button_transform_on_camera_movement(
                         if let Ok((mut transform)) = button_query.get_mut(*barn_margin_ref) {
                             transform.translation.x = høyre_side_x * orthographic.scale;
                             transform.translation.y = bunn_side_y * orthographic.scale;
-                            dbg!(&transform.scale);
-                            dbg!(&orthographic.scale);
+                            // dbg!(&transform.scale);
+                            // dbg!(&orthographic.scale);
                             transform.scale = Vec3::new(orthographic.scale, orthographic.scale, 1.0);
                         }
                     }
@@ -963,7 +899,7 @@ fn adjust_camera_drag_move_camera_in_window_button_transform_on_camera_movement(
                     let view_dimensions = Vec2 {
                         x: viewport.physical_size.x as f32,
                         y: viewport.physical_size.y as f32,
-                    } ;
+                    };
 
                     // camera in top_left_corner has physical positon 0.0. Transform 0.0 is drawn at center of camera
                     // Siden marginer er children av kamera, så er transform.translation til margin relativ til parent-kamera sin transform.translation
