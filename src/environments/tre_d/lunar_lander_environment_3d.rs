@@ -21,6 +21,11 @@ impl Plugin for LunarLanderEnvironment3d {
             .insert_resource(Gravity::ZERO)
             .add_plugins(IndividWatching3dCameraPlugin)
             .add_plugins(LunarLanderIndividBehaviors)
+            // .insert_resource(AmbientLight {
+            //     color: Color::WHITE,
+            //     brightness: 200.,
+            //     ..Default::default()
+            // })
             .add_systems(Startup, (spawn_ground));
     }
 }

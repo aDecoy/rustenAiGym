@@ -218,7 +218,7 @@ fn print_pop_conditions(query: Query<(Entity, &PlankPhenotype, &Genome)>, genera
     let all_fitnesses = population.iter().map(|individ| individ.phenotype.score);
     // println!("generation {} just ended, has population size {} Best individual: {} has fitness {} ", generation_counter.count, population.len(), best_id, best.score);
     println!(
-        "generation {} just ended, has population size {} Best individual has fitness {} ",
+        "generation {} just ended, has population size {} Best individual has 'fitness {} ",
         generation_counter.count,
         population.len(),
         best.phenotype.score

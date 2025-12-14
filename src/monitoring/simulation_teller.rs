@@ -1,9 +1,10 @@
+use std::num::NonZero;
 use crate::Kjøretilstand;
 use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
-use bevy_rich_text3d::{LoadFonts, Text3d, Text3dPlugin, TextAtlas};
+use bevy_rich_text3d::{LoadFonts, Text3d, Text3dPlugin, Text3dStyling, TextAtlas};
 
 pub struct SimulationRunningTellerPlugin;
 
@@ -101,7 +102,6 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
     let text_justification = Justify::Center;
     commands.spawn((
         Text2d::new("START"),
-        Text3d::new("START"),
         TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 2d
@@ -124,17 +124,36 @@ pub fn spawn_simulation_tellertekst_3d(mut commands: Commands, window: Query<&Wi
     //     ..default()
     // };
     let text_justification = Justify::Center;
+
+
     commands.spawn((
-        Text3d::new("Hello, World!"),
+        Text3d::new("Todo: vurder å legge til fitness på meshen til individer. Sim og gen teller i nytt kamera. "),
         // Mesh2d also works
         Mesh3d::default(),
         MeshMaterial3d(standard_materials.add(
             StandardMaterial {
                 base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                alpha_mode: AlphaMode::Blend,
+                alpha_mode: AlphaMode::Mask(0.5),
+                unlit: true,
+                cull_mode: None,
                 ..Default::default()
             }
         )),
+        Transform::from_xyz(0., 1., 0.),
+        // Transform {
+        //     translation: Vec3::new(0., 1., 4.),
+        //     rotation: Quat::from_axis_angle(Vec3::Y, -30.),
+        //     scale: Vec3::ONE,
+        // },
+        Text3dStyling {
+            size: 50.,
+            stroke: NonZero::new(10),
+            color: Srgba::new(1., 0., 0., 1.),
+            stroke_color: Srgba::BLACK,
+            world_scale: Some(Vec2::splat(0.25)),
+            layer_offset: 0.001,
+            ..Default::default()
+        },
                    RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
     )
     );

@@ -7,6 +7,8 @@ use avian3d::prelude::{AngularVelocity as AngularVelocity3d, LinearVelocity as L
 use bevy::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use bevy::math::ops::round;
+use bevy_rich_text3d::{FetchedTextSegment, Text3d};
 
 pub struct FenotypePlugin;
 
@@ -14,7 +16,8 @@ impl Plugin for FenotypePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(PhysicsPickingPlugin)
             .add_systems(PostStartup, (label_plank_with_current_score))
-            .add_systems(Update, (label_plank_with_current_score));
+            .add_systems(Update, (label_plank_with_current_score))
+            .add_systems(Update, (label_plank_with_current_score_3d));
     }
 }
 
@@ -85,3 +88,15 @@ fn label_plank_with_current_score(mut text_query: Query<(&mut Text2d, &ChildOf),
         }
     }
 }
+
+fn label_plank_with_current_score_3d(mut text_query: Query<(&mut Text3d, &ChildOf), With<IndividFitnessLabelTextTag>>,
+                                     parent_query: Query<&PlankPhenotype>) {
+    for (mut tekst, child_of) in text_query.iter_mut() {
+        if let Ok(plank_phenotype) = parent_query.get(child_of.parent()) {
+            if let Some(mut tekstsegment) = tekst.get_single_mut(){
+                // *tekstsegment = "ny tekst".to_string();
+                *tekstsegment =  format!("{:.02}", plank_phenotype.score);
+            } 
+            }
+        }
+    }

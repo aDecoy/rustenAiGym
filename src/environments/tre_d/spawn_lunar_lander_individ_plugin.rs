@@ -1,14 +1,16 @@
+use std::num::NonZero;
 use crate::environments::tre_d::lunar_lander_individual_behavior::START_POSITION;
 // use avian2d::prelude::{Collider, CollisionLayers, RigidBody};
 use crate::evolusjon::evolusjon_steg_plugin::{PopulationIsSpawnedMessage, SpawnNewIndividualMessage, SpawnNewIndividualWithGenomeMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
-use crate::evolusjon::phenotype_plugin::PlankPhenotype;
+use crate::evolusjon::phenotype_plugin::{IndividFitnessLabelTextTag, PlankPhenotype};
 use crate::genome::genome_stuff::{InnovationNumberGlobalCounter, new_random_genome};
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::basic::PURPLE;
 use bevy::prelude::*;
+use bevy_rich_text3d::{Text3d, Text3dStyling, TextAtlas};
 // todo lag spwawn individ on event plugin oig legg den til i main. starupt after create population
 
 pub struct SpawnLunarLanderPlugin;
@@ -77,14 +79,42 @@ fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
                 // phenotype_layers: create_phenotype_layers(genome.clone()),
                 phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
                 // genotype: genome_entity,
-            }, // alt 1
+            }, // alt 1f
             genome,
             RigidBody::Dynamic,
             CollisionLayers::new(0b0001, 0b0010),
             Collider::cuboid(length, length, length),
             TextLayout::new_with_justify(Justify::Center),
             RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
-        ));
+        ))
+            .with_children(|builder| {
+                builder.spawn((
+                    Text3d::new("__Hello Underline!__"),
+                    Mesh3d::default(),
+                    MeshMaterial3d(materials.add(
+                        StandardMaterial {
+                            base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+                            alpha_mode: AlphaMode::Mask(0.5),
+                            unlit: true,
+                            cull_mode: None,
+                            ..Default::default()
+                        }
+                    )),
+                    Text3dStyling {
+                        size: 50.,
+                        stroke: NonZero::new(10),
+                        // color: Srgba::new(0., 1., 1., 1.),
+                        color: Srgba::new(1., 0., 0., 1.),
+                        stroke_color: Srgba::BLACK,
+                        world_scale: Some(Vec2::splat(0.25)),
+                        layer_offset: 0.001,
+                        ..Default::default()
+                    },
+                    Transform::from_xyz(0.,0.5,0.),
+                    IndividFitnessLabelTextTag,
+                    RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
+                ));
+            });
     }
 
     population_done_spawning_in.write(PopulationIsSpawnedMessage);

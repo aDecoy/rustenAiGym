@@ -79,7 +79,7 @@ fn main() {
         .add_plugins(MinCameraPlugin { debug: false })
         .add_plugins(InFocusPlugin)
         .add_plugins(ElitePlugin)
-        .add_plugins(HyllerepresentasjonPlugin)
+        // .add_plugins(HyllerepresentasjonPlugin)
         .add_plugins(KnappMenyPlugin)
         .add_plugins(TegnNevraltNettverkPlugin)
         // .add_plugins(EvolusjonStegPlugin{ environmentSpesificIndividStuff :  evolusjon::evolusjon_steg_plugin::PossibleBehaviorSets::LUNAR_LANDER_3D(LunarLanderIndividBehaviors) })
