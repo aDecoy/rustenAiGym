@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use std::cmp::{max, min};
 use std::f32::consts::PI;
+use bevy::ecs::entity_disabling::Disabled;
 
 pub struct MinCameraPlugin {
     pub(crate) debug: bool,
@@ -25,14 +26,20 @@ impl Plugin for MinCameraPlugin {
             .insert_resource(ResizeDir(7))
             .add_systems(PreStartup, ((setup_extra_monitor_cameras, set_camera_viewports).chain()))
             .add_systems(Startup, spawn_camera_resize_button_for_camera::<NetverkInFokusCameraTag>)
-            .add_systems(Startup, spawn_camera_resize_button_for_camera::<PopulasjonMenyCameraTag>)
             .add_systems(Startup, spawn_camera_resize_button_for_camera::<RenderLayerMysterieTag>)
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<NetverkInFokusCameraTag>)
-            .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
+            // .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
+            // .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
+            // .add_systems(Startup, spawn_camera_resize_button_for_camera::<PopulasjonMenyCameraTag>)
+
             .add_systems(Startup, spawn_camera_move_in_world_button_for_neuron_camera::<RenderLayerMysterieTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<NetverkInFokusCameraTag>)
-            .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<PopulasjonMenyCameraTag>)
             .add_systems(Startup, spawn_camera_move_on_screen_button_for_neuron_camera::<RenderLayerMysterieTag>)
+            .add_systems(Startup, (
+                spawn_camera_move_in_world_button_for_neuron_camera::<TellereCameraTag>,
+                         spawn_camera_move_on_screen_button_for_neuron_camera::<TellereCameraTag>,
+                         spawn_camera_resize_button_for_camera::<TellereCameraTag>,
+            ))
             .add_systems(
                 Update,
                 (
@@ -95,19 +102,23 @@ struct NetverkInFokusCameraTag;
 pub struct PopulasjonMenyCameraTag;
 #[derive(Component)]
 #[require(RenderLayers)]
+pub struct TellereCameraTag;
+#[derive(Component)]
+#[require(RenderLayers)]
 pub struct RenderLayerMysterieTag;
 #[derive(Component)]
 #[require(RenderLayers)]
 pub struct KnapperMenyCameraTag;
 
 #[derive(Component)]
-struct SecondaryWindowTag;
+struct SecondaryWindowTag; // heller bruk  Without<PrimaryWindow>
 
 pub const RENDER_LAYER_MYSTERIE: usize = 0;
 pub const RENDER_LAYER_ALLE_INDIVIDER: usize = 1;
 pub const RENDER_LAYER_POPULASJON_MENY: usize = 2;
 pub const RENDER_LAYER_TOP_BUTTON_MENY: usize = 3;
 pub const RENDER_LAYER_NETTVERK: usize = 4;
+pub const RENDER_LAYER_TELLERE: usize = 5;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum CameraDragningJustering {
@@ -435,13 +446,10 @@ pub fn setup_extra_monitor_cameras(
     // commands.spawn(Camera2d::default());
     // Spawn a second window
     let second_window = commands
-        .spawn((
-            Window {
-                title: "Second window".to_owned(),
-                ..default()
-            },
-            // AllIndividerWindowTag
-        ))
+        .spawn((Window {
+            title: "Second window".to_owned(),
+            ..default()
+        },))
         .id();
 
     // todo. Window som brukes av et camera er en enum component
@@ -520,11 +528,39 @@ pub fn setup_extra_monitor_cameras(
                 // pos: UVec2::new((1 % 2) as u32, (1) as u32),
             },
             PopulasjonMenyCameraTag,
+            Disabled,
             RenderLayers::from_layers(&[RENDER_LAYER_POPULASJON_MENY]),
         ))
         .with_children(|parent_builder: &mut ChildSpawnerCommands<'_>| {
             // default values since they will be changed when camera is moved (events)
             spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_POPULASJON_MENY);
+        });
+
+    commands
+        .spawn((
+            Camera2d::default(),
+            // Transform::from_translation(camera_pos_1).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 5 as isize,
+                target: RenderTarget::Window(WindowRef::Entity(second_window)),
+                viewport: Some(Viewport::default()),
+                ..default()
+            },
+            CameraViewportSetting {
+                camera_modes: vec![CameraMode::HALV, CameraMode::KVART, CameraMode::AV, CameraMode::HEL],
+                active_camera_mode_index: 1,
+            },
+            CameraPosition {
+                pos: UVec2::new((2 % 2) as u32, (2 / 2) as u32),
+                // pos: UVec2::new((1 % 2) as u32, (1) as u32),
+            },
+            TellereCameraTag,
+            RenderLayers::from_layers(&[RENDER_LAYER_TELLERE]),
+        ))
+        .with_children(|parent_builder: &mut ChildSpawnerCommands<'_>| {
+            // default values since they will be changed when camera is moved (events)
+            spawn_camera_margins(color_material_handle.clone(), parent_builder, RENDER_LAYER_TELLERE);
         });
 
     commands

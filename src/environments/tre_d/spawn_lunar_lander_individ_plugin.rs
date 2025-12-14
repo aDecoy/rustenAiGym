@@ -1,5 +1,5 @@
-use std::num::NonZero;
 use crate::environments::tre_d::lunar_lander_individual_behavior::START_POSITION;
+use std::num::NonZero;
 // use avian2d::prelude::{Collider, CollisionLayers, RigidBody};
 use crate::evolusjon::evolusjon_steg_plugin::{PopulationIsSpawnedMessage, SpawnNewIndividualMessage, SpawnNewIndividualWithGenomeMessage};
 use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
@@ -65,41 +65,40 @@ fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
         // let start_position: Vec<f32> = vec![1.0, 1.5, 1.0];
         let individ_size: Vec<f32> = vec![0.5, 0.5, 0.5];
         // cube
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(individ_size[0], individ_size[1], individ_size[2]))),
-            // MeshMaterial3d(materials.add(Color::srgb(0.5, 0.4, 0.3))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::from(INDIVID_DEFAULT_COLOR),
-                ..default()
-            })),
-            Transform::from_translation(START_POSITION.clone()), // from_xyz(START_POSITION.x, start_position[1], start_position[2]),
-            PlankPhenotype {
-                score: 0.0,
-                obseravations: vec![0.0, 0.0],
-                // phenotype_layers: create_phenotype_layers(genome.clone()),
-                phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
-                // genotype: genome_entity,
-            }, // alt 1f
-            genome,
-            RigidBody::Dynamic,
-            CollisionLayers::new(0b0001, 0b0010),
-            Collider::cuboid(length, length, length),
-            TextLayout::new_with_justify(Justify::Center),
-            RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
-        ))
+        commands
+            .spawn((
+                Mesh3d(meshes.add(Cuboid::new(individ_size[0], individ_size[1], individ_size[2]))),
+                // MeshMaterial3d(materials.add(Color::srgb(0.5, 0.4, 0.3))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::from(INDIVID_DEFAULT_COLOR),
+                    ..default()
+                })),
+                Transform::from_translation(START_POSITION.clone()), // from_xyz(START_POSITION.x, start_position[1], start_position[2]),
+                PlankPhenotype {
+                    score: 0.0,
+                    obseravations: vec![0.0, 0.0],
+                    // phenotype_layers: create_phenotype_layers(genome.clone()),
+                    phenotype_layers: PhenotypeNeuralNetwork::new(&genome),
+                    // genotype: genome_entity,
+                }, // alt 1f
+                genome,
+                RigidBody::Dynamic,
+                CollisionLayers::new(0b0001, 0b0010),
+                Collider::cuboid(length, length, length),
+                TextLayout::new_with_justify(Justify::Center),
+                RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
+            ))
             .with_children(|builder| {
                 builder.spawn((
                     Text3d::new("__Hello Underline!__"),
                     Mesh3d::default(),
-                    MeshMaterial3d(materials.add(
-                        StandardMaterial {
-                            base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                            alpha_mode: AlphaMode::Mask(0.5),
-                            unlit: true,
-                            cull_mode: None,
-                            ..Default::default()
-                        }
-                    )),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+                        alpha_mode: AlphaMode::Mask(0.5),
+                        unlit: true,
+                        cull_mode: None,
+                        ..Default::default()
+                    })),
                     Text3dStyling {
                         size: 50.,
                         stroke: NonZero::new(10),
@@ -110,7 +109,7 @@ fn spawn_new_3d_individ_med_nytt_genome_meldingsspiser(
                         layer_offset: 0.001,
                         ..Default::default()
                     },
-                    Transform::from_xyz(0.,0.5,0.),
+                    Transform::from_xyz(0., 0.5, 0.),
                     IndividFitnessLabelTextTag,
                     RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
                 ));

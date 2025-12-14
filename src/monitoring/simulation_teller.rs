@@ -1,10 +1,10 @@
-use std::num::NonZero;
 use crate::Kjøretilstand;
-use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TOP_BUTTON_MENY};
+use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_INDIVIDER, RENDER_LAYER_TELLERE, RENDER_LAYER_TOP_BUTTON_MENY};
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
-use bevy::window::WindowResized;
+use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_rich_text3d::{LoadFonts, Text3d, Text3dPlugin, Text3dStyling, TextAtlas};
+use std::num::NonZero;
 
 pub struct SimulationRunningTellerPlugin;
 
@@ -15,21 +15,21 @@ impl Plugin for SimulationRunningTellerPlugin {
             .insert_resource(SimulationGenerationTimer {
                 main_timer: Timer::from_seconds(GENERATION_TIME, TimerMode::Repeating),
             })
-
             // for 3d text
-        .add_plugins(Text3dPlugin{
-            default_atlas_dimension: (1024, 1024),
-            load_system_fonts: true,
-            ..Default::default()
-        })
+            .add_plugins(Text3dPlugin {
+                default_atlas_dimension: (1024, 1024),
+                load_system_fonts: true,
+                ..Default::default()
+            })
             .insert_resource(LoadFonts {
-            font_paths: vec!["assets/roboto.ttf".to_owned()],
-            font_directories: vec!["assets/fonts".to_owned()],
-            ..Default::default()
-        })
-
-        .add_systems(Startup, spawn_simulation_tellertekst)
-        .add_systems(Startup, spawn_simulation_tellertekst_3d)
+                font_paths: vec!["assets/roboto.ttf".to_owned()],
+                font_directories: vec!["assets/fonts".to_owned()],
+                ..Default::default()
+            })
+            .add_systems(Startup, spawn_simulation_tellertekst_2d_primary_window)
+            .add_systems(Startup, spawn_simulation_tellertekst_2d_in_teller_camera)
+            .add_systems(Startup, spawn_simulation_generation_time_tellertekst_2d_in_teller_camera)
+            .add_systems(Startup, spawn_todo_tekst_3d)
             .add_systems(Startup, spawn_simulation_generation_time_tellertekst)
             .add_systems(Startup, spawn_simulation_timer_tekst)
             .add_systems(
@@ -39,6 +39,7 @@ impl Plugin for SimulationRunningTellerPlugin {
                     oppdater_bevy_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst, SimulationTotalRuntimeRunningTeller>,
                     resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
                     timer_tick,
+                    // oppdater_bevy_simulation_tellertekst::<SimulationGenerationRunningTellerTekst, SimulationGenerationTeller>,
                     oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
                 )
                     .chain()
@@ -46,6 +47,7 @@ impl Plugin for SimulationRunningTellerPlugin {
             );
     }
 }
+aølskdjf todo rydde litt i timere, var litt rotete å komme tilbake til. 
 
 #[derive(Resource, Default, Debug)]
 struct SimulationTimer {
@@ -91,7 +93,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
     }
 }
 
-pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
+pub fn spawn_simulation_tellertekst_2d_primary_window(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>) {
     let window = window.single().expect("finner ikke noe hovedvindu!?!?! :O ");
 
     // let text_style = TextStyle {
@@ -113,32 +115,38 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
     ));
 }
 
-pub fn spawn_simulation_tellertekst_3d(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>,
-                                       mut meshes: ResMut<Assets<Mesh>>,
-                                       mut standard_materials: ResMut<Assets<StandardMaterial>>) {
+pub fn spawn_simulation_tellertekst_2d_in_teller_camera(mut commands: Commands, window: Query<&Window, Without<PrimaryWindow>>) {
     let window = window.single().expect("finner ikke noe hovedvindu!?!?! :O ");
 
-    // let text_style = TextStyle {
-    //     font_size: 30.0,
-    //     color: Color::WHITE,
-    //     ..default()
-    // };
-    let text_justification = Justify::Center;
+    commands.spawn((
+        Text2d::new("START"),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
+        SimulationTotalRuntimeRunningTellerTekst,
+        RenderLayers::layer(RENDER_LAYER_TELLERE),
+    ));
+}
 
+// flytter teksten til sitt eget vindu
+pub fn spawn_todo_tekst_3d(
+    mut commands: Commands,
+    window: Query<&Window, With<AllIndividerWindowTag>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let window = window.single().expect("finner ikke noe hovedvindu!?!?! :O ");
 
     commands.spawn((
         Text3d::new("Todo: vurder å legge til fitness på meshen til individer. Sim og gen teller i nytt kamera. "),
         // Mesh2d also works
         Mesh3d::default(),
-        MeshMaterial3d(standard_materials.add(
-            StandardMaterial {
-                base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                alpha_mode: AlphaMode::Mask(0.5),
-                unlit: true,
-                cull_mode: None,
-                ..Default::default()
-            }
-        )),
+        MeshMaterial3d(standard_materials.add(StandardMaterial {
+            base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+            alpha_mode: AlphaMode::Mask(0.5),
+            unlit: true,
+            cull_mode: None,
+            ..Default::default()
+        })),
         Transform::from_xyz(0., 1., 0.),
         // Transform {
         //     translation: Vec3::new(0., 1., 4.),
@@ -154,9 +162,8 @@ pub fn spawn_simulation_tellertekst_3d(mut commands: Commands, window: Query<&Wi
             layer_offset: 0.001,
             ..Default::default()
         },
-                   RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
-    )
-    );
+        RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
+    ));
 
     // commands.spawn((
     //     Text2d::new("START"),
@@ -180,7 +187,7 @@ pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, wind
     // };
     let text_justification = Justify::Center;
     commands.spawn((
-        Text2d::new("START"),
+        Text2d::new("START spawn_simulation_generation_time_tellertekst"),
         TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
@@ -190,14 +197,28 @@ pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, wind
     ));
 }
 
+pub fn spawn_simulation_generation_time_tellertekst_2d_in_teller_camera(mut commands: Commands, window_query: Query<&Window, Without<PrimaryWindow>>) {
+    let window = window_query.single().expect("finner ikke noe hovedvindu!?!?! :O ");
+    commands.spawn((
+        Text2d::new("START spawn_simulation_generation_time_tellertekst_2d_in_teller_camera"),
+        TextLayout::new_with_justify(Justify::Center),
+        // Transform::from_xyz(250.0, 250.0, 0.0),
+        Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
+        // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
+        SimulationGenerationRunningTellerTekst,
+        RenderLayers::from_layers(&[RENDER_LAYER_TELLERE]),
+    ));
+}
+
 fn resize_simulation_tellertekst<TellerTekst: bevy::prelude::Component>(
     mut resize_events: MessageReader<WindowResized>,
     mut query: Query<&mut Transform, With<TellerTekst>>,
 ) {
     for e in resize_events.read() {
-        let mut transform = query.single_mut().unwrap();
-        transform.translation.x = e.width * 0.5 - 200.0;
-        transform.translation.y = e.height * 0.5 - 20.0;
+        for mut transform in query.iter_mut() {
+            transform.translation.x = e.width * 0.5 - 200.0;
+            transform.translation.y = e.height * 0.5 - 20.0;
+        }
     }
 }
 
@@ -206,9 +227,10 @@ pub fn oppdater_bevy_simulation_tellertekst<TellerTekst: bevy::prelude::Componen
     teller1: Res<Teller>,
 ) {
     // println!("query empty={}, query size = {}", query.is_empty(), query.iter().count());
-    let mut tekst = query.single_mut().unwrap();
+    for mut tekst in query.iter_mut() {
+        tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
+    }
     // tekst.sections[0].value = "En fin tekst: ".to_string() + &teller1.0.to_string();
-    tekst.0 = "Simulation Counter: ".to_string() + &teller1.counter_count_value().to_string();
 }
 
 pub fn add_one_to_simulation_running_teller<Teller: CounterResource + bevy::prelude::Resource>(mut frame_count: ResMut<Teller>) {
@@ -247,7 +269,7 @@ pub fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Windo
     // };
     let text_justification = Justify::Center;
     commands.spawn((
-        Text2d::new("START"),
+        Text2d::new("START spawn_simulation_timer_tekst"),
         TextLayout::new_with_justify(Justify::Center),
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
@@ -259,5 +281,7 @@ pub fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Windo
 pub fn oppdater_simulation_timer_tekst<TellerTekst: bevy::prelude::Component>(mut query: Query<&mut Text2d, With<TellerTekst>>, teller1: Res<SimulationGenerationTimer>) {
     let mut tekst = query.single_mut().unwrap();
     // tekst.sections[0].value = "En fin tekst: ".to_string() + &teller1.0.to_string();
+    
     tekst.0 = "Simulation timer: ".to_string() + &teller1.main_timer.elapsed_secs().round().to_string();
+    dbg!(&tekst);
 }
