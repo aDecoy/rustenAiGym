@@ -101,8 +101,8 @@ fn setup_population_meny_etter_populasjon_spawned_in(
             commands
                 .spawn((
                     Node {
-                        width: Val::Percent(90.0),
-                        height: Val::Percent(90.0),
+                        width: Val::Percent(95.0),
+                        height: Val::Percent(95.0),
                         // left: px(10.0),
                         // right: px(10.0),
                         // justify_content: JustifyContent::SpaceBetween,
@@ -173,6 +173,7 @@ fn setup_population_meny_etter_populasjon_spawned_in(
                             // justify_content: JustifyContent::SpaceEvenly,
                             justify_content: JustifyContent::SpaceBetween,
                             // align_items: AlignItems::Center,
+                            width: Val::Percent(100.),
                             // width: Val::Px(700.),
                             ..default()
                         })
@@ -185,7 +186,7 @@ fn setup_population_meny_etter_populasjon_spawned_in(
                                     .spawn((
                                         Node {
                                             width: Val::Px(100.),
-                                            height: Val::Px(100.),
+                                            height: Val::Px(55.),
                                             // border: UiRect::all(Val::Px(100.)),
                                             margin: UiRect::all(Val::Px(10.)),
                                             overflow: Overflow::scroll_y(),

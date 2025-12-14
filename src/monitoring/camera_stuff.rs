@@ -189,7 +189,7 @@ fn zoom_by_scaling_and_field_of_view_on_scroll(
 
             if let Some(window_entity) = camera.target.get_window_target_entity() {
                 // println!("camera er i feil seconday window, og trenger ikke å resize når et annet secondary vindu endrer seg");
-                dbg!(window_entity);
+                // dbg!(window_entity);
                 if let Ok(window) = secondary_windows.get(window_entity) {
                     if let Some(cursor_position) = window.cursor_position()
                        // Calculate a ray pointing from the camera into the world based on the cursor's position.
@@ -216,7 +216,7 @@ fn zoomCameraProjection(projection: &mut Projection, scroll_direction: f32) {
             let zoom_speed = 0.5;
             let delta_zoom = scroll_direction * zoom_speed;
             let multiplicative_zoom = 1. + delta_zoom;
-            orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.1, 10.0);
+            orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(0.01, 50.0);
         }
         Projection::Perspective(ref mut perspective) => {
             // Changes in FOV are much more noticeable due to its limited range in radians
@@ -226,8 +226,8 @@ fn zoomCameraProjection(projection: &mut Projection, scroll_direction: f32) {
             perspective.fov = (perspective.fov + delta_zoom).clamp(
                 // Perspective projections use field of view, expressed in radians. We would
                 // normally not set it to more than π, which represents a 180° FOV.
-                (PI / 5.),
-                (PI - 0.2),
+                (PI / 15.),
+                (PI + 0.2),
             );
         }
         _ => (),
