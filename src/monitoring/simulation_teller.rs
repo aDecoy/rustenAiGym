@@ -3,6 +3,7 @@ use crate::monitoring::camera_stuff::{AllIndividerWindowTag, RENDER_LAYER_ALLE_I
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
+use bevy_rich_text3d::{LoadFonts, Text3d, Text3dPlugin, TextAtlas};
 
 pub struct SimulationRunningTellerPlugin;
 
@@ -13,7 +14,21 @@ impl Plugin for SimulationRunningTellerPlugin {
             .insert_resource(SimulationGenerationTimer {
                 main_timer: Timer::from_seconds(GENERATION_TIME, TimerMode::Repeating),
             })
-            .add_systems(Startup, spawn_simulation_tellertekst)
+
+            // for 3d text
+        .add_plugins(Text3dPlugin{
+            default_atlas_dimension: (1024, 1024),
+            load_system_fonts: true,
+            ..Default::default()
+        })
+            .insert_resource(LoadFonts {
+            font_paths: vec!["assets/roboto.ttf".to_owned()],
+            font_directories: vec!["assets/fonts".to_owned()],
+            ..Default::default()
+        })
+
+        .add_systems(Startup, spawn_simulation_tellertekst)
+        .add_systems(Startup, spawn_simulation_tellertekst_3d)
             .add_systems(Startup, spawn_simulation_generation_time_tellertekst)
             .add_systems(Startup, spawn_simulation_timer_tekst)
             .add_systems(
@@ -95,6 +110,45 @@ pub fn spawn_simulation_tellertekst(mut commands: Commands, window: Query<&Windo
         // RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
         RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
     ));
+}
+
+pub fn spawn_simulation_tellertekst_3d(mut commands: Commands, window: Query<&Window, With<AllIndividerWindowTag>>,
+                                       mut meshes: ResMut<Assets<Mesh>>,
+                                       mut standard_materials: ResMut<Assets<StandardMaterial>>) {
+    let window = window.single().expect("finner ikke noe hovedvindu!?!?! :O ");
+
+    // let text_style = TextStyle {
+    //     font_size: 30.0,
+    //     color: Color::WHITE,
+    //     ..default()
+    // };
+    let text_justification = Justify::Center;
+    commands.spawn((
+        Text3d::new("Hello, World!"),
+        // Mesh2d also works
+        Mesh3d::default(),
+        MeshMaterial3d(standard_materials.add(
+            StandardMaterial {
+                base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+                alpha_mode: AlphaMode::Blend,
+                ..Default::default()
+            }
+        )),
+                   RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
+    )
+    );
+
+    // commands.spawn((
+    //     Text2d::new("START"),
+    //     TextLayout::new_with_justify(Justify::Center),
+    //     // Transform::from_xyz(250.0, 250.0, 0.0),
+    //     // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 2d
+    //     Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 3d
+    //     // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
+    //     SimulationTotalRuntimeRunningTellerTekst,
+    //     // RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
+    //     RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
+    // ));
 }
 
 pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, window_query: Query<&Window, With<AllIndividerWindowTag>>) {

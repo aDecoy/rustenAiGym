@@ -31,6 +31,7 @@ avian3d = { version = "0.4.1" }
 #avian2d = { git = "https://github.com/Jondolf/avian.git", branch = "bevy-0.17-stable"   , features = ["2d"] }
 #avian2d = { git = "https://github.com/Jondolf/avian/tree/bevy-0.17-stable.git", features = ["2d"] }
 
+bevy_rich_text3d = "0.5.1"
 
 bevy-inspector-egui = "0.35.0"
 bevy_egui = "0.38.0"
