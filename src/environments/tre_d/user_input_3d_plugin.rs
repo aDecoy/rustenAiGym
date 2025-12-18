@@ -5,7 +5,7 @@ use crate::evolusjon::hjerne_fenotype::PhenotypeNeuralNetwork;
 use crate::evolusjon::phenotype_plugin::{Individ, PlankPhenotype};
 use crate::genome::genome_stuff::Genome;
 use crate::monitoring::camera_stuff::RENDER_LAYER_ALLE_INDIVIDER;
-use crate::monitoring::simulation_teller::SimulationTotalRuntimeRunningTeller;
+use crate::monitoring::simulation_teller::SimulationTotalMainShedualeUpdatesTeller;
 use avian3d::PhysicsPlugins;
 use avian3d::math::Vector;
 use avian3d::prelude::*;
@@ -202,12 +202,12 @@ fn print_environment_observations(query: Query<&Transform, With<PlankPhenotype>>
     }
 }
 
-fn get_score(time_alive: Res<SimulationTotalRuntimeRunningTeller>) -> u32 {
+fn get_score(time_alive: Res<SimulationTotalMainShedualeUpdatesTeller>) -> u32 {
     let score = time_alive.count.clone();
     return score;
 }
 
-fn print_score(time_alive: Res<SimulationTotalRuntimeRunningTeller>) {
+fn print_score(time_alive: Res<SimulationTotalMainShedualeUpdatesTeller>) {
     println!("score is time alive: {}", get_score(time_alive));
 }
 

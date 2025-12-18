@@ -10,8 +10,9 @@ pub struct SimulationRunningTellerPlugin;
 
 impl Plugin for SimulationRunningTellerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SimulationTotalRuntimeRunningTeller>()
-            .init_resource::<SimulationGenerationTeller>()
+        app
+            .init_resource::<SimulationTotalMainShedualeUpdatesTeller>()
+            // .init_resource::<SimulationGenerationTeller>()
             .insert_resource(SimulationGenerationTimer {
                 main_timer: Timer::from_seconds(GENERATION_TIME, TimerMode::Repeating),
             })
@@ -35,12 +36,12 @@ impl Plugin for SimulationRunningTellerPlugin {
             .add_systems(
                 Update,
                 ((
-                    add_one_to_simulation_running_teller::<SimulationTotalRuntimeRunningTeller>,
-                    oppdater_bevy_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst, SimulationTotalRuntimeRunningTeller>,
-                    resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekst>,
-                    timer_tick,
-                    // oppdater_bevy_simulation_tellertekst::<SimulationGenerationRunningTellerTekst, SimulationGenerationTeller>,
-                    oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekst>,
+                     add_one_to_simulation_running_teller::<SimulationTotalMainShedualeUpdatesTeller>,
+                     oppdater_bevy_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekstTag, SimulationTotalMainShedualeUpdatesTeller>,
+                     resize_simulation_tellertekst::<SimulationTotalRuntimeRunningTellerTekstTag>,
+                     timer_tick,
+                     // oppdater_bevy_simulation_tellertekst::<SimulationGenerationRunningTellerTekst, SimulationGenerationTeller>,
+                     oppdater_simulation_timer_tekst::<SimulationGenerationRunningTimerTekstTag>,
                 )
                     .chain()
                     .run_if(in_state(Kjøretilstand::Kjørende)),),
@@ -58,17 +59,19 @@ static GENERATION_TIME: f32 = 10.0;
 // static GENERATION_TIME: f32 = 5.0;
 
 #[derive(Component)]
-pub struct SimulationTotalRuntimeRunningTellerTekst;
+pub struct SimulationTotalRuntimeRunningTellerTekstTag;
 
 #[derive(Component)]
-pub struct SimulationGenerationRunningTellerTekst;
+pub struct SimulationGenerationRunningTellerTekstTag;
 
 #[derive(Resource, Default, Debug)]
-pub struct SimulationTotalRuntimeRunningTeller {
+/// Teller ett tikk per Update
+pub struct SimulationTotalMainShedualeUpdatesTeller {
     pub count: u32,
 }
 
 #[derive(Resource, Default, Debug)]
+/// Teller ett tikk per ny generasjon... Nei, ikke egentlig i bruk ? 
 struct SimulationGenerationTeller {
     pub count: u32,
 }
@@ -79,7 +82,7 @@ trait CounterResource {
     fn increment_counter_by_time_delta(&self) -> u32;
 }
 
-impl CounterResource for SimulationTotalRuntimeRunningTeller {
+impl CounterResource for SimulationTotalMainShedualeUpdatesTeller {
     fn counter_count_value(&self) -> u32 {
         self.count
     }
@@ -89,7 +92,7 @@ impl CounterResource for SimulationTotalRuntimeRunningTeller {
     }
 
     fn increment_counter_by_time_delta(&self) -> u32 {
-        todo!()
+        todo!() // todo kanskje lage en telle ressurs som holder på både antal Update tikks og på total tid? Slipper da å ha 2 
     }
 }
 
@@ -109,7 +112,7 @@ pub fn spawn_simulation_tellertekst_2d_primary_window(mut commands: Commands, wi
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 2d
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0), // 3d
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
-        SimulationTotalRuntimeRunningTellerTekst,
+        SimulationTotalRuntimeRunningTellerTekstTag,
         // RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
         RenderLayers::layer(RENDER_LAYER_ALLE_INDIVIDER),
     ));
@@ -122,7 +125,7 @@ pub fn spawn_simulation_tellertekst_2d_in_teller_camera(mut commands: Commands, 
         Text2d::new("START"),
         TextLayout::new_with_justify(Justify::Center),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
-        SimulationTotalRuntimeRunningTellerTekst,
+        SimulationTotalRuntimeRunningTellerTekstTag,
         RenderLayers::layer(RENDER_LAYER_TELLERE),
     ));
 }
@@ -192,7 +195,7 @@ pub fn spawn_simulation_generation_time_tellertekst(mut commands: Commands, wind
         // Transform::from_xyz(250.0, 250.0, 0.0),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
-        SimulationGenerationRunningTellerTekst,
+        SimulationGenerationRunningTellerTekstTag,
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
@@ -205,7 +208,7 @@ pub fn spawn_simulation_generation_time_tellertekst_2d_in_teller_camera(mut comm
         // Transform::from_xyz(250.0, 250.0, 0.0),
         Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         // global_GlobalTransform::from_xyz(0.0, 0.0, 0.0),
-        SimulationGenerationRunningTellerTekst,
+        SimulationGenerationRunningTellerTekstTag,
         RenderLayers::from_layers(&[RENDER_LAYER_TELLERE]),
     ));
 }
@@ -248,12 +251,14 @@ pub fn add_one_to_simulation_running_teller<Teller: CounterResource + bevy::prel
 ////// Timer /////////////////
 
 #[derive(Resource, Debug)]
+/// Hvor lang tid generasjonen har vart / har igjen. Holder på en Timer som restarter seg når den går ut. Øker med tiden siden sist Update hver update. 
 pub struct SimulationGenerationTimer {
     pub main_timer: Timer,
     // trigger_time: f64,
 }
 #[derive(Component)]
-pub struct SimulationGenerationRunningTimerTekst;
+/// Tag for teksten entiteten med tekst som viser SimulationGenerationTimer 
+pub struct SimulationGenerationRunningTimerTekstTag;
 
 fn timer_tick(time: Res<Time>, mut countdown: ResMut<SimulationGenerationTimer>) {
     countdown.main_timer.tick(time.delta());
@@ -274,7 +279,7 @@ pub fn spawn_simulation_timer_tekst(mut commands: Commands, window: Query<&Windo
         // Transform::from_xyz(250.0, 250.0, 0.0),
         // Transform::from_xyz(window.width() * 0.5 - 200.0, window.height() * 0.5 - 50.0, 0.0),
         Transform::from_xyz(-window.width() * 0.5 + 200.0, window.height() * 0.5 - 25.0, 0.0),
-        SimulationGenerationRunningTimerTekst,
+        SimulationGenerationRunningTimerTekstTag,
         RenderLayers::from_layers(&[RENDER_LAYER_ALLE_INDIVIDER]),
     ));
 }
